@@ -80,12 +80,22 @@ final class HUDWindowController {
         }
         let panel = NSPanel(
             contentRect: NSRect(origin: .zero, size: size),
+            // .nonactivatingPanel is the key: the HUD appears without
+            // stealing focus from the source app.
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        // .fullScreenAuxiliary is required for the HUD to appear over
+        // full-screen apps (e.g. Chrome/PDF in full screen) — without it
+        // the result card is invisible exactly when the user is heads-down.
+        panel.collectionBehavior = [
+            .canJoinAllSpaces,
+            .fullScreenAuxiliary,
+            .stationary,
+            .ignoresCycle
+        ]
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
