@@ -28,16 +28,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // Clipboard fallback for apps whose text is not exposed through
-        // Accessibility: copy, invoke the hotkey, then paste the rewrite.
-        let registered = GlobalHotkey.shared.register {
+        ClipboardHotkeyManager.shared.start {
             ClipboardRewriteController.shared.handleHotkey()
         }
-        if !registered {
-            HUDWindowController.shared.showHint(
-                "Could not register the global hotkey. Another app may be using Control-Option-Shift-Command-E."
-            )
+
+        if ClipboardHotkeyManager.shared.status == .unavailable {
+            HUDWindowController.shared.showHint(HotkeyStatus.unavailable.detail)
         }
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(applicationDidBecomeActive),
+            name: NSApplication.didBecomeActiveNotification,
+            object: nil
+        )
         updateActivationPolicy()
     }
 
@@ -66,6 +70,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        GlobalHotkey.shared.unregister()
+        ClipboardHotkeyManager.shared.stop()
+    }
+
+    @objc private func applicationDidBecomeActive() {
+        ClipboardHotkeyManager.shared.refresh()
     }
 }

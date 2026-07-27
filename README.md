@@ -49,6 +49,8 @@ with model and style-profile settings under ⌘,.
 - A universal **copy → hotkey → paste** fallback
   (**Control-Option-Shift-Command-E**) for editors whose selected text is not
   exposed through Accessibility, with a local change-summary HUD and Undo.
+  It uses a no-permission Carbon fallback plus optional Input Monitoring for
+  apps that consume the shortcut first, and respects macOS pasteboard privacy.
 
 ## Dictation notes
 
@@ -155,6 +157,11 @@ assign one in Keyboard Settings only if you want it.
 
 The universal flow sidesteps Accessibility limitations: your own copy and
 paste cross the app boundary, so it can work in canvas-rendered editors.
+
+For Google Docs, Electron apps, and other hosts that consume the hotkey before
+Carbon can see it, open **Rewrite → Settings** and enable **Enhanced Hotkey**
+(Input Monitoring). macOS may also ask once before Rewrite can read the
+clipboard; allow access under **Privacy & Security → Paste from Other Apps**.
 
 ## Privacy
 

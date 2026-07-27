@@ -68,19 +68,7 @@ final class HUDWindowController {
             panel.setContentSize(size)
             return panel
         }
-        let panel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
-        panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = true
-        panel.isReleasedWhenClosed = false
-        panel.hidesOnDeactivate = false
+        let panel = HUDPanel(contentRect: NSRect(origin: .zero, size: size))
         self.panel = panel
         return panel
     }

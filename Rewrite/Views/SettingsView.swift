@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var model: RewriteViewModel
+    @ObservedObject private var clipboardHotkeys = ClipboardHotkeyManager.shared
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
 
@@ -44,6 +45,26 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Universal hotkey") {
+                    LabeledContent("Reliability") {
+                        Label(
+                            clipboardHotkeys.status.title,
+                            systemImage: clipboardHotkeys.status.symbolName
+                        )
+                        .foregroundStyle(hotkeyColor)
+                    }
+
+                    Text(clipboardHotkeys.status.detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if clipboardHotkeys.status.tier != .enhanced {
+                        Button("Enable Enhanced Hotkey…") {
+                            clipboardHotkeys.requestInputMonitoringAccess()
+                        }
+                    }
+                }
+
                 Section("Privacy") {
                     Text(
                         model.provider == .appleIntelligence
@@ -51,6 +72,16 @@ struct SettingsView: View {
                             : "Rewrites are sent only to Ollama at 127.0.0.1."
                     )
                     .foregroundStyle(.secondary)
+
+                    Text(
+                        "The universal flow reads your clipboard after you copy. macOS may ask once under Privacy & Security → Paste from Other Apps."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                    Button("Open Pasteboard Settings…") {
+                        PasteboardAccess.openPrivacySettings()
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -63,9 +94,18 @@ struct SettingsView: View {
                     Label("Advanced", systemImage: "brain")
                 }
         }
-        .frame(width: 560, height: 460)
+        .frame(width: 560, height: 500)
         .task {
             await model.refreshStatus()
+            clipboardHotkeys.refresh()
+        }
+    }
+
+    private var hotkeyColor: Color {
+        switch clipboardHotkeys.status.tier {
+        case .enhanced: .green
+        case .carbonOnly: .orange
+        case .unavailable: .red
         }
     }
 

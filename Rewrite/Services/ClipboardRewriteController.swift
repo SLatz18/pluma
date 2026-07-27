@@ -16,33 +16,24 @@ final class ClipboardRewriteController {
     private init() {}
 
     func handleHotkey() {
-        let pasteboard = NSPasteboard.general
-
-        guard
-            let source = pasteboard.string(forType: .string),
-            !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        else {
-            HUDWindowController.shared.showHint("Copy some text first, then press the hotkey.")
-            return
-        }
-
-        // Clipboard still holds our previous result — the user probably
-        // pressed the hotkey again without copying new text.
-        if source == lastResult {
-            HUDWindowController.shared.showHint("Already rewrote this. Copy new text first.")
-            return
-        }
-
         guard !isRewriting else { return }
         isRewriting = true
 
-        let provider = Preferences.provider(from: .standard)
-        let intent = Preferences.intent(from: .standard)
-        let ollamaModel = Preferences.ollamaModel(from: .standard)
-
         Task {
             defer { isRewriting = false }
+
             do {
+                let source = try await PasteboardAccess.readString()
+
+                if source == lastResult {
+                    HUDWindowController.shared.showHint("Already rewrote this. Copy new text first.")
+                    return
+                }
+
+                let provider = Preferences.provider(from: .standard)
+                let intent = Preferences.intent(from: .standard)
+                let ollamaModel = Preferences.ollamaModel(from: .standard)
+
                 let output = try await RewriteRunner.rewrite(
                     provider: provider,
                     intent: intent,
@@ -57,13 +48,19 @@ final class ClipboardRewriteController {
 
                 lastOriginal = source
                 lastResult = output
-                pasteboard.clearContents()
-                pasteboard.setString(output, forType: .string)
+                PasteboardAccess.writeString(output)
                 HUDWindowController.shared.showResult(
                     original: source,
                     revised: output,
                     intent: intent
                 )
+            } catch let error as PasteboardAccess.ReadError {
+                var message = error.localizedDescription
+                if error == .accessDenied {
+                    message += " Open Settings to change this."
+                    PasteboardAccess.openPrivacySettings()
+                }
+                HUDWindowController.shared.showHint(message)
             } catch {
                 HUDWindowController.shared.showHint(error.localizedDescription)
             }
@@ -73,9 +70,7 @@ final class ClipboardRewriteController {
     /// Restores the pre-rewrite text to the clipboard.
     func undo() {
         guard let lastOriginal else { return }
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(lastOriginal, forType: .string)
+        PasteboardAccess.writeString(lastOriginal)
         lastResult = lastOriginal
         self.lastOriginal = nil
     }
