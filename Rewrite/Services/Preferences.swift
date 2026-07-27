@@ -4,6 +4,7 @@ enum Preferences {
     static let providerKey = "rewrite.provider"
     static let intentKey = "rewrite.intent"
     static let ollamaModelKey = "rewrite.ollamaModel"
+    static let styleProfileKey = "rewrite.styleProfile"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -27,5 +28,14 @@ enum Preferences {
 
     static func ollamaModel(from defaults: UserDefaults = .standard) -> String {
         defaults.string(forKey: ollamaModelKey) ?? ""
+    }
+
+    /// Selected style profile ID; empty means "No Style".
+    static func styleProfileID(from defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: styleProfileKey) ?? StyleProfile.none.id
+    }
+
+    static func styleProfile(from defaults: UserDefaults = .standard) -> StyleProfile {
+        StyleProfileStore.profile(id: styleProfileID(from: defaults), defaults: defaults)
     }
 }

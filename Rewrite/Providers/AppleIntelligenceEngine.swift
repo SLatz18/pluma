@@ -47,14 +47,18 @@ enum AppleIntelligenceEngine {
         }
     }
 
-    static func rewrite(_ text: String, intent: RewriteIntent) async throws -> String {
+    static func rewrite(
+        _ text: String,
+        intent: RewriteIntent,
+        profile: StyleProfile = .none
+    ) async throws -> String {
         guard model.isAvailable else {
             throw RewriteEngineError.modelUnavailable(status().detail)
         }
 
         let session = LanguageModelSession(
             model: model,
-            instructions: PromptComposer.systemInstructions
+            instructions: PromptComposer.systemInstructions(for: profile)
         )
         let response = try await session.respond(
             to: PromptComposer.userPrompt(intent: intent, text: text)

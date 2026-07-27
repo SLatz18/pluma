@@ -15,7 +15,12 @@ struct OllamaEngine: Sendable {
         return payload.models.map(\.name).sorted()
     }
 
-    func rewrite(_ text: String, intent: RewriteIntent, model: String) async throws -> String {
+    func rewrite(
+        _ text: String,
+        intent: RewriteIntent,
+        model: String,
+        profile: StyleProfile = .none
+    ) async throws -> String {
         guard !model.isEmpty else {
             throw RewriteEngineError.noOllamaModels
         }
@@ -28,7 +33,10 @@ struct OllamaEngine: Sendable {
             ChatRequest(
                 model: model,
                 messages: [
-                    .init(role: "system", content: PromptComposer.systemInstructions),
+                    .init(
+                        role: "system",
+                        content: PromptComposer.systemInstructions(for: profile)
+                    ),
                     .init(
                         role: "user",
                         content: PromptComposer.userPrompt(intent: intent, text: text)
