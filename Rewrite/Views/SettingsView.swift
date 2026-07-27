@@ -31,6 +31,34 @@ struct SettingsView: View {
                 }
             }
 
+            Section("Style profile") {
+                Picker("Profile", selection: profileBinding) {
+                    ForEach(model.availableProfiles) { profile in
+                        Text(profile.name).tag(profile.id)
+                    }
+                }
+
+                let profile = model.selectedProfile
+                if profile.id != StyleProfile.none.id {
+                    Text(profile.summary)
+                        .foregroundStyle(.secondary)
+                    if !profile.bannedPhrases.isEmpty {
+                        Text("Avoids: \(profile.bannedPhrases.prefix(3).joined(separator: ", "))\(profile.bannedPhrases.count > 3 ? ", \u{2026}" : "")")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    if profile.isManaged {
+                        Label("Managed by your organization", systemImage: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Text("Custom profiles: drop JSON files in ~/Library/Application Support/Rewrite/StyleProfiles")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+
             Section("Privacy") {
                 Text(
                     model.provider == .appleIntelligence
@@ -41,7 +69,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 480, height: 290)
+        .frame(width: 480, height: 380)
         .task {
             await model.refreshStatus()
         }
@@ -58,6 +86,13 @@ struct SettingsView: View {
         Binding(
             get: { model.ollamaModel },
             set: { model.setOllamaModel($0) }
+        )
+    }
+
+    private var profileBinding: Binding<String> {
+        Binding(
+            get: { model.selectedProfileID },
+            set: { model.selectProfile($0) }
         )
     }
 }
