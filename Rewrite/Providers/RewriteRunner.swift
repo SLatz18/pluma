@@ -139,5 +139,15 @@ enum RewriteRunner {
                 styleProfile: styleProfile
             )
         }
+
+        return try validatedOutput(output)
+    }
+
+    static func validatedOutput(_ output: String) throws -> String {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw RewriteEngineError.invalidResponse
+        }
+        return trimmed
     }
 }

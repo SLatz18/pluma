@@ -121,7 +121,23 @@ xcodebuild \
   build
 ```
 
+Run the test suite with:
+
+```sh
+xcodebuild \
+  -project Rewrite.xcodeproj \
+  -scheme Rewrite \
+  -configuration Debug \
+  -destination 'platform=macOS' \
+  -derivedDataPath DerivedData \
+  test
+```
+
 ## Use it in other apps
+
+Rewrite supports two sandbox-safe workflows.
+
+### Replace a selection directly
 
 1. Build and copy `Rewrite.app` into `/Applications`.
 2. Open Rewrite once and grant Accessibility access.

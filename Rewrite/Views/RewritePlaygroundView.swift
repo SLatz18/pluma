@@ -56,6 +56,7 @@ struct RewritePlaygroundView: View {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                     .font(DS.meta)
                     .foregroundStyle(.red)
+                    .accessibilityLabel("Rewrite failed. \(errorMessage)")
             }
         }
         .dsCard()
@@ -82,6 +83,7 @@ struct RewritePlaygroundView: View {
                     in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
                 )
                 .disabled(!isEditable)
+                .accessibilityLabel(title)
         }
         .frame(maxWidth: .infinity)
     }
@@ -104,6 +106,7 @@ struct RewritePlaygroundView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Use as original")
+                    .accessibilityLabel("Use result as original")
 
                     Button {
                         model.copyOutput()
@@ -112,6 +115,7 @@ struct RewritePlaygroundView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Copy")
+                    .accessibilityLabel("Copy result")
                 }
             }
 
@@ -136,6 +140,12 @@ struct RewritePlaygroundView: View {
             .background(
                 DS.insetBackground,
                 in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(
+                model.outputText.isEmpty
+                    ? "Result. Your rewritten text will appear here."
+                    : "Result. \(model.outputText)"
             )
         }
         .frame(maxWidth: .infinity)

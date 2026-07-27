@@ -12,6 +12,7 @@ final class ClipboardRewriteController {
     private var isRewriting = false
     private var lastOriginal: String?
     private var lastResult: String?
+    private var lastResultChangeCount: Int?
 
     private init() {}
 
@@ -19,8 +20,9 @@ final class ClipboardRewriteController {
         let pasteboard = NSPasteboard.general
 
         guard
-            let source = pasteboard.string(forType: .string),
-            !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let source = pasteboard.string(forType: .string)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            !source.isEmpty
         else {
             HUDWindowController.shared.showHint("Copy some text first, then press the hotkey.")
             return
@@ -28,13 +30,17 @@ final class ClipboardRewriteController {
 
         // Clipboard still holds our previous result — the user probably
         // pressed the hotkey again without copying new text.
-        if source == lastResult {
+        if source == lastResult, pasteboard.changeCount == lastResultChangeCount {
             HUDWindowController.shared.showHint("Already rewrote this. Copy new text first.")
             return
         }
 
-        guard !isRewriting else { return }
+        guard !isRewriting else {
+            HUDWindowController.shared.showHint("Rewrite is already working.")
+            return
+        }
         isRewriting = true
+        let originalChangeCount = pasteboard.changeCount
 
         let provider = Preferences.provider(from: .standard)
         let intent = Preferences.intent(from: .standard)
@@ -50,6 +56,10 @@ final class ClipboardRewriteController {
                     ollamaModel: ollamaModel
                 )
 
+                guard pasteboard.changeCount == originalChangeCount else {
+                    throw RewriteEngineError.clipboardChanged
+                }
+
                 guard output != source else {
                     HUDWindowController.shared.showHint("Looks good already — no changes needed.")
                     return
@@ -58,7 +68,10 @@ final class ClipboardRewriteController {
                 lastOriginal = source
                 lastResult = output
                 pasteboard.clearContents()
-                pasteboard.setString(output, forType: .string)
+                guard pasteboard.setString(output, forType: .string) else {
+                    throw RewriteEngineError.invalidResponse
+                }
+                lastResultChangeCount = pasteboard.changeCount
                 HUDWindowController.shared.showResult(
                     original: source,
                     revised: output,
@@ -71,12 +84,26 @@ final class ClipboardRewriteController {
     }
 
     /// Restores the pre-rewrite text to the clipboard.
-    func undo() {
-        guard let lastOriginal else { return }
+    @discardableResult
+    func undo() -> Bool {
         let pasteboard = NSPasteboard.general
+        guard
+            let lastOriginal,
+            let currentResult = lastResult,
+            pasteboard.changeCount == lastResultChangeCount,
+            pasteboard.string(forType: .string) == currentResult
+        else {
+            return false
+        }
+
         pasteboard.clearContents()
-        pasteboard.setString(lastOriginal, forType: .string)
+        guard pasteboard.setString(lastOriginal, forType: .string) else {
+            return false
+        }
+
         lastResult = lastOriginal
+        lastResultChangeCount = pasteboard.changeCount
         self.lastOriginal = nil
+        return true
     }
 }

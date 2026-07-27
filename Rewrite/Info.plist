@@ -20,6 +20,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSUIElement</key>
@@ -73,8 +75,6 @@
 			<string>Rewrite the selected text with your chosen local writing action.</string>
 			<key>NSTimeout</key>
 			<string>60000</string>
-			<key>NSUserData</key>
-			<string>selectedAction</string>
 		</dict>
 	</array>
 </dict>

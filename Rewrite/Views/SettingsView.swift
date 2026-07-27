@@ -52,6 +52,14 @@ struct SettingsView: View {
                     )
                     .foregroundStyle(.secondary)
                 }
+
+                Text(model.status.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button("Check Again") {
+                    Task { await model.refreshStatus() }
+                }
             }
             .formStyle(.grouped)
             .tabItem {
@@ -88,6 +96,13 @@ struct SettingsView: View {
         Binding(
             get: { model.provider },
             set: { model.selectProvider($0) }
+        )
+    }
+
+    private var intentBinding: Binding<RewriteIntent> {
+        Binding(
+            get: { model.selectedIntent },
+            set: { model.selectIntent($0) }
         )
     }
 

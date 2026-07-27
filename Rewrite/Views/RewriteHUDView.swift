@@ -56,6 +56,7 @@ struct RewriteHUDView: View {
                         .background(Color.primary.opacity(0.07), in: Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss")
             }
 
             // Change summary pill
@@ -85,6 +86,7 @@ struct RewriteHUDView: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
                 }
+                .accessibilityLabel("Rewritten text. \(revised)")
 
             // Footer
             HStack {
@@ -120,6 +122,10 @@ struct RewriteHUDView: View {
             }
         }
         .padding(16)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            "\(intent.title) complete. \(changes) \(changes == 1 ? "change" : "changes"). Ready to paste."
+        )
     }
 
     // MARK: - Minimal hint
@@ -135,6 +141,7 @@ struct RewriteHUDView: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Pieces

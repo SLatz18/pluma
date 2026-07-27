@@ -2,12 +2,43 @@ import AppKit
 import Foundation
 
 final class RewriteServiceProvider: NSObject {
+    typealias RewriteOperation = @Sendable (
+        RewriteProviderChoice,
+        RewriteIntent,
+        String,
+        String
+    ) async throws -> String
+
+    private let defaults: UserDefaults
+    private let timeout: TimeInterval
+    private let rewriteOperation: RewriteOperation
+
+    init(
+        defaults: UserDefaults = .standard,
+        timeout: TimeInterval = RewriteTimeouts.service,
+        rewriteOperation: @escaping RewriteOperation = { provider, intent, text, ollamaModel in
+            try await RewriteRunner.rewrite(
+                provider: provider,
+                intent: intent,
+                text: text,
+                ollamaModel: ollamaModel
+            )
+        }
+    ) {
+        self.defaults = defaults
+        self.timeout = timeout
+        self.rewriteOperation = rewriteOperation
+        super.init()
+    }
+
     @objc(rewriteSelection:userData:error:)
     func rewriteSelection(
         _ pasteboard: NSPasteboard,
         userData: String?,
         error errorPointer: AutoreleasingUnsafeMutablePointer<NSString?>
     ) {
+        errorPointer.pointee = nil
+
         guard
             let source = pasteboard.string(forType: .string)?
                 .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -17,14 +48,14 @@ final class RewriteServiceProvider: NSObject {
             return
         }
 
-        let defaults = UserDefaults.standard
         let provider = Preferences.provider(from: defaults)
         let chain = Preferences.chain(from: defaults)
         let ollamaModel = Preferences.ollamaModel(from: defaults)
         let resultBox = LockedResultBox<Result<String, Error>>()
         let semaphore = DispatchSemaphore(value: 0)
 
-        Task.detached(priority: .userInitiated) {
+        let worker = Task.detached(priority: .userInitiated) { [rewriteOperation] in
+            defer { semaphore.signal() }
             do {
                 // Nonisolated chain: the semaphore below blocks this thread,
                 // so hopping to the main actor here would deadlock.
@@ -34,14 +65,15 @@ final class RewriteServiceProvider: NSObject {
                     text: source,
                     ollamaModel: ollamaModel
                 )
+                let output = try RewriteRunner.validatedOutput(rawOutput)
                 resultBox.store(.success(output))
             } catch {
                 resultBox.store(.failure(error))
             }
-            semaphore.signal()
         }
 
-        guard semaphore.wait(timeout: .now() + 55) == .success else {
+        guard semaphore.wait(timeout: .now() + timeout) == .success else {
+            worker.cancel()
             errorPointer.pointee = RewriteEngineError.serviceTimedOut.localizedDescription as NSString
             return
         }
@@ -54,7 +86,10 @@ final class RewriteServiceProvider: NSObject {
         switch result {
         case .success(let output):
             pasteboard.clearContents()
-            pasteboard.setString(output, forType: .string)
+            guard pasteboard.setString(output, forType: .string) else {
+                errorPointer.pointee = RewriteEngineError.invalidResponse.localizedDescription as NSString
+                return
+            }
         case .failure(let error):
             errorPointer.pointee = error.localizedDescription as NSString
         }

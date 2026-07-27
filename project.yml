@@ -29,6 +29,7 @@ targets:
       - path: Rewrite
         excludes:
           - Info.plist
+          - PrivacyInfo.xcprivacy
           - Rewrite.entitlements
     settings:
       base:

@@ -1,18 +1,26 @@
 import Foundation
 
 struct OllamaEngine: Sendable {
-    private let baseURL = URL(string: "http://127.0.0.1:11434")!
+    private let baseURL: URL
+    private let session: URLSession
+
+    init(
+        baseURL: URL = URL(string: "http://127.0.0.1:11434")!,
+        session: URLSession = .shared
+    ) {
+        self.baseURL = baseURL
+        self.session = session
+    }
 
     func availableModels() async throws -> [String] {
         let url = baseURL.appending(path: "api/tags")
-        var request = URLRequest(url: url, timeoutInterval: 2)
+        var request = URLRequest(url: url, timeoutInterval: RewriteTimeouts.ollamaDiscovery)
         request.httpMethod = "GET"
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validate(response)
+        let (data, response) = try await perform(request)
+        try validate(response, data: data)
 
-        let payload = try JSONDecoder().decode(ModelListResponse.self, from: data)
-        return payload.models.map(\.name).sorted()
+        return try Self.decodeModels(from: data)
     }
 
     func rewrite(_ text: String, directive: String, model: String) async throws -> String {
@@ -21,7 +29,7 @@ struct OllamaEngine: Sendable {
         }
 
         let url = baseURL.appending(path: "api/chat")
-        var request = URLRequest(url: url, timeoutInterval: 60)
+        var request = URLRequest(url: url, timeoutInterval: RewriteTimeouts.modelRequest)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(
@@ -38,15 +46,10 @@ struct OllamaEngine: Sendable {
             )
         )
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        try validate(response)
+        let (data, response) = try await perform(request)
+        try validate(response, data: data)
 
-        let payload = try JSONDecoder().decode(ChatResponse.self, from: data)
-        let output = payload.message.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !output.isEmpty else {
-            throw RewriteEngineError.invalidResponse
-        }
-        return output
+        return try Self.decodeRewrite(from: data)
     }
 
     func complete(
@@ -100,7 +103,13 @@ struct OllamaEngine: Sendable {
             let httpResponse = response as? HTTPURLResponse,
             (200..<300).contains(httpResponse.statusCode)
         else {
-            throw RewriteEngineError.invalidResponse
+            if
+                let payload = try? JSONDecoder().decode(ErrorResponse.self, from: data),
+                !payload.error.isEmpty
+            {
+                throw RewriteEngineError.providerFailure("Ollama: \(payload.error)")
+            }
+            throw RewriteEngineError.providerFailure("Ollama returned an unsuccessful response.")
         }
     }
 }
@@ -138,5 +147,9 @@ private extension OllamaEngine {
 
     struct ChatResponse: Decodable {
         let message: Message
+    }
+
+    struct ErrorResponse: Decodable {
+        let error: String
     }
 }

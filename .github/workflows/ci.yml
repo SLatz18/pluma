@@ -1,0 +1,36 @@
+name: Build and test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project and assets
+        run: ./scripts/bootstrap.sh
+
+      - name: Validate property lists
+        run: |
+          plutil -lint Rewrite/Info.plist
+          plutil -lint Rewrite/PrivacyInfo.xcprivacy
+          plutil -lint Rewrite/Rewrite.entitlements
+
+      - name: Build and test
+        run: |
+          xcodebuild \
+            -project Rewrite.xcodeproj \
+            -scheme Rewrite \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            test

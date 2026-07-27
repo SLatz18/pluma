@@ -49,6 +49,9 @@ struct ProviderMenu: View {
         .menuStyle(.borderlessButton)
         .fixedSize()
         .help(model.status.detail)
+        .accessibilityLabel(
+            "\(model.provider.title). \(model.status.title). \(model.status.detail)"
+        )
     }
 
     private var statusColor: Color {

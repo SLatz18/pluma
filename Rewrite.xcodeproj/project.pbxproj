@@ -181,6 +181,7 @@
 				5AB40D680100BFA48F17735C /* PromptComposer.swift */,
 				7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */,
 				A8B64358056D8C5B7E2A799F /* RewriteViewModel.swift */,
+				D00000000000000000000004 /* WordDiffer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -279,6 +280,7 @@
 				B1BBB07A4B708176DAE02962 /* Resources */,
 				4D147024AA574C43193FFAC2 /* Services */,
 				F727C5F1E1009991A65D2F10 /* Views */,
+				D00000000000000000000008 /* PrivacyInfo.xcprivacy */,
 			);
 			path = Rewrite;
 			sourceTree = "<group>";
@@ -291,6 +293,7 @@
 				89E9DABF7A19E947CDA88014 /* OpenAIChatEngine.swift */,
 				BB7DA4F5EDC2571D3729FBE5 /* RewriteEngineError.swift */,
 				604D0B397733765D80DD509B /* RewriteRunner.swift */,
+				D00000000000000000000006 /* RewriteTimeouts.swift */,
 			);
 			path = Providers;
 			sourceTree = "<group>";
@@ -323,6 +326,14 @@
 			path = App;
 			sourceTree = "<group>";
 		};
+		E00000000000000000000001 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				D00000000000000000000007 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		F727C5F1E1009991A65D2F10 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -336,6 +347,7 @@
 				B0E54C998C2C48588B6FDB22 /* MainWindowView.swift */,
 				2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */,
 				DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */,
+				D00000000000000000000005 /* RewriteHUDView.swift */,
 				982A458659DDEE62AFE4AC0A /* RewritePlaygroundView.swift */,
 				3269C366CBF5C6B50F183168 /* SettingsView.swift */,
 				2E033149EBE02D29FD338F0B /* ShortcutRecorderView.swift */,
@@ -483,11 +495,13 @@
 				AB194F6BFE3DBC1537FFFBC9 /* RewriteActionCard.swift in Sources */,
 				37DCEFA5C00A1B6159EB20C3 /* RewriteApp.swift in Sources */,
 				865C01BF3F3FE64FFFD248A9 /* RewriteEngineError.swift in Sources */,
+				C00000000000000000000005 /* RewriteHUDView.swift in Sources */,
 				368B8C7139A2985F9E7F6664 /* RewriteIntent.swift in Sources */,
 				8EF7C01C70286BB142FB3038 /* RewritePlaygroundView.swift in Sources */,
 				62922D2981C1AFC89F3A482B /* RewriteProviderChoice.swift in Sources */,
 				DB296F8A1A21AD9D71FE6E61 /* RewriteRunner.swift in Sources */,
 				1E7DC9CAB1288EE107DCEE73 /* RewriteServiceProvider.swift in Sources */,
+				C00000000000000000000006 /* RewriteTimeouts.swift in Sources */,
 				6E6AB46C18D6EEBD54264722 /* RewriteViewModel.swift in Sources */,
 				C253E8AB6B75092830790FEF /* ScreenContextProvider.swift in Sources */,
 				ECB19901D69E9BB1B0B95935 /* SelectionRewriteController.swift in Sources */,

@@ -16,8 +16,11 @@ final class HUDWindowController {
         let view = RewriteHUDView(
             mode: .result(original: original, revised: revised, intent: intent),
             onUndo: { [weak self] in
-                ClipboardRewriteController.shared.undo()
-                self?.dismiss()
+                if ClipboardRewriteController.shared.undo() {
+                    self?.dismiss()
+                } else {
+                    self?.showHint("The clipboard changed, so Rewrite left it alone.")
+                }
             },
             onDone: { [weak self] in self?.dismiss() }
         )

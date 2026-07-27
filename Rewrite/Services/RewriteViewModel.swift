@@ -14,6 +14,7 @@ final class RewriteViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     private let defaults: UserDefaults
+    private var statusRefreshID = UUID()
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -22,9 +23,19 @@ final class RewriteViewModel: ObservableObject {
         ollamaModel = Preferences.ollamaModel(from: defaults)
     }
 
+    var canRewrite: Bool {
+        status.isReady
+            && !isRewriting
+            && !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     func selectProvider(_ newProvider: RewriteProviderChoice) {
+        guard provider != newProvider else { return }
         provider = newProvider
         defaults.set(newProvider.rawValue, forKey: Preferences.providerKey)
+        status = .checking
+        outputText = ""
+        errorMessage = nil
         Task { await refreshStatus() }
     }
 
@@ -66,17 +77,30 @@ final class RewriteViewModel: ObservableObject {
     func setOllamaModel(_ model: String) {
         ollamaModel = model
         defaults.set(model, forKey: Preferences.ollamaModelKey)
+        if provider == .ollama, status.isReady {
+            status = ProviderStatus(
+                state: .ready,
+                title: "Ollama ready",
+                detail: model,
+                symbolName: "desktopcomputer"
+            )
+        }
     }
 
     func refreshStatus() async {
+        let refreshID = UUID()
+        statusRefreshID = refreshID
+        let requestedProvider = provider
         status = .checking
 
-        switch provider {
+        switch requestedProvider {
         case .appleIntelligence:
+            guard statusRefreshID == refreshID, provider == requestedProvider else { return }
             status = AppleIntelligenceEngine.status()
         case .ollama:
             do {
                 let models = try await OllamaEngine().availableModels()
+                guard statusRefreshID == refreshID, provider == requestedProvider else { return }
                 availableOllamaModels = models
 
                 guard let firstModel = models.first else {
@@ -100,11 +124,12 @@ final class RewriteViewModel: ObservableObject {
                     symbolName: "desktopcomputer"
                 )
             } catch {
+                guard statusRefreshID == refreshID, provider == requestedProvider else { return }
                 availableOllamaModels = []
                 status = ProviderStatus(
                     state: .unavailable,
                     title: "Ollama not found",
-                    detail: "Start Ollama on this Mac, then check again.",
+                    detail: error.localizedDescription,
                     symbolName: "desktopcomputer.trianglebadge.exclamationmark"
                 )
             }
@@ -119,6 +144,13 @@ final class RewriteViewModel: ObservableObject {
         }
         guard !chain.isEmpty else {
             errorMessage = RewriteEngineError.emptyChain.localizedDescription
+            return
+        }
+
+        guard status.isReady else {
+            errorMessage = RewriteEngineError
+                .providerNotReady(status.detail)
+                .localizedDescription
             return
         }
 
