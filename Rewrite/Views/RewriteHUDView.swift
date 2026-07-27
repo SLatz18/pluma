@@ -6,7 +6,7 @@ import SwiftUI
 /// the HUD informs, it never gates.
 struct RewriteHUDView: View {
     enum Mode {
-        case result(original: String, revised: String, intent: RewriteIntent)
+        case result(original: String, revised: String, intent: RewriteIntent, profile: StyleProfile)
         case hint(String)
     }
 
@@ -17,8 +17,8 @@ struct RewriteHUDView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             switch mode {
-            case .result(let original, let revised, let intent):
-                resultBody(original: original, revised: revised, intent: intent)
+            case .result(let original, let revised, let intent, let profile):
+                resultBody(original: original, revised: revised, intent: intent, profile: profile)
             case .hint(let message):
                 hintBody(message)
             }
@@ -33,7 +33,12 @@ struct RewriteHUDView: View {
 
     // MARK: - Full result card
 
-    private func resultBody(original: String, revised: String, intent: RewriteIntent) -> some View {
+    private func resultBody(
+        original: String,
+        revised: String,
+        intent: RewriteIntent,
+        profile: StyleProfile
+    ) -> some View {
         let segments = WordDiffer.diff(original: original, revised: revised)
         let changes = WordDiffer.changeCount(segments)
 
@@ -44,7 +49,13 @@ struct RewriteHUDView: View {
                 Image(systemName: "arrow.right")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.tertiary)
-                recipeNode(icon: intent.symbolName, title: intent.title, tint: .green)
+                recipeNode(
+                    icon: intent.symbolName,
+                    title: profile.id == StyleProfile.none.id
+                        ? intent.title
+                        : "\(intent.title) + \(profile.name)",
+                    tint: .green
+                )
 
                 Spacer(minLength: 4)
 
@@ -145,6 +156,7 @@ struct RewriteHUDView: View {
                 .font(.caption2.weight(.semibold))
             Text(title)
                 .font(.caption2.weight(.semibold))
+                .lineLimit(1)
         }
         .foregroundStyle(tint == .green ? Color.green : Color.secondary)
         .padding(.horizontal, 9)

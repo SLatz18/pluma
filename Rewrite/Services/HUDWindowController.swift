@@ -12,9 +12,19 @@ final class HUDWindowController {
 
     private init() {}
 
-    func showResult(original: String, revised: String, intent: RewriteIntent) {
+    func showResult(
+        original: String,
+        revised: String,
+        intent: RewriteIntent,
+        profile: StyleProfile = .none
+    ) {
         let view = RewriteHUDView(
-            mode: .result(original: original, revised: revised, intent: intent),
+            mode: .result(
+                original: original,
+                revised: revised,
+                intent: intent,
+                profile: profile
+            ),
             onUndo: { [weak self] in
                 ClipboardRewriteController.shared.undo()
                 self?.dismiss()
