@@ -108,8 +108,8 @@ final class RewriteViewModel: ObservableObject {
                 guard let firstModel = models.first else {
                     status = ProviderStatus(
                         state: .waiting,
-                        title: "No Ollama models",
-                        detail: "Install one local model to continue.",
+                        title: "No local Ollama models",
+                        detail: "Install a model on this Mac to continue. Cloud models are excluded.",
                         symbolName: "shippingbox"
                     )
                     return

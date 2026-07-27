@@ -135,10 +135,6 @@ xcodebuild \
 
 ## Use it in other apps
 
-Rewrite supports two sandbox-safe workflows.
-
-### Replace a selection directly
-
 1. Build and copy `Rewrite.app` into `/Applications`.
 2. Open Rewrite once and grant Accessibility access.
 3. Select editable text in another Mac app.

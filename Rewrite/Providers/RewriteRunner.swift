@@ -10,7 +10,8 @@ enum RewriteRunner {
         provider: RewriteProviderChoice,
         intent: RewriteIntent,
         text: String,
-        ollamaModel: String
+        ollamaModel: String,
+        timeout: TimeInterval = RewriteTimeouts.modelRequest
     ) async throws -> String {
         try await rewrite(
             provider: provider,

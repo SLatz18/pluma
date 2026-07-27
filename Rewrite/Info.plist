@@ -67,6 +67,8 @@
 			<array>
 				<string>public.utf8-plain-text</string>
 			</array>
+			<key>NSServiceCategory</key>
+			<string>public.text</string>
 			<key>NSSendTypes</key>
 			<array>
 				<string>public.utf8-plain-text</string>
@@ -74,7 +76,7 @@
 			<key>NSServiceDescription</key>
 			<string>Rewrite the selected text with your chosen local writing action.</string>
 			<key>NSTimeout</key>
-			<string>60000</string>
+			<string>30000</string>
 		</dict>
 	</array>
 </dict>

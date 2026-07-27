@@ -6,14 +6,32 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: macos-26
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
 
       - name: Install XcodeGen
-        run: brew install xcodegen
+        run: |
+          archive="$RUNNER_TEMP/xcodegen-2.46.0.zip"
+          curl --fail --location --silent --show-error \
+            'https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip' \
+            --output "$archive"
+          echo '4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806  '"$archive" \
+            | shasum -a 256 -c
+          ditto -x -k "$archive" "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/xcodegen/bin/xcodegen" --version
 
       - name: Generate project and assets
         run: ./scripts/bootstrap.sh
@@ -23,6 +41,9 @@ jobs:
           plutil -lint Rewrite/Info.plist
           plutil -lint Rewrite/PrivacyInfo.xcprivacy
           plutil -lint Rewrite/Rewrite.entitlements
+
+      - name: Validate shipping configuration
+        run: python3 scripts/validate-shipping.py
 
       - name: Build and test
         run: |
@@ -35,8 +56,19 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             test
 
+      - name: Build release configuration
+        run: |
+          xcodebuild \
+            -project Rewrite.xcodeproj \
+            -scheme Rewrite \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
       - name: Verify packaged resources
         run: |
-          resources='DerivedData/Build/Products/Debug/Rewrite.app/Contents/Resources'
+          resources='DerivedData/Build/Products/Release/Rewrite.app/Contents/Resources'
           test -f "$resources/Assets.car"
           test -f "$resources/PrivacyInfo.xcprivacy"

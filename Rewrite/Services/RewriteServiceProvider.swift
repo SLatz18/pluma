@@ -21,7 +21,8 @@ final class RewriteServiceProvider: NSObject {
                 provider: provider,
                 intent: intent,
                 text: text,
-                ollamaModel: ollamaModel
+                ollamaModel: ollamaModel,
+                timeout: RewriteTimeouts.serviceRequest
             )
         }
     ) {

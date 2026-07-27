@@ -10,10 +10,19 @@ final class PromptComposerTests: XCTestCase {
     }
 
     func testSourceTextIsDelimited() {
-        let prompt = PromptComposer.userPrompt(intent: .improve, text: "Original words")
+        let prompt = PromptComposer.userPrompt(
+            intent: .improve,
+            text: "Original words",
+            boundary: "TEST-BOUNDARY"
+        )
 
-        XCTAssertTrue(prompt.contains("<source>\nOriginal words\n</source>"))
-        XCTAssertTrue(prompt.contains("Return only the edited text."))
+        XCTAssertTrue(
+            prompt.contains(
+                "---BEGIN SOURCE TEST-BOUNDARY---\nOriginal words\n---END SOURCE TEST-BOUNDARY---"
+            )
+        )
+        XCTAssertTrue(prompt.contains("<rewrite>"))
+        XCTAssertTrue(prompt.contains("<unchanged/>"))
     }
 
     func testAppleIntelligenceIsTheDefaultProvider() {

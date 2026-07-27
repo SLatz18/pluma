@@ -182,7 +182,6 @@
 				7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */,
 				A8B64358056D8C5B7E2A799F /* RewriteViewModel.swift */,
 				D0000000000000000000000F /* TextEnvelope.swift */,
-				D00000000000000000000004 /* WordDiffer.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -348,7 +347,6 @@
 				B0E54C998C2C48588B6FDB22 /* MainWindowView.swift */,
 				2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */,
 				DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */,
-				D00000000000000000000005 /* RewriteHUDView.swift */,
 				982A458659DDEE62AFE4AC0A /* RewritePlaygroundView.swift */,
 				3269C366CBF5C6B50F183168 /* SettingsView.swift */,
 				2E033149EBE02D29FD338F0B /* ShortcutRecorderView.swift */,
@@ -496,7 +494,6 @@
 				AB194F6BFE3DBC1537FFFBC9 /* RewriteActionCard.swift in Sources */,
 				37DCEFA5C00A1B6159EB20C3 /* RewriteApp.swift in Sources */,
 				865C01BF3F3FE64FFFD248A9 /* RewriteEngineError.swift in Sources */,
-				C00000000000000000000005 /* RewriteHUDView.swift in Sources */,
 				368B8C7139A2985F9E7F6664 /* RewriteIntent.swift in Sources */,
 				8EF7C01C70286BB142FB3038 /* RewritePlaygroundView.swift in Sources */,
 				62922D2981C1AFC89F3A482B /* RewriteProviderChoice.swift in Sources */,

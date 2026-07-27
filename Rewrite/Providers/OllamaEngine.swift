@@ -27,12 +27,32 @@ struct OllamaEngine: Sendable {
         guard !model.isEmpty else {
             throw RewriteEngineError.noOllamaModels
         }
+        guard try await availableModels().contains(model) else {
+            throw RewriteEngineError.cloudOllamaModel
+        }
 
         let url = baseURL.appending(path: "api/chat")
         var request = URLRequest(url: url, timeoutInterval: RewriteTimeouts.modelRequest)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(
+        request.httpBody = try Self.makeChatRequestBody(
+            text: text,
+            intent: intent,
+            model: model
+        )
+
+        let (data, response) = try await perform(request)
+        try validate(response, data: data)
+
+        return try Self.decodeRewrite(from: data, original: text)
+    }
+
+    static func makeChatRequestBody(
+        text: String,
+        intent: RewriteIntent,
+        model: String
+    ) throws -> Data {
+        try JSONEncoder().encode(
             ChatRequest(
                 model: model,
                 messages: [
@@ -42,14 +62,10 @@ struct OllamaEngine: Sendable {
                         content: PromptComposer.userPrompt(directive: directive, text: text)
                     )
                 ],
-                stream: false
+                stream: false,
+                options: .init(seed: 0, temperature: 0)
             )
         )
-
-        let (data, response) = try await perform(request)
-        try validate(response, data: data)
-
-        return try Self.decodeRewrite(from: data)
     }
 
     func complete(
@@ -101,6 +117,7 @@ struct OllamaEngine: Sendable {
     private func validate(_ response: URLResponse) throws {
         guard
             let httpResponse = response as? HTTPURLResponse,
+            LoopbackPolicy.allows(httpResponse.url),
             (200..<300).contains(httpResponse.statusCode)
         else {
             if
@@ -121,6 +138,22 @@ private extension OllamaEngine {
 
     struct Model: Decodable {
         let name: String
+        let size: Int64
+        let digest: String
+        let details: ModelDetails
+
+        var isStoredLocally: Bool {
+            let normalizedName = name.lowercased()
+            return size > 0
+                && !digest.isEmpty
+                && !details.format.isEmpty
+                && !normalizedName.contains(":cloud")
+                && !normalizedName.hasSuffix("-cloud")
+        }
+    }
+
+    struct ModelDetails: Decodable {
+        let format: String
     }
 
     struct ChatRequest: Encodable {
@@ -151,5 +184,38 @@ private extension OllamaEngine {
 
     struct ErrorResponse: Decodable {
         let error: String
+    }
+}
+
+enum LoopbackPolicy {
+    static func allows(_ url: URL?) -> Bool {
+        guard
+            let url,
+            let scheme = url.scheme?.lowercased(),
+            let host = url.host?.lowercased(),
+            scheme == "http" || scheme == "https"
+        else {
+            return false
+        }
+
+        return host == "127.0.0.1" || host == "localhost" || host == "::1"
+    }
+}
+
+private final class LoopbackOnlyRedirectDelegate:
+    NSObject,
+    URLSessionTaskDelegate,
+    @unchecked Sendable
+{
+    static let shared = LoopbackOnlyRedirectDelegate()
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping @Sendable (URLRequest?) -> Void
+    ) {
+        completionHandler(LoopbackPolicy.allows(request.url) ? request : nil)
     }
 }

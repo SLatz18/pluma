@@ -15,4 +15,9 @@ final class RewriteRunnerTests: XCTestCase {
             }
         }
     }
+
+    func testServiceTimeoutsLeaveHeadroomForAppKit() {
+        XCTAssertLessThan(RewriteTimeouts.serviceRequest, RewriteTimeouts.service)
+        XCTAssertLessThan(RewriteTimeouts.service, 30)
+    }
 }
