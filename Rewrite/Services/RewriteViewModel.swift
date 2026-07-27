@@ -5,6 +5,7 @@ import Foundation
 final class RewriteViewModel: ObservableObject {
     @Published private(set) var provider: RewriteProviderChoice
     @Published private(set) var selectedIntent: RewriteIntent
+    @Published private(set) var selectedProfileID: String
     @Published private(set) var status: ProviderStatus = .checking
     @Published var inputText = "I wanted to check in and see if you had a chance to look at the draft I sent over yesterday."
     @Published var outputText = ""
@@ -15,10 +16,19 @@ final class RewriteViewModel: ObservableObject {
 
     private let defaults: UserDefaults
 
+    var availableProfiles: [StyleProfile] {
+        StyleProfileStore.availableProfiles(defaults: defaults)
+    }
+
+    var selectedProfile: StyleProfile {
+        availableProfiles.first { $0.id == selectedProfileID } ?? .none
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         provider = Preferences.provider(from: defaults)
         selectedIntent = Preferences.intent(from: defaults)
+        selectedProfileID = Preferences.styleProfileID(from: defaults)
         ollamaModel = Preferences.ollamaModel(from: defaults)
     }
 
@@ -31,6 +41,13 @@ final class RewriteViewModel: ObservableObject {
     func selectIntent(_ newIntent: RewriteIntent) {
         selectedIntent = newIntent
         defaults.set(newIntent.rawValue, forKey: Preferences.intentKey)
+        outputText = ""
+        errorMessage = nil
+    }
+
+    func selectProfile(_ profileID: String) {
+        selectedProfileID = profileID
+        defaults.set(profileID, forKey: Preferences.styleProfileKey)
         outputText = ""
         errorMessage = nil
     }
@@ -99,7 +116,8 @@ final class RewriteViewModel: ObservableObject {
                 provider: provider,
                 intent: selectedIntent,
                 text: source,
-                ollamaModel: ollamaModel
+                ollamaModel: ollamaModel,
+                profile: selectedProfile
             )
         } catch {
             errorMessage = error.localizedDescription

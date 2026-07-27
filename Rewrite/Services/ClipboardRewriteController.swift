@@ -36,9 +36,11 @@ final class ClipboardRewriteController {
         guard !isRewriting else { return }
         isRewriting = true
 
-        let provider = Preferences.provider(from: .standard)
-        let intent = Preferences.intent(from: .standard)
-        let ollamaModel = Preferences.ollamaModel(from: .standard)
+        let defaults = UserDefaults.standard
+        let provider = Preferences.provider(from: defaults)
+        let intent = Preferences.intent(from: defaults)
+        let ollamaModel = Preferences.ollamaModel(from: defaults)
+        let profile = Preferences.styleProfile(from: defaults)
 
         Task {
             defer { isRewriting = false }
@@ -47,7 +49,8 @@ final class ClipboardRewriteController {
                     provider: provider,
                     intent: intent,
                     text: source,
-                    ollamaModel: ollamaModel
+                    ollamaModel: ollamaModel,
+                    profile: profile
                 )
 
                 guard output != source else {
@@ -62,7 +65,8 @@ final class ClipboardRewriteController {
                 HUDWindowController.shared.showResult(
                     original: source,
                     revised: output,
-                    intent: intent
+                    intent: intent,
+                    profile: profile
                 )
             } catch {
                 HUDWindowController.shared.showHint(error.localizedDescription)

@@ -21,6 +21,7 @@ final class RewriteServiceProvider: NSObject {
         let provider = Preferences.provider(from: defaults)
         let intent = Preferences.intent(from: defaults)
         let ollamaModel = Preferences.ollamaModel(from: defaults)
+        let profile = Preferences.styleProfile(from: defaults)
         let resultBox = LockedResultBox<Result<String, Error>>()
         let semaphore = DispatchSemaphore(value: 0)
 
@@ -30,7 +31,8 @@ final class RewriteServiceProvider: NSObject {
                     provider: provider,
                     intent: intent,
                     text: source,
-                    ollamaModel: ollamaModel
+                    ollamaModel: ollamaModel,
+                    profile: profile
                 )
                 resultBox.store(.success(output))
             } catch {
