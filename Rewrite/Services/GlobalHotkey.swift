@@ -13,13 +13,16 @@ final class GlobalHotkey {
 
     private var hotKeyRef: EventHotKeyRef?
     private var action: (() -> Void)?
+    private(set) var isRegistered = false
 
     private init() {}
 
     /// Registers Control-Option-Shift-Command-E (hyperkey + E).
-    func register(action: @escaping () -> Void) {
+    @discardableResult
+    func register(action: @escaping () -> Void) -> Bool {
         unregister()
         self.action = action
+        isRegistered = false
 
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
@@ -46,7 +49,7 @@ final class GlobalHotkey {
         let hotKeyID = EventHotKeyID(signature: 0x52575254, id: 1)
         let modifiers = UInt32(controlKey | optionKey | shiftKey | cmdKey)
 
-        RegisterEventHotKey(
+        let status = RegisterEventHotKey(
             UInt32(kVK_ANSI_E),
             modifiers,
             hotKeyID,
@@ -54,6 +57,8 @@ final class GlobalHotkey {
             0,
             &hotKeyRef
         )
+        isRegistered = status == noErr
+        return isRegistered
     }
 
     func unregister() {
@@ -62,5 +67,6 @@ final class GlobalHotkey {
         }
         hotKeyRef = nil
         action = nil
+        isRegistered = false
     }
 }

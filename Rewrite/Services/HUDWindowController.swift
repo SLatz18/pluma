@@ -86,7 +86,11 @@ final class HUDWindowController {
     }
 
     private func positionTopRight(_ panel: NSPanel) {
-        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
+        let mouseLocation = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(mouseLocation) }
+            ?? NSScreen.main
+            ?? NSScreen.screens.first
+        guard let screen else { return }
         let frame = screen.visibleFrame
         let origin = NSPoint(
             x: frame.maxX - panel.frame.width - 16,

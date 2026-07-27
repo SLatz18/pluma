@@ -116,8 +116,8 @@ brew install xcodegen
 open Rewrite.xcodeproj
 ```
 
-Re-run `./scripts/bootstrap.sh` after pulling branches that add or remove
-source files — `Rewrite.xcodeproj` is generated, not committed.
+Re-run `./scripts/bootstrap.sh` after pulling changes that add or remove
+source files. CI regenerates the project on every build.
 
 Or build from Terminal:
 

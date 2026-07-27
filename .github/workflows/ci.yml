@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main, cloudai/**]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: ./scripts/bootstrap.sh
+
+      - name: Build
+        run: |
+          xcodebuild \
+            -project Rewrite.xcodeproj \
+            -scheme Rewrite \
+            -configuration Debug \
+            -derivedDataPath DerivedData \
+            build
+
+      - name: Test
+        run: |
+          xcodebuild \
+            -project Rewrite.xcodeproj \
+            -scheme Rewrite \
+            -configuration Debug \
+            -derivedDataPath DerivedData \
+            test
