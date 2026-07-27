@@ -181,6 +181,7 @@
 				5AB40D680100BFA48F17735C /* PromptComposer.swift */,
 				7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */,
 				A8B64358056D8C5B7E2A799F /* RewriteViewModel.swift */,
+				D0000000000000000000000F /* TextEnvelope.swift */,
 				D00000000000000000000004 /* WordDiffer.swift */,
 			);
 			path = Services;

@@ -10,7 +10,7 @@ final class ClipboardRewriteController {
     static let shared = ClipboardRewriteController()
 
     private var isRewriting = false
-    private var lastOriginal: String?
+    private var lastSnapshot: PasteboardSnapshot?
     private var lastResult: String?
     private var lastResultChangeCount: Int?
 
@@ -19,10 +19,18 @@ final class ClipboardRewriteController {
     func handleHotkey() {
         let pasteboard = NSPasteboard.general
 
+        guard !isRewriting else {
+            HUDWindowController.shared.showHint("Rewrite is already working.")
+            return
+        }
+
+        let originalChangeCount = pasteboard.changeCount
+        let originalSnapshot = PasteboardSnapshot(pasteboard)
         guard
-            let source = pasteboard.string(forType: .string)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-            !source.isEmpty
+            pasteboard.changeCount == originalChangeCount,
+            let source = pasteboard.string(forType: .string),
+            let envelope = TextEnvelope(source),
+            pasteboard.changeCount == originalChangeCount
         else {
             HUDWindowController.shared.showHint("Copy some text first, then press the hotkey.")
             return
@@ -35,12 +43,8 @@ final class ClipboardRewriteController {
             return
         }
 
-        guard !isRewriting else {
-            HUDWindowController.shared.showHint("Rewrite is already working.")
-            return
-        }
         isRewriting = true
-        let originalChangeCount = pasteboard.changeCount
+        HUDWindowController.shared.showHint("Rewriting copied text…")
 
         let provider = Preferences.provider(from: .standard)
         let intent = Preferences.intent(from: .standard)
@@ -52,29 +56,34 @@ final class ClipboardRewriteController {
                 let output = try await RewriteRunner.rewrite(
                     provider: provider,
                     intent: intent,
-                    text: source,
+                    text: envelope.body,
                     ollamaModel: ollamaModel
                 )
+                let revisedText = try envelope.replacingBody(with: output)
 
                 guard pasteboard.changeCount == originalChangeCount else {
                     throw RewriteEngineError.clipboardChanged
                 }
 
-                guard output != source else {
+                guard revisedText != source else {
                     HUDWindowController.shared.showHint("Looks good already — no changes needed.")
                     return
                 }
 
-                lastOriginal = source
-                lastResult = output
-                pasteboard.clearContents()
-                guard pasteboard.setString(output, forType: .string) else {
+                guard PasteboardSnapshot.replaceString(
+                    revisedText,
+                    on: pasteboard,
+                    rollbackTo: originalSnapshot
+                ) else {
                     throw RewriteEngineError.invalidResponse
                 }
+
+                lastSnapshot = originalSnapshot
+                lastResult = revisedText
                 lastResultChangeCount = pasteboard.changeCount
                 HUDWindowController.shared.showResult(
                     original: source,
-                    revised: output,
+                    revised: revisedText,
                     intent: intent
                 )
             } catch {
@@ -88,22 +97,22 @@ final class ClipboardRewriteController {
     func undo() -> Bool {
         let pasteboard = NSPasteboard.general
         guard
-            let lastOriginal,
+            let lastSnapshot,
             let currentResult = lastResult,
             pasteboard.changeCount == lastResultChangeCount,
-            pasteboard.string(forType: .string) == currentResult
+            pasteboard.string(forType: .string) == currentResult,
+            pasteboard.changeCount == lastResultChangeCount
         else {
             return false
         }
 
-        pasteboard.clearContents()
-        guard pasteboard.setString(lastOriginal, forType: .string) else {
+        guard lastSnapshot.restore(to: pasteboard) else {
             return false
         }
 
-        lastResult = lastOriginal
-        lastResultChangeCount = pasteboard.changeCount
-        self.lastOriginal = nil
+        self.lastSnapshot = nil
+        lastResult = nil
+        lastResultChangeCount = nil
         return true
     }
 }

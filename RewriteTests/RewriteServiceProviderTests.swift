@@ -65,6 +65,28 @@ final class RewriteServiceProviderTests: XCTestCase {
         XCTAssertEqual(pasteboard.string(forType: .string), "Keep this")
     }
 
+    func testSuccessfulRewritePreservesSelectionBoundaryWhitespace() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let provider = RewriteServiceProvider(
+            defaults: defaults,
+            timeout: 1,
+            rewriteOperation: { _, _, text, _ in
+                text == "Indented text" ? "Revised text" : "Unexpected input"
+            }
+        )
+        let pasteboard = makePasteboard(containing: "\n  Indented text  \n")
+        var serviceError: NSString?
+
+        provider.rewriteSelection(pasteboard, userData: nil, error: &serviceError)
+
+        XCTAssertNil(serviceError)
+        XCTAssertEqual(
+            pasteboard.string(forType: .string),
+            "\n  Revised text  \n"
+        )
+    }
+
     func testSlowRewriteTimesOutWithoutReplacingPasteboard() {
         let (defaults, suiteName) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }

@@ -24,7 +24,7 @@ final class HUDWindowController {
             },
             onDone: { [weak self] in self?.dismiss() }
         )
-        present(view, width: 380, autoDismissAfter: 6)
+        present(view, width: 380, autoDismissAfter: nil)
     }
 
     func showHint(_ message: String) {
@@ -45,13 +45,18 @@ final class HUDWindowController {
     private func present<Content: View>(
         _ view: Content,
         width: CGFloat,
-        autoDismissAfter seconds: Double
+        autoDismissAfter seconds: Double?
     ) {
         dismissTask?.cancel()
 
-        let hosting = NSHostingView(rootView: view)
+        let hosting = NSHostingView(rootView: view.frame(width: width))
+        hosting.layoutSubtreeIfNeeded()
         let fitting = hosting.fittingSize
-        let size = NSSize(width: width, height: max(fitting.height, 60))
+        let availableHeight = (targetScreen?.visibleFrame.height ?? 800) - 24
+        let size = NSSize(
+            width: width,
+            height: min(max(fitting.height, 60), availableHeight)
+        )
 
         let panel = makePanel(size: size)
         hosting.frame = NSRect(origin: .zero, size: size)
@@ -59,10 +64,12 @@ final class HUDWindowController {
         positionTopRight(panel)
         panel.orderFrontRegardless()
 
-        dismissTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(seconds))
-            guard !Task.isCancelled else { return }
-            self?.dismiss()
+        if let seconds {
+            dismissTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(seconds))
+                guard !Task.isCancelled else { return }
+                self?.dismiss()
+            }
         }
     }
 
@@ -78,7 +85,12 @@ final class HUDWindowController {
             defer: false
         )
         panel.level = .floating
-        panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        panel.collectionBehavior = [
+            .canJoinAllSpaces,
+            .fullScreenAuxiliary,
+            .stationary,
+            .ignoresCycle
+        ]
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -89,12 +101,18 @@ final class HUDWindowController {
     }
 
     private func positionTopRight(_ panel: NSPanel) {
-        guard let screen = NSScreen.main ?? NSScreen.screens.first else { return }
+        guard let screen = targetScreen else { return }
         let frame = screen.visibleFrame
         let origin = NSPoint(
             x: frame.maxX - panel.frame.width - 16,
             y: frame.maxY - panel.frame.height - 12
         )
         panel.setFrameOrigin(origin)
+    }
+
+    private var targetScreen: NSScreen? {
+        NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) })
+            ?? NSScreen.main
+            ?? NSScreen.screens.first
     }
 }

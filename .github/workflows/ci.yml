@@ -34,3 +34,9 @@ jobs:
             -derivedDataPath DerivedData \
             CODE_SIGNING_ALLOWED=NO \
             test
+
+      - name: Verify packaged resources
+        run: |
+          resources='DerivedData/Build/Products/Debug/Rewrite.app/Contents/Resources'
+          test -f "$resources/Assets.car"
+          test -f "$resources/PrivacyInfo.xcprivacy"

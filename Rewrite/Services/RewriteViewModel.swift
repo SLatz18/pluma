@@ -15,6 +15,7 @@ final class RewriteViewModel: ObservableObject {
 
     private let defaults: UserDefaults
     private var statusRefreshID = UUID()
+    private var activeRewriteID: UUID?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -26,16 +27,15 @@ final class RewriteViewModel: ObservableObject {
     var canRewrite: Bool {
         status.isReady
             && !isRewriting
-            && !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && TextEnvelope(inputText) != nil
     }
 
     func selectProvider(_ newProvider: RewriteProviderChoice) {
         guard provider != newProvider else { return }
+        invalidateActiveRewrite()
         provider = newProvider
         defaults.set(newProvider.rawValue, forKey: Preferences.providerKey)
         status = .checking
-        outputText = ""
-        errorMessage = nil
         Task { await refreshStatus() }
     }
 
@@ -75,6 +75,8 @@ final class RewriteViewModel: ObservableObject {
     }
 
     func setOllamaModel(_ model: String) {
+        guard ollamaModel != model else { return }
+        invalidateActiveRewrite()
         ollamaModel = model
         defaults.set(model, forKey: Preferences.ollamaModelKey)
         if provider == .ollama, status.isReady {
@@ -137,8 +139,8 @@ final class RewriteViewModel: ObservableObject {
     }
 
     func rewrite() async {
-        let source = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !source.isEmpty else {
+        let source = inputText
+        guard let envelope = TextEnvelope(source) else {
             errorMessage = RewriteEngineError.emptySelection.localizedDescription
             return
         }
@@ -147,6 +149,8 @@ final class RewriteViewModel: ObservableObject {
             return
         }
 
+        guard activeRewriteID == nil else { return }
+
         guard status.isReady else {
             errorMessage = RewriteEngineError
                 .providerNotReady(status.detail)
@@ -154,9 +158,19 @@ final class RewriteViewModel: ObservableObject {
             return
         }
 
+        let requestID = UUID()
+        let requestedProvider = provider
+        let requestedIntent = selectedIntent
+        let requestedModel = ollamaModel
+        activeRewriteID = requestID
         isRewriting = true
         errorMessage = nil
-        defer { isRewriting = false }
+        defer {
+            if activeRewriteID == requestID {
+                activeRewriteID = nil
+                isRewriting = false
+            }
+        }
 
         do {
             // Intermediate results land in the result box as each step
@@ -173,15 +187,28 @@ final class RewriteViewModel: ObservableObject {
                     }
                 }
             )
+            let output = try envelope.replacingBody(with: rawOutput)
+            guard
+                activeRewriteID == requestID,
+                inputText == source,
+                provider == requestedProvider,
+                selectedIntent == requestedIntent,
+                ollamaModel == requestedModel
+            else { return }
+            outputText = output
         } catch {
+            guard activeRewriteID == requestID else { return }
             errorMessage = error.localizedDescription
         }
     }
 
     func copyOutput() {
         guard !outputText.isEmpty else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(outputText, forType: .string)
+        guard PasteboardSnapshot.replaceString(outputText, on: .general) else {
+            errorMessage = RewriteEngineError.clipboardWriteFailed.localizedDescription
+            return
+        }
+        errorMessage = nil
     }
 
     func useOutputAsInput() {

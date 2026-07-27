@@ -139,8 +139,6 @@ enum RewriteRunner {
                 styleProfile: styleProfile
             )
         }
-
-        return try validatedOutput(output)
     }
 
     static func validatedOutput(_ output: String) throws -> String {

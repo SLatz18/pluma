@@ -11,7 +11,7 @@ final class WordDifferTests: XCTestCase {
         XCTAssertEqual(
             segments,
             [
-                DiffSegment(kind: .unchanged, text: "Hello"),
+                DiffSegment(kind: .unchanged, text: "Hello "),
                 DiffSegment(kind: .removed, text: "world"),
                 DiffSegment(kind: .added, text: "there")
             ]
@@ -34,7 +34,7 @@ final class WordDifferTests: XCTestCase {
         XCTAssertEqual(
             segments,
             [
-                DiffSegment(kind: .added, text: "new"),
+                DiffSegment(kind: .added, text: "new "),
                 DiffSegment(kind: .added, text: "words")
             ]
         )
@@ -45,5 +45,21 @@ final class WordDifferTests: XCTestCase {
         let segments = WordDiffer.diff(original: "No changes", revised: "No changes")
 
         XCTAssertEqual(WordDiffer.changeCount(segments), 0)
+    }
+
+    func testWhitespaceOnlyEditIsCounted() {
+        let segments = WordDiffer.diff(original: "one\ntwo", revised: "one two")
+
+        XCTAssertEqual(WordDiffer.changeCount(segments), 1)
+    }
+
+    func testLargeInputsUseBoundedFallback() {
+        let original = Array(repeating: "original", count: 400).joined(separator: " ")
+        let revised = Array(repeating: "revised", count: 400).joined(separator: " ")
+
+        let segments = WordDiffer.diff(original: original, revised: revised)
+
+        XCTAssertEqual(segments.count, 2)
+        XCTAssertEqual(WordDiffer.changeCount(segments), 1)
     }
 }

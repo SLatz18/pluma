@@ -73,20 +73,23 @@ struct RewriteHUDView: View {
             .background(.green.opacity(0.14), in: Capsule())
 
             // Inline diff (local, ground truth)
-            diffView(segments)
-                .font(.callout)
-                .lineSpacing(3)
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    Color(nsColor: .textBackgroundColor).opacity(0.8),
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-                }
-                .accessibilityLabel("Rewritten text. \(revised)")
+            ScrollView {
+                diffView(segments)
+                    .font(.callout)
+                    .lineSpacing(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+            }
+            .frame(maxHeight: 220)
+            .background(
+                Color(nsColor: .textBackgroundColor).opacity(0.8),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+            }
+            .accessibilityLabel("Rewritten text. \(revised)")
 
             // Footer
             HStack {
@@ -104,7 +107,7 @@ struct RewriteHUDView: View {
                 Spacer()
 
                 if let onUndo {
-                    Button("\u{21A9} Undo", action: onUndo)
+                    Button("\u{21A9} Restore clipboard", action: onUndo)
                         .buttonStyle(.plain)
                         .font(.callout.weight(.semibold))
                         .padding(.horizontal, 14)
@@ -164,18 +167,20 @@ struct RewriteHUDView: View {
 
     private func diffView(_ segments: [DiffSegment]) -> some View {
         segments.reduce(Text("")) { acc, segment in
+            let next: Text
             switch segment.kind {
             case .unchanged:
-                acc + Text(segment.text + " ").foregroundStyle(.primary)
+                next = Text(segment.text).foregroundStyle(.primary)
             case .removed:
-                acc + Text(segment.text + " ")
+                next = Text(segment.text)
                     .foregroundStyle(Color.red)
                     .strikethrough()
             case .added:
-                acc + Text(segment.text + " ")
+                next = Text(segment.text)
                     .foregroundStyle(Color.green)
                     .fontWeight(.medium)
             }
+            return Text("\(acc)\(next)")
         }
     }
 }

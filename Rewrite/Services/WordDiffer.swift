@@ -15,11 +15,21 @@ struct DiffSegment: Equatable {
 }
 
 enum WordDiffer {
-    /// Returns display segments from an LCS diff over whitespace-separated
-    /// tokens. Fine for message-length text (a few hundred words).
+    private static let maximumTokenCount = 600
+    private static let maximumExcerptLength = 800
+
+    /// Returns display segments from a bounded LCS diff. Whitespace stays
+    /// attached to tokens so line-break-only edits are still visible.
     static func diff(original: String, revised: String) -> [DiffSegment] {
         let a = tokenize(original)
         let b = tokenize(revised)
+
+        guard a.count + b.count <= maximumTokenCount else {
+            return [
+                DiffSegment(kind: .removed, text: excerpt(original)),
+                DiffSegment(kind: .added, text: excerpt(revised))
+            ]
+        }
 
         // LCS table
         var table = [[Int]](
@@ -90,7 +100,33 @@ enum WordDiffer {
     }
 
     private static func tokenize(_ text: String) -> [String] {
-        text.components(separatedBy: .whitespacesAndNewlines)
-            .filter { !$0.isEmpty }
+        var tokens: [String] = []
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            let tokenStart = index
+
+            if text[index].isWhitespace {
+                while index < text.endIndex, text[index].isWhitespace {
+                    index = text.index(after: index)
+                }
+            } else {
+                while index < text.endIndex, !text[index].isWhitespace {
+                    index = text.index(after: index)
+                }
+                while index < text.endIndex, text[index].isWhitespace {
+                    index = text.index(after: index)
+                }
+            }
+
+            tokens.append(String(text[tokenStart..<index]))
+        }
+
+        return tokens
+    }
+
+    private static func excerpt(_ text: String) -> String {
+        guard text.count > maximumExcerptLength else { return text }
+        return String(text.prefix(maximumExcerptLength)) + "…"
     }
 }

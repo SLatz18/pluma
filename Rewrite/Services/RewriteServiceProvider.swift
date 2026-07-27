@@ -40,13 +40,13 @@ final class RewriteServiceProvider: NSObject {
         errorPointer.pointee = nil
 
         guard
-            let source = pasteboard.string(forType: .string)?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-            !source.isEmpty
+            let source = pasteboard.string(forType: .string),
+            let envelope = TextEnvelope(source)
         else {
             errorPointer.pointee = RewriteEngineError.emptySelection.localizedDescription as NSString
             return
         }
+        let originalSnapshot = PasteboardSnapshot(pasteboard)
 
         let provider = Preferences.provider(from: defaults)
         let chain = Preferences.chain(from: defaults)
@@ -65,7 +65,7 @@ final class RewriteServiceProvider: NSObject {
                     text: source,
                     ollamaModel: ollamaModel
                 )
-                let output = try RewriteRunner.validatedOutput(rawOutput)
+                let output = try envelope.replacingBody(with: rawOutput)
                 resultBox.store(.success(output))
             } catch {
                 resultBox.store(.failure(error))
@@ -85,8 +85,11 @@ final class RewriteServiceProvider: NSObject {
 
         switch result {
         case .success(let output):
-            pasteboard.clearContents()
-            guard pasteboard.setString(output, forType: .string) else {
+            guard PasteboardSnapshot.replaceString(
+                output,
+                on: pasteboard,
+                rollbackTo: originalSnapshot
+            ) else {
                 errorPointer.pointee = RewriteEngineError.invalidResponse.localizedDescription as NSString
                 return
             }
