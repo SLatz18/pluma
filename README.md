@@ -2,7 +2,8 @@
 
 Rewrite is a small, native macOS writing tool. Select text in almost any Mac
 app, run **Edit with Rewrite**, and the selection is replaced with a cleaner
-version.
+version. Or copy text anywhere — including Google Docs — press the global
+hotkey, and paste the correction back.
 
 This repository uses **Rewrite** as a working product name. It is intentionally
 easy to rename before release.
@@ -17,6 +18,8 @@ easy to rename before release.
 - Cross-app rewriting uses the macOS Services system.
 - Cross-app autocomplete uses the Accessibility API (Cotypist-style), so the
   app is no longer sandboxed or Mac App Store compatible.
+- A copy → hotkey → paste fallback reaches apps whose text is not exposed
+  through Accessibility.
 
 ## Current milestone
 
@@ -43,6 +46,9 @@ with model and style-profile settings under ⌘,.
   land at the caret in any app. Speech is transcribed by Apple's on-device
   model, then tidied from spoken to written form by your selected writing
   model. Requires microphone and Accessibility access.
+- A universal **copy → hotkey → paste** fallback
+  (**Control-Option-Shift-Command-E**) for editors whose selected text is not
+  exposed through Accessibility, with a local change-summary HUD and Undo.
 
 ## Dictation notes
 
@@ -110,6 +116,9 @@ brew install xcodegen
 open Rewrite.xcodeproj
 ```
 
+Re-run `./scripts/bootstrap.sh` after pulling branches that add or remove
+source files — `Rewrite.xcodeproj` is generated, not committed.
+
 Or build from Terminal:
 
 ```sh
@@ -122,6 +131,8 @@ xcodebuild \
 ```
 
 ## Use it in other apps
+
+### Services flow (native apps: Mail, Notes, Messages, …)
 
 1. Build and copy `Rewrite.app` into `/Applications`.
 2. Open Rewrite once and grant Accessibility access.
@@ -136,9 +147,18 @@ from the right-click Services menu as a fallback for apps where
 Accessibility insertion misbehaves; it no longer has a default shortcut, so
 assign one in Keyboard Settings only if you want it.
 
+### Universal flow (Google Docs, Electron apps, anything)
+
+1. Select text and press **Command-C** yourself.
+2. Press **Control-Option-Shift-Command-E** (hyperkey + E).
+3. The HUD shows what changed; press **Command-V** to paste the correction.
+
+The universal flow sidesteps Accessibility limitations: your own copy and
+paste cross the app boundary, so it can work in canvas-rendered editors.
+
 ## Privacy
 
-Apple Intelligence requests use Apple’s Foundation Models framework and stay
+Apple Intelligence requests use Apple's Foundation Models framework and stay
 on the Mac. Ollama requests go only to the loopback address. Rewrite does not
 include analytics, an account system, or a remote API.
 

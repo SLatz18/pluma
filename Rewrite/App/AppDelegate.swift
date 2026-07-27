@@ -27,6 +27,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: NSWindow.willCloseNotification,
             object: nil
         )
+
+        // Clipboard fallback for apps whose text is not exposed through
+        // Accessibility: copy, invoke the hotkey, then paste the rewrite.
+        GlobalHotkey.shared.register {
+            ClipboardRewriteController.shared.handleHotkey()
+        }
         updateActivationPolicy()
     }
 
@@ -52,5 +58,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Autocomplete keeps working from the menu bar after the window closes.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        GlobalHotkey.shared.unregister()
     }
 }
