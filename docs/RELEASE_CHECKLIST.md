@@ -32,12 +32,14 @@ Do not commit a personal `DEVELOPMENT_TEAM` value to `project.yml`.
 
 ### Direct distribution
 
-1. Sign with a Developer ID Application certificate and enable the hardened
-   runtime.
-2. Submit the archive to Apple’s notary service with `notarytool`.
-3. Staple the successful notarization ticket with `stapler`.
-4. Verify the distributed artifact with `codesign --verify` and
-   `spctl --assess`.
+1. Export the app signed with a Developer ID Application certificate and the
+   hardened runtime enabled.
+2. Package the signed app as the final ZIP, DMG, or PKG.
+3. Submit that packaged distribution artifact to Apple’s notary service with
+   `notarytool`.
+4. After acceptance, staple the ticket to the app before rebuilding a ZIP, or
+   staple the DMG/PKG directly. ZIP files themselves cannot be stapled.
+5. Verify the final artifact with `codesign --verify` and `spctl --assess`.
 
 ## Manual QA on a clean Mac
 

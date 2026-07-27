@@ -133,4 +133,22 @@ enum PromptComposer {
         Return only the continuation text.
         """
     }
+
+    static func looksLikeRefusal(_ text: String) -> Bool {
+        let normalized = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .replacingOccurrences(of: "’", with: "'")
+
+        return [
+            "sorry, i can't",
+            "sorry, i cannot",
+            "i'm sorry, but i can't",
+            "i'm sorry, but i cannot",
+            "i can't help with",
+            "i cannot help with",
+            "i'm unable to help with"
+        ]
+        .contains(where: normalized.hasPrefix)
+    }
 }

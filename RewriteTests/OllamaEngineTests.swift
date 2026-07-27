@@ -37,6 +37,14 @@ final class OllamaEngineTests: XCTestCase {
                   "size": 3000,
                   "digest": "remote-digest",
                   "details": { "format": "gguf" }
+                },
+                {
+                  "name": "private-alias",
+                  "size": 3000,
+                  "digest": "alias-digest",
+                  "details": { "format": "gguf" },
+                  "remote_model": "glm-4.7",
+                  "remote_host": "https://ollama.com:443"
                 }
               ]
             }
@@ -113,14 +121,17 @@ final class OllamaEngineTests: XCTestCase {
         XCTAssertTrue(
             LoopbackPolicy.allows(try XCTUnwrap(URL(string: "http://127.0.0.1:11434")))
         )
-        XCTAssertTrue(
+        XCTAssertFalse(
             LoopbackPolicy.allows(try XCTUnwrap(URL(string: "http://localhost:11434")))
         )
-        XCTAssertTrue(
+        XCTAssertFalse(
             LoopbackPolicy.allows(try XCTUnwrap(URL(string: "http://[::1]:11434")))
         )
         XCTAssertFalse(
             LoopbackPolicy.allows(try XCTUnwrap(URL(string: "https://ollama.com")))
+        )
+        XCTAssertFalse(
+            LoopbackPolicy.allows(try XCTUnwrap(URL(string: "http://127.0.0.1:11435")))
         )
     }
 }

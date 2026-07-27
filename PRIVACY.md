@@ -26,8 +26,8 @@ Rewrite is designed to process writing locally on your Mac.
 
 Rewrite has no account system, analytics, advertising, tracking, remote backend,
 or telemetry. It does not sell or share personal data, and it holds no
-server-side data that needs to be deleted. You can stop Ollama processing at any
-time by selecting Apple Intelligence or stopping Ollama.
+server-side data that needs to be deleted. Changing the selected provider
+affects future rewrite requests.
 
 ## Contact
 

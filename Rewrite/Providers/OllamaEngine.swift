@@ -141,14 +141,29 @@ private extension OllamaEngine {
         let size: Int64
         let digest: String
         let details: ModelDetails
+        let remoteModel: String?
+        let remoteHost: String?
 
         var isStoredLocally: Bool {
             let normalizedName = name.lowercased()
+            let hasRemoteMetadata = [remoteModel, remoteHost]
+                .compactMap { $0 }
+                .contains(where: { !$0.isEmpty })
             return size > 0
                 && !digest.isEmpty
                 && !details.format.isEmpty
                 && !normalizedName.contains(":cloud")
                 && !normalizedName.hasSuffix("-cloud")
+                && !hasRemoteMetadata
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case name
+            case size
+            case digest
+            case details
+            case remoteModel = "remote_model"
+            case remoteHost = "remote_host"
         }
     }
 
@@ -193,12 +208,12 @@ enum LoopbackPolicy {
             let url,
             let scheme = url.scheme?.lowercased(),
             let host = url.host?.lowercased(),
-            scheme == "http" || scheme == "https"
+            scheme == "http"
         else {
             return false
         }
 
-        return host == "127.0.0.1" || host == "localhost" || host == "::1"
+        return host == "127.0.0.1" && url.port == 11_434
     }
 }
 
@@ -216,6 +231,6 @@ private final class LoopbackOnlyRedirectDelegate:
         newRequest request: URLRequest,
         completionHandler: @escaping @Sendable (URLRequest?) -> Void
     ) {
-        completionHandler(LoopbackPolicy.allows(request.url) ? request : nil)
+        completionHandler(nil)
     }
 }

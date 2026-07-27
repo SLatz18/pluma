@@ -27,6 +27,8 @@ job.
   rewrite and summarization.
 - Map context-window, unavailable-asset, rate-limit, and refusal errors to
   actionable messages.
+- Frame string output, detect common refusal text, and use a second guided
+  session to classify ambiguous output before replacing selected text.
 - Follow Apple’s Foundation Models acceptable-use requirements.
 
 - [Generating content with Foundation Models](https://developer.apple.com/documentation/foundationmodels/generating-content-and-performing-tasks-with-foundation-models)
@@ -37,9 +39,10 @@ job.
 
 Ollama supports cloud-backed models through the same loopback API used for
 local models. Rewrite requires `/api/tags` to report a positive file size,
-digest, and model format before listing or invoking a model. It also blocks
-redirects away from loopback. Requests use nonstreaming responses plus a fixed
-seed and zero temperature.
+digest, and model format with no `remote_host` or `remote_model` before listing
+or invoking a model. It rejects all HTTP redirects and permits only
+`http://127.0.0.1:11434`. Requests use nonstreaming responses plus a fixed seed
+and zero temperature.
 
 - [Ollama cloud models](https://docs.ollama.com/cloud)
 - [Ollama model list API](https://docs.ollama.com/api/tags)
