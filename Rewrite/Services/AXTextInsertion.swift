@@ -56,9 +56,17 @@ enum AXTextInsertion {
         return slice.compare(text, options: .caseInsensitive) == .orderedSame
     }
 
+    // Paste cycles are burst-aware: rapid sequential accepts must not let one
+    // cycle's delayed clipboard restore clobber the next cycle's paste.
+    private static var savedClipboard: String??
+    private static var restoreTask: Task<Void, Never>?
+
     private static func paste(_ text: String) -> Bool {
         let pasteboard = NSPasteboard.general
-        let previous = pasteboard.string(forType: .string)
+        if savedClipboard == nil {
+            savedClipboard = pasteboard.string(forType: .string)
+        }
+        restoreTask?.cancel()
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
 
@@ -73,12 +81,14 @@ enum AXTextInsertion {
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
 
-        if let previous {
-            Task {
-                try? await Task.sleep(for: .milliseconds(500))
+        restoreTask = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            if let saved = savedClipboard, let value = saved {
                 NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(previous, forType: .string)
+                NSPasteboard.general.setString(value, forType: .string)
             }
+            savedClipboard = nil
         }
         return true
     }

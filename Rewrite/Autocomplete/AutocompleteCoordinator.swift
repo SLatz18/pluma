@@ -451,12 +451,25 @@ final class AutocompleteCoordinator: ObservableObject {
         }
 
         if isShiftPressed {
-            Task { await self.acceptSuggestion(wholeSuggestion: true) }
+            enqueueAccept(wholeSuggestion: true)
         } else if !hasOtherModifiers {
-            Task { await self.acceptSuggestion(wholeSuggestion: false) }
+            enqueueAccept(wholeSuggestion: false)
         } else {
             return false
         }
         return true
+    }
+
+    // Accepts are serialized: concurrent paste cycles would interleave
+    // clipboard writes and garble the inserted text in Chromium fields.
+    private var acceptChain: Task<Void, Never>?
+
+    private func enqueueAccept(wholeSuggestion: Bool) {
+        let previous = acceptChain
+        acceptChain = Task { [weak self] in
+            await previous?.value
+            guard let self, !Task.isCancelled else { return }
+            await acceptSuggestion(wholeSuggestion: wholeSuggestion)
+        }
     }
 }
