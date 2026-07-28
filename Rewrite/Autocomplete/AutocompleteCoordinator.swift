@@ -43,6 +43,8 @@ final class AutocompleteCoordinator: ObservableObject {
         self.defaults = defaults
         isEnabled = Preferences.autocompleteEnabled(from: defaults)
         isPermissionGranted = permission.isTrusted
+        DebugLog.truncate()
+        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled)")
 
         permission.onChange = { [weak self] trusted in
             Task { @MainActor [weak self] in
@@ -82,9 +84,11 @@ final class AutocompleteCoordinator: ObservableObject {
 
     private func startIfPossible() {
         guard permission.isTrusted else {
+            DebugLog.log("start blocked: not trusted")
             updateActivity()
             return
         }
+        DebugLog.log("tracker + event tap starting")
         tracker.start()
         installEventTapIfNeeded()
         updateActivity()
@@ -129,9 +133,11 @@ final class AutocompleteCoordinator: ObservableObject {
 
         guard snapshot.text != lastSnapshotText else { return }
         lastSnapshotText = snapshot.text
+        DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)")
 
         debounceTask?.cancel()
         guard CompletionSuggestion.shouldTrigger(for: prefix) else {
+            DebugLog.log("below trigger threshold")
             updateActivity()
             return
         }
@@ -184,6 +190,7 @@ final class AutocompleteCoordinator: ObservableObject {
         let provider = Preferences.provider(from: defaults)
         let ollamaModel = Preferences.ollamaModel(from: defaults)
 
+        DebugLog.log("request provider=\(provider.rawValue) contextLen=\(context.count)")
         do {
             let raw = try await RewriteRunner.complete(
                 provider: provider,
@@ -194,17 +201,25 @@ final class AutocompleteCoordinator: ObservableObject {
                 sequence == requestSequence,
                 !Task.isCancelled,
                 prefix == lastSnapshotText
-            else { return }
+            else {
+                DebugLog.log("response discarded: stale")
+                return
+            }
 
             let suggestion = CompletionSuggestion(rawOutput: raw)
-            guard !suggestion.isEmpty else { return }
+            guard !suggestion.isEmpty else {
+                DebugLog.log("response empty")
+                return
+            }
 
+            DebugLog.log("suggestion: \(suggestion.remaining)")
             activeSuggestion = suggestion
             activeElement = element
             showOverlay(for: suggestion, at: caretPoint)
             updateActivity()
         } catch {
             // Completion failures stay silent: autocomplete must never interrupt typing.
+            DebugLog.log("request failed: \(error.localizedDescription)")
         }
     }
 
@@ -219,7 +234,8 @@ final class AutocompleteCoordinator: ObservableObject {
         } else if let element = activeElement, let point = currentCaretPoint(for: element) {
             overlay.show(text: suggestion.remaining, atTopLeftPoint: point)
         } else {
-            dismissSuggestion()
+            DebugLog.log("caret bounds unavailable; overlay at mouse")
+            overlay.show(text: suggestion.remaining, atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint())
         }
     }
 

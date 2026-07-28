@@ -137,11 +137,7 @@ final class SelectionRewriteController: ObservableObject {
         return CGPoint(x: rect.minX, y: rect.maxY + 6)
     }
 
-    // NSEvent.mouseLocation is Cocoa bottom-left-origin; AX/overlay coordinates
-    // are top-left-origin on the primary display.
     private static func mouseAnchor() -> CGPoint {
-        let mouse = NSEvent.mouseLocation
-        let primaryHeight = NSScreen.screens.first?.frame.height ?? mouse.y
-        return CGPoint(x: mouse.x + 8, y: primaryHeight - mouse.y + 12)
+        SuggestionOverlayController.mouseTopLeftPoint()
     }
 }

@@ -59,6 +59,14 @@ final class SuggestionOverlayController {
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
+    // NSEvent.mouseLocation is Cocoa bottom-left-origin; AX/overlay coordinates
+    // are top-left-origin on the primary display.
+    static func mouseTopLeftPoint() -> CGPoint {
+        let mouse = NSEvent.mouseLocation
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? mouse.y
+        return CGPoint(x: mouse.x + 8, y: primaryHeight - mouse.y + 12)
+    }
+
     func show(text: String, atTopLeftPoint point: CGPoint) {
         show(content: SuggestionOverlayView(text: text), atTopLeftPoint: point)
     }

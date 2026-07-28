@@ -73,6 +73,8 @@ final class FocusedFieldTracker {
             return
         }
 
+        DebugLog.log("attach: \(app.localizedName ?? app.bundleIdentifier ?? "?")")
+
         guard app.processIdentifier != observedPID else {
             focusChanged()
             return
@@ -140,13 +142,15 @@ final class FocusedFieldTracker {
         let appElement = AXUIElementCreateApplication(observedPID)
 
         var focusedValue: CFTypeRef?
+        let readResult = AXUIElementCopyAttributeValue(
+            appElement, kAXFocusedUIElementAttribute as CFString, &focusedValue
+        )
         guard
-            AXUIElementCopyAttributeValue(
-                appElement, kAXFocusedUIElementAttribute as CFString, &focusedValue
-            ) == .success,
+            readResult == .success,
             let focusedValue,
             CFGetTypeID(focusedValue) == AXUIElementGetTypeID()
         else {
+            DebugLog.log("no focused element (error \(readResult.rawValue))")
             observedElement = nil
             onSnapshot?(nil)
             return
@@ -154,6 +158,9 @@ final class FocusedFieldTracker {
 
         let element = focusedValue as! AXUIElement
         guard Self.isEditableTextElement(element) else {
+            var roleValue: CFTypeRef?
+            AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleValue)
+            DebugLog.log("focused element not text: \(roleValue as? String ?? "?")")
             observedElement = nil
             onSnapshot?(nil)
             return

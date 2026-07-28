@@ -48,6 +48,10 @@ private struct AutocompleteMenuBarView: View {
 
         Divider()
 
+        Button("Open Diagnostics Log") {
+            NSWorkspace.shared.open(DebugLog.url)
+        }
+
         Button("Quit Rewrite") {
             NSApp.terminate(nil)
         }

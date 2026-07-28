@@ -35,6 +35,7 @@
 		AB194F6BFE3DBC1537FFFBC9 /* RewriteActionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */; };
 		AD3BBDA301FA51A98FB7A680 /* ProviderMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */; };
 		B242A97AF1099CBD28F8F33C /* PromptComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AB40D680100BFA48F17735C /* PromptComposer.swift */; };
+		B67922695D2ABCD290EAD8B9 /* DebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1E797D252F9B495D85527A /* DebugLog.swift */; };
 		B834F4340B277625455DB827 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFD2F1DA028BC5A836492E10 /* ContentView.swift */; };
 		DB296F8A1A21AD9D71FE6E61 /* RewriteRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 604D0B397733765D80DD509B /* RewriteRunner.swift */; };
 		DD21F942C165F6D6F702DA16 /* CompletionSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */; };
@@ -88,6 +89,7 @@
 		E1C5CEBE845C202418328C02 /* FocusedFieldTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedFieldTracker.swift; sourceTree = "<group>"; };
 		E1DAB002CC854D52409BE5A3 /* AutocompleteSettingsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutocompleteSettingsCard.swift; sourceTree = "<group>"; };
 		E28D7947C057879856EAC552 /* SelectionRewriteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionRewriteController.swift; sourceTree = "<group>"; };
+		EC1E797D252F9B495D85527A /* DebugLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLog.swift; sourceTree = "<group>"; };
 		F1F9C7B0619BCA169F7DCD57 /* AccessibilityPrompt-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AccessibilityPrompt-Bridging-Header.h"; sourceTree = "<group>"; };
 		F215BC8542AD42C8DB487C56 /* RewriteProviderChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteProviderChoice.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -97,6 +99,7 @@
 			isa = PBXGroup;
 			children = (
 				D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */,
+				EC1E797D252F9B495D85527A /* DebugLog.swift */,
 				9AC0CC83363DAFFB195B1A31 /* Preferences.swift */,
 				5AB40D680100BFA48F17735C /* PromptComposer.swift */,
 				7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */,
@@ -322,6 +325,7 @@
 				62EF19F9A96DB4C5B8896B23 /* AutocompleteSettingsCard.swift in Sources */,
 				41914FF917F724684BEC9C63 /* CompletionSuggestion.swift in Sources */,
 				B834F4340B277625455DB827 /* ContentView.swift in Sources */,
+				B67922695D2ABCD290EAD8B9 /* DebugLog.swift in Sources */,
 				E8088DADB6FCB1A025FD48BA /* FocusedFieldTracker.swift in Sources */,
 				A0F0C04066A8ACDAC87ED194 /* GlobalShortcut.swift in Sources */,
 				2E467DD1468CCD8EFFC36C99 /* HotkeyManager.swift in Sources */,
