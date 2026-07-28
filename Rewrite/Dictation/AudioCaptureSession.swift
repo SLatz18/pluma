@@ -62,7 +62,9 @@ final class AudioCaptureSession: NSObject, @unchecked Sendable {
         }
 
         // startRunning blocks until the device is live; keep it off the caller.
-        captureQueue.async { [session] in
+        // Captures self (queue-confined, @unchecked Sendable) rather than the
+        // non-Sendable session directly.
+        captureQueue.async { [self] in
             session.startRunning()
         }
 
@@ -114,8 +116,11 @@ extension AudioCaptureSession: AVCaptureAudioDataOutputSampleBufferDelegate {
             let output = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity)
         else { return nil }
 
-        var consumed = false
         var error: NSError?
+        // convert() runs this block synchronously before returning, so sharing
+        // this state with the @Sendable block never actually crosses threads.
+        nonisolated(unsafe) var consumed = false
+        nonisolated(unsafe) let input = source
         let status = converter.convert(to: output, error: &error) { _, inputStatus in
             if consumed {
                 inputStatus.pointee = .noDataNow
@@ -123,7 +128,7 @@ extension AudioCaptureSession: AVCaptureAudioDataOutputSampleBufferDelegate {
             }
             consumed = true
             inputStatus.pointee = .haveData
-            return source
+            return input
         }
 
         switch status {
