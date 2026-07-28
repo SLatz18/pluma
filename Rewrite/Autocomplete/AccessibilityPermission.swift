@@ -21,11 +21,16 @@ final class AccessibilityPermission {
         onChange?(trusted)
     }
 
-    // AXIsProcessTrustedWithOptions crashes inside HIServices on macOS 26 when
-    // handed a Swift-bridged options dictionary, so the system prompt is
-    // skipped; the settings deep link plus polling covers the grant flow.
-    func refreshAfterRequest() {
-        refresh()
+    // The prompt lives in an Objective-C helper: AXIsProcessTrustedWithOptions
+    // segfaults inside HIServices on macOS 26 when handed a Swift-bridged
+    // options dictionary, and calling it is also what registers the app in the
+    // Accessibility settings list.
+    func requestPrompt() {
+        let trusted = RewriteRequestAccessibilityPrompt()
+        if trusted != isTrusted {
+            isTrusted = trusted
+            onChange?(trusted)
+        }
     }
 
     func openSystemSettings() {

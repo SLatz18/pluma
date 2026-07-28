@@ -39,6 +39,7 @@ targets:
         MARKETING_VERSION: 0.1.0
         PRODUCT_MODULE_NAME: Rewrite
         SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_OBJC_BRIDGING_HEADER: Rewrite/Autocomplete/AccessibilityPrompt-Bridging-Header.h
     scheme:
       testTargets:
         - RewriteTests

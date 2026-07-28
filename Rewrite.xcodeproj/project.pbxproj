@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		06BB7E1516247937F80A4495 /* OllamaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17048874BC6393F1BC959476 /* OllamaEngine.swift */; };
+		1690C030D0276933A8D48859 /* AccessibilityPrompt.m in Sources */ = {isa = PBXBuildFile; fileRef = C1DDBFE966E597DAD153C0CD /* AccessibilityPrompt.m */; };
 		177D9B33C7968722A6F75213 /* AppleIntelligenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2988AE8305A3F736D136B9D5 /* AppleIntelligenceEngine.swift */; };
 		1E7DC9CAB1288EE107DCEE73 /* RewriteServiceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */; };
 		20CBE8C882A6B588B00BB38F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3269C366CBF5C6B50F183168 /* SettingsView.swift */; };
@@ -55,6 +56,7 @@
 		2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionSuggestionTests.swift; sourceTree = "<group>"; };
 		2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderMenu.swift; sourceTree = "<group>"; };
 		3269C366CBF5C6B50F183168 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4A15D6D629C11040F896E833 /* AccessibilityPrompt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AccessibilityPrompt.h; sourceTree = "<group>"; };
 		5AB40D680100BFA48F17735C /* PromptComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposer.swift; sourceTree = "<group>"; };
 		604D0B397733765D80DD509B /* RewriteRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteRunner.swift; sourceTree = "<group>"; };
 		6F0A59B42D5B91815E16F709 /* AccessibilityPermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityPermission.swift; sourceTree = "<group>"; };
@@ -68,11 +70,13 @@
 		AFD2F1DA028BC5A836492E10 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B6E6AD3BA3F134148CFAFC0E /* Rewrite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rewrite.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB7DA4F5EDC2571D3729FBE5 /* RewriteEngineError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteEngineError.swift; sourceTree = "<group>"; };
+		C1DDBFE966E597DAD153C0CD /* AccessibilityPrompt.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AccessibilityPrompt.m; sourceTree = "<group>"; };
 		CCB0464FD3DA298DB022AB87 /* ProviderStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderStatus.swift; sourceTree = "<group>"; };
 		D9C569F9FB551F99E5DBF433 /* RewriteIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteIntent.swift; sourceTree = "<group>"; };
 		DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteActionCard.swift; sourceTree = "<group>"; };
 		E1C5CEBE845C202418328C02 /* FocusedFieldTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedFieldTracker.swift; sourceTree = "<group>"; };
 		E1DAB002CC854D52409BE5A3 /* AutocompleteSettingsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutocompleteSettingsCard.swift; sourceTree = "<group>"; };
+		F1F9C7B0619BCA169F7DCD57 /* AccessibilityPrompt-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AccessibilityPrompt-Bridging-Header.h"; sourceTree = "<group>"; };
 		F215BC8542AD42C8DB487C56 /* RewriteProviderChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteProviderChoice.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -120,6 +124,9 @@
 			isa = PBXGroup;
 			children = (
 				6F0A59B42D5B91815E16F709 /* AccessibilityPermission.swift */,
+				F1F9C7B0619BCA169F7DCD57 /* AccessibilityPrompt-Bridging-Header.h */,
+				4A15D6D629C11040F896E833 /* AccessibilityPrompt.h */,
+				C1DDBFE966E597DAD153C0CD /* AccessibilityPrompt.m */,
 				043A7BDDAE8BD0E963BB2531 /* AutocompleteCoordinator.swift */,
 				1D0AB218FB7BADF6CAEF6B8F /* CompletionSuggestion.swift */,
 				E1C5CEBE845C202418328C02 /* FocusedFieldTracker.swift */,
@@ -261,6 +268,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				778312DDCBDD1EA4640F2CDF /* AccessibilityPermission.swift in Sources */,
+				1690C030D0276933A8D48859 /* AccessibilityPrompt.m in Sources */,
 				A4FF0BA731ECFDD5952F48EC /* AppDelegate.swift in Sources */,
 				177D9B33C7968722A6F75213 /* AppleIntelligenceEngine.swift in Sources */,
 				A053CB2DCF183D2940C5570D /* AutocompleteCoordinator.swift in Sources */,
@@ -408,6 +416,7 @@
 				PRODUCT_MODULE_NAME = Rewrite;
 				PRODUCT_NAME = Rewrite;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "Rewrite/Autocomplete/AccessibilityPrompt-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = complete;
 			};
 			name = Debug;
@@ -432,6 +441,7 @@
 				PRODUCT_MODULE_NAME = Rewrite;
 				PRODUCT_NAME = Rewrite;
 				SDKROOT = macosx;
+				SWIFT_OBJC_BRIDGING_HEADER = "Rewrite/Autocomplete/AccessibilityPrompt-Bridging-Header.h";
 				SWIFT_STRICT_CONCURRENCY = complete;
 			};
 			name = Release;

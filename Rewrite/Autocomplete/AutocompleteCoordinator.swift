@@ -72,8 +72,10 @@ final class AutocompleteCoordinator: ObservableObject {
     }
 
     func requestPermission() {
+        permission.requestPrompt()
+        // The prompt only appears once; if the user previously dismissed it,
+        // the settings pane is the only way back, so open it too.
         permission.openSystemSettings()
-        permission.refreshAfterRequest()
         isPermissionGranted = permission.isTrusted
         updateActivity()
     }
