@@ -12,6 +12,7 @@
 		177D9B33C7968722A6F75213 /* AppleIntelligenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2988AE8305A3F736D136B9D5 /* AppleIntelligenceEngine.swift */; };
 		1E7DC9CAB1288EE107DCEE73 /* RewriteServiceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */; };
 		20CBE8C882A6B588B00BB38F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3269C366CBF5C6B50F183168 /* SettingsView.swift */; };
+		253095C9CFA6FF89EED75204 /* AXTextInsertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */; };
 		2B59E99E075A6DF0EBEABE25 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC0CC83363DAFFB195B1A31 /* Preferences.swift */; };
 		2E467DD1468CCD8EFFC36C99 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF3D92D1C90BF3C4E392242 /* HotkeyManager.swift */; };
 		368B8C7139A2985F9E7F6664 /* RewriteIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C569F9FB551F99E5DBF433 /* RewriteIntent.swift */; };
@@ -78,6 +79,7 @@
 		BFF3D92D1C90BF3C4E392242 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
 		C1DDBFE966E597DAD153C0CD /* AccessibilityPrompt.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AccessibilityPrompt.m; sourceTree = "<group>"; };
 		CCB0464FD3DA298DB022AB87 /* ProviderStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderStatus.swift; sourceTree = "<group>"; };
+		D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXTextInsertion.swift; sourceTree = "<group>"; };
 		D9C569F9FB551F99E5DBF433 /* RewriteIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteIntent.swift; sourceTree = "<group>"; };
 		DEF1B27E1BCFE63B6303A1B2 /* GlobalShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcut.swift; sourceTree = "<group>"; };
 		DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteActionCard.swift; sourceTree = "<group>"; };
@@ -92,6 +94,7 @@
 		4D147024AA574C43193FFAC2 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */,
 				9AC0CC83363DAFFB195B1A31 /* Preferences.swift */,
 				5AB40D680100BFA48F17735C /* PromptComposer.swift */,
 				7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */,
@@ -287,6 +290,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				253095C9CFA6FF89EED75204 /* AXTextInsertion.swift in Sources */,
 				778312DDCBDD1EA4640F2CDF /* AccessibilityPermission.swift in Sources */,
 				1690C030D0276933A8D48859 /* AccessibilityPrompt.m in Sources */,
 				A4FF0BA731ECFDD5952F48EC /* AppDelegate.swift in Sources */,

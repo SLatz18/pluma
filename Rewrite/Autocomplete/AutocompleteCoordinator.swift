@@ -272,11 +272,7 @@ final class AutocompleteCoordinator: ObservableObject {
         let accepted = wholeSuggestion ? suggestion.acceptAll() : suggestion.acceptNextWord()
         guard !accepted.isEmpty else { return }
 
-        let inserted = AXUIElementSetAttributeValue(
-            element, kAXSelectedTextAttribute as CFString, accepted as CFString
-        ) == .success
-
-        guard inserted else {
+        guard AXTextInsertion.insert(accepted, into: element) else {
             dismissSuggestion()
             return
         }
@@ -369,12 +365,27 @@ final class AutocompleteCoordinator: ObservableObject {
     private static let tabKeyCode: Int64 = 48
     private static let escapeKeyCode: Int64 = 53
 
+    private var lastTypingRefresh = ContinuousClock.Instant.now
+
+    // Apps that don't emit AX value-changed notifications (most Electron
+    // editors) still reach us through key events; use them as a throttled
+    // typing signal so suggestions work there too.
+    private func noteKeystroke() {
+        guard isEnabled else { return }
+        let now = ContinuousClock.Instant.now
+        guard now - lastTypingRefresh > .milliseconds(250) else { return }
+        lastTypingRefresh = now
+        tracker.reResolveFocus()
+    }
+
     // Returns true when the key event was consumed and must not reach the app.
     private func handleKeyEvent(
         keyCode: Int64,
         isShiftPressed: Bool,
         hasOtherModifiers: Bool
     ) -> Bool {
+        noteKeystroke()
+
         guard isEnabled, activeSuggestion != nil else {
             return false
         }

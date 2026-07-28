@@ -52,8 +52,16 @@ final class FocusedFieldTracker {
         onSnapshot?(nil)
     }
 
-    func refreshSnapshot() {
-        publishSnapshot(from: observedElement)
+    // Chromium/Electron apps only build their accessibility tree after an
+    // assistive client asks for it; these attributes are that ask.
+    private static func nudgeAccessibilityTree(for appElement: AXUIElement) {
+        for attribute in ["AXManualAccessibility", "AXEnhancedUserInterface"] {
+            AXUIElementSetAttributeValue(appElement, attribute as CFString, kCFBooleanTrue)
+        }
+    }
+
+    func reResolveFocus() {
+        focusChanged()
     }
 
     private func attachToFrontmostApp() {
@@ -66,7 +74,7 @@ final class FocusedFieldTracker {
         }
 
         guard app.processIdentifier != observedPID else {
-            refreshSnapshot()
+            focusChanged()
             return
         }
 
@@ -85,6 +93,7 @@ final class FocusedFieldTracker {
         else { return }
 
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
+        Self.nudgeAccessibilityTree(for: appElement)
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         AXObserverAddNotification(
             observer, appElement,

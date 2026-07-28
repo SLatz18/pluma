@@ -60,10 +60,7 @@ final class SelectionRewriteController: ObservableObject {
                 text: selectedText,
                 ollamaModel: Preferences.ollamaModel(from: defaults)
             )
-            let replaced = AXUIElementSetAttributeValue(
-                element, kAXSelectedTextAttribute as CFString, output as CFString
-            ) == .success
-            if replaced {
+            if AXTextInsertion.insert(output, into: element) {
                 overlay.hide()
             } else {
                 flash(systemImage: "exclamationmark.triangle", message: "This field rejected the edit")
