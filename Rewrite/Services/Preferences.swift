@@ -4,6 +4,7 @@ enum Preferences {
     static let providerKey = "rewrite.provider"
     static let intentKey = "rewrite.intent"
     static let ollamaModelKey = "rewrite.ollamaModel"
+    static let autocompleteEnabledKey = "rewrite.autocompleteEnabled"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -27,5 +28,9 @@ enum Preferences {
 
     static func ollamaModel(from defaults: UserDefaults = .standard) -> String {
         defaults.string(forKey: ollamaModelKey) ?? ""
+    }
+
+    static func autocompleteEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: autocompleteEnabledKey)
     }
 }

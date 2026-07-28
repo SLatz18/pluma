@@ -49,6 +49,38 @@ struct OllamaEngine: Sendable {
         return output
     }
 
+    func complete(_ context: String, model: String) async throws -> String {
+        guard !model.isEmpty else {
+            throw RewriteEngineError.noOllamaModels
+        }
+
+        let url = baseURL.appending(path: "api/chat")
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(
+            ChatRequest(
+                model: model,
+                messages: [
+                    .init(role: "system", content: PromptComposer.completionSystemInstructions),
+                    .init(role: "user", content: PromptComposer.completionUserPrompt(context: context))
+                ],
+                stream: false,
+                options: .init(numPredict: 48, temperature: 0.3)
+            )
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response)
+
+        let payload = try JSONDecoder().decode(ChatResponse.self, from: data)
+        let output = payload.message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !output.isEmpty else {
+            throw RewriteEngineError.invalidResponse
+        }
+        return output
+    }
+
     private func validate(_ response: URLResponse) throws {
         guard
             let httpResponse = response as? HTTPURLResponse,
@@ -72,6 +104,17 @@ private extension OllamaEngine {
         let model: String
         let messages: [Message]
         let stream: Bool
+        var options: Options?
+
+        struct Options: Encodable {
+            let numPredict: Int
+            let temperature: Double
+
+            enum CodingKeys: String, CodingKey {
+                case numPredict = "num_predict"
+                case temperature
+            }
+        }
     }
 
     struct Message: Codable {

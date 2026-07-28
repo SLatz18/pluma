@@ -32,6 +32,8 @@ struct ContentView: View {
                 RewritePlaygroundView()
                     .environmentObject(model)
 
+                AutocompleteSettingsCard()
+
                 shortcutSetup
             }
             .padding(32)

@@ -14,4 +14,17 @@ enum RewriteRunner {
             try await OllamaEngine().rewrite(text, intent: intent, model: ollamaModel)
         }
     }
+
+    static func complete(
+        provider: RewriteProviderChoice,
+        context: String,
+        ollamaModel: String
+    ) async throws -> String {
+        switch provider {
+        case .appleIntelligence:
+            try await AppleIntelligenceEngine.complete(context)
+        case .ollama:
+            try await OllamaEngine().complete(context, model: ollamaModel)
+        }
+    }
 }
