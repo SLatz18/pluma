@@ -29,8 +29,10 @@ final class SelectionRewriteController: ObservableObject {
 
     private func rewriteSelection() async {
         guard !isWorking else { return }
+        DebugLog.log("hotkey fired")
 
         guard AccessibilityPermission.shared.isTrusted else {
+            DebugLog.log("rewrite blocked: not trusted")
             flash(systemImage: "hand.raised", message: "Rewrite needs Accessibility access")
             return
         }
@@ -40,10 +42,12 @@ final class SelectionRewriteController: ObservableObject {
             let selectedText = Self.selectedText(of: element),
             !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
+            DebugLog.log("rewrite: no focused element with a text selection")
             flash(systemImage: "text.cursor", message: "Select some text first")
             return
         }
 
+        DebugLog.log("rewrite start: \(selectedText.count) chars selected")
         isWorking = true
         defer { isWorking = false }
 
@@ -61,11 +65,14 @@ final class SelectionRewriteController: ObservableObject {
                 ollamaModel: Preferences.ollamaModel(from: defaults)
             )
             if AXTextInsertion.insert(output, into: element) {
+                DebugLog.log("rewrite inserted OK")
                 overlay.hide()
             } else {
+                DebugLog.log("rewrite insertion failed")
                 flash(systemImage: "exclamationmark.triangle", message: "This field rejected the edit")
             }
         } catch {
+            DebugLog.log("rewrite failed: \(error.localizedDescription)")
             flash(systemImage: "exclamationmark.triangle", message: error.localizedDescription)
         }
     }

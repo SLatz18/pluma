@@ -23,6 +23,7 @@ final class HotkeyManager {
             0,
             &ref
         )
+        DebugLog.log("hotkey register \(shortcut.display): status \(status)")
         guard status == noErr else { return }
         hotKeyRef = ref
 
