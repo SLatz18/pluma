@@ -52,8 +52,8 @@ final class SelectionRewriteController: ObservableObject {
         defer { isWorking = false }
 
         let anchor = Self.selectionAnchor(of: element) ?? Self.mouseAnchor()
-        overlay.show(
-            content: StatusOverlayView(systemImage: "sparkles", message: "Rewriting…"),
+        overlay.showStatus(
+            systemImage: "sparkles", message: "Rewriting…",
             atTopLeftPoint: anchor
         )
 
@@ -78,8 +78,8 @@ final class SelectionRewriteController: ObservableObject {
     }
 
     private func flash(systemImage: String, message: String) {
-        overlay.show(
-            content: StatusOverlayView(systemImage: systemImage, message: message),
+        overlay.showStatus(
+            systemImage: systemImage, message: message,
             atTopLeftPoint: Self.mouseAnchor()
         )
         Task { [overlay] in
