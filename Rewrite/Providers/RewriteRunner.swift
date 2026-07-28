@@ -18,13 +18,14 @@ enum RewriteRunner {
     static func complete(
         provider: RewriteProviderChoice,
         context: String,
+        surrounding: String? = nil,
         ollamaModel: String
     ) async throws -> String {
         switch provider {
         case .appleIntelligence:
-            try await AppleIntelligenceEngine.complete(context)
+            try await AppleIntelligenceEngine.complete(context, surrounding: surrounding)
         case .ollama:
-            try await OllamaEngine().complete(context, model: ollamaModel)
+            try await OllamaEngine().complete(context, model: ollamaModel, surrounding: surrounding)
         }
     }
 }

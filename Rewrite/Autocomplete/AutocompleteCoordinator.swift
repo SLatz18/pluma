@@ -24,10 +24,22 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var screenContextEnabled: Bool {
+        didSet {
+            defaults.set(screenContextEnabled, forKey: Preferences.screenContextEnabledKey)
+            if screenContextEnabled && !screenContext.isPermitted {
+                requestScreenContextPermission()
+            }
+        }
+    }
+
+    @Published private(set) var isScreenContextPermitted: Bool
+
     private let defaults: UserDefaults
     private let tracker = FocusedFieldTracker()
     private let overlay = SuggestionOverlayController()
     private let permission = AccessibilityPermission.shared
+    private let screenContext = ScreenContextProvider.shared
 
     private var debounceTask: Task<Void, Never>?
     private var activeSuggestion: CompletionSuggestion?
@@ -42,9 +54,18 @@ final class AutocompleteCoordinator: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         isEnabled = Preferences.autocompleteEnabled(from: defaults)
+        screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
         isPermissionGranted = permission.isTrusted
+        isScreenContextPermitted = screenContext.isPermitted
         DebugLog.truncate()
-        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled)")
+        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)")
+
+        screenContext.onChange = { [weak self] permitted in
+            Task { @MainActor [weak self] in
+                self?.isScreenContextPermitted = permitted
+            }
+        }
+        screenContext.startMonitoring()
 
         permission.onChange = { [weak self] trusted in
             Task { @MainActor [weak self] in
@@ -80,6 +101,11 @@ final class AutocompleteCoordinator: ObservableObject {
         permission.openSystemSettings()
         isPermissionGranted = permission.isTrusted
         updateActivity()
+    }
+
+    func requestScreenContextPermission() {
+        screenContext.requestPermission()
+        isScreenContextPermitted = screenContext.isPermitted
     }
 
     private func startIfPossible() {
@@ -190,11 +216,18 @@ final class AutocompleteCoordinator: ObservableObject {
         let provider = Preferences.provider(from: defaults)
         let ollamaModel = Preferences.ollamaModel(from: defaults)
 
+        var surrounding: String?
+        if screenContextEnabled, screenContext.isPermitted {
+            surrounding = await ScreenContextProvider.surroundingText()
+            DebugLog.log("screen context: \(surrounding?.count ?? 0) chars")
+        }
+
         DebugLog.log("request provider=\(provider.rawValue) contextLen=\(context.count)")
         do {
             let raw = try await RewriteRunner.complete(
                 provider: provider,
                 context: context,
+                surrounding: surrounding,
                 ollamaModel: ollamaModel
             )
             guard

@@ -88,4 +88,15 @@ final class CompletionSuggestionTests: XCTestCase {
         XCTAssertTrue(prompt.contains("<context>\nSome context\n</context>"))
         XCTAssertTrue(prompt.contains("Return only the continuation text."))
     }
+
+    func testCompletionPromptIncludesSurroundingWhenProvided() {
+        let withSurrounding = PromptComposer.completionUserPrompt(
+            context: "replying now",
+            surrounding: "Email from Dana about the Q3 report"
+        )
+        XCTAssertTrue(withSurrounding.contains("<surrounding>\nEmail from Dana about the Q3 report\n</surrounding>"))
+
+        let without = PromptComposer.completionUserPrompt(context: "replying now")
+        XCTAssertFalse(without.contains("<surrounding>"))
+    }
 }

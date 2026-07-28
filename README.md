@@ -43,6 +43,10 @@ easy to rename before release.
   suggestions.
 - Typing text that matches the start of a suggestion trims it instead of
   dismissing it, so accepting word-by-word stays smooth.
+- Optional **screen context**: with Screen Recording access granted, Rewrite
+  OCRs the frontmost window (on-device, in real time) so completions can match
+  what you are replying to — names, topics, tone. Off by default; nothing is
+  stored.
 - macOS blocks password fields from the Accessibility API automatically; no
   suggestion ever appears there.
 - The app requests Accessibility access on first enable. Because Accessibility
@@ -101,3 +105,9 @@ while autocomplete is enabled, only the current field, and only to build the
 completion prompt. Field text is held in memory for the active suggestion and
 is never written to disk or sent anywhere. Password fields are unreadable by
 design.
+
+Screen context (optional) captures the frontmost window at the moment a
+completion is requested and extracts visible text with on-device OCR. The
+image and extracted text live only for that one request; neither is written
+to disk, logged, or transmitted. Declining the permission keeps autocomplete
+fully functional with field text only.

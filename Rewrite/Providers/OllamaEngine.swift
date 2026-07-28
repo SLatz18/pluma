@@ -49,7 +49,7 @@ struct OllamaEngine: Sendable {
         return output
     }
 
-    func complete(_ context: String, model: String) async throws -> String {
+    func complete(_ context: String, model: String, surrounding: String? = nil) async throws -> String {
         guard !model.isEmpty else {
             throw RewriteEngineError.noOllamaModels
         }
@@ -63,10 +63,15 @@ struct OllamaEngine: Sendable {
                 model: model,
                 messages: [
                     .init(role: "system", content: PromptComposer.completionSystemInstructions),
-                    .init(role: "user", content: PromptComposer.completionUserPrompt(context: context))
+                    .init(
+                        role: "user",
+                        content: PromptComposer.completionUserPrompt(
+                            context: context, surrounding: surrounding
+                        )
+                    )
                 ],
                 stream: false,
-                options: .init(numPredict: 48, temperature: 0.3)
+                options: .init(numPredict: 64, temperature: 0.3)
             )
         )
 

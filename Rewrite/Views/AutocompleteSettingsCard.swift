@@ -21,10 +21,39 @@ struct AutocompleteSettingsCard: View {
 
                 Spacer(minLength: 12)
 
-                Toggle("Suggest as I type", isOn: $coordinator.isEnabled)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .disabled(!coordinator.isPermissionGranted)
+                VStack(alignment: .trailing, spacing: 6) {
+                    Toggle("Suggest as I type", isOn: $coordinator.isEnabled)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(!coordinator.isPermissionGranted)
+
+                    HStack(spacing: 6) {
+                        Text("Screen context")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Toggle("Screen context", isOn: $coordinator.screenContextEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .disabled(!coordinator.isPermissionGranted)
+                    }
+                }
+            }
+
+            if coordinator.screenContextEnabled && !coordinator.isScreenContextPermitted {
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle.dashed.badge.record")
+                        .foregroundStyle(.orange)
+                    Text("Screen context needs Screen Recording access to read text near your cursor.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    Button("Grant Screen Recording…") {
+                        coordinator.requestScreenContextPermission()
+                    }
+                    .controlSize(.small)
+                }
             }
 
             HStack(spacing: 8) {
@@ -45,7 +74,7 @@ struct AutocompleteSettingsCard: View {
                 }
             }
 
-            Text("Uses your selected writing model, on-device only. macOS never shares password fields. Suggestions pause while Rewrite's window is frontmost.")
+            Text("Uses your selected writing model, on-device only. Screen context OCRs the frontmost window in real time and stores nothing. macOS never shares password fields. Suggestions pause while Rewrite's window is frontmost.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
