@@ -3,8 +3,25 @@ import XCTest
 
 final class CompletionSuggestionTests: XCTestCase {
     func testRawOutputIsTrimmedToSingleLine() {
-        let suggestion = CompletionSuggestion(rawOutput: "  first line\nsecond line  ")
+        let suggestion = CompletionSuggestion(rawOutput: "first line\nsecond line  ")
         XCTAssertEqual(suggestion.remaining, "first line")
+    }
+
+    func testLeadingSpaceMarksWordBoundary() {
+        var suggestion = CompletionSuggestion(rawOutput: " results were achieved")
+        XCTAssertEqual(suggestion.remaining, " results were achieved")
+        XCTAssertEqual(suggestion.acceptNextWord(), " results ")
+        XCTAssertEqual(suggestion.remaining, "were achieved")
+    }
+
+    func testConsumeTypedTextMatchesAcrossLeadingSpace() {
+        var suggestion = CompletionSuggestion(rawOutput: " results were")
+        XCTAssertTrue(suggestion.consumeTypedText("results"))
+        XCTAssertEqual(suggestion.remaining, " were")
+    }
+
+    func testWhitespaceOnlyOutputIsEmpty() {
+        XCTAssertTrue(CompletionSuggestion(rawOutput: "   ").isEmpty)
     }
 
     func testRawOutputIsCappedAtMaxWords() {
