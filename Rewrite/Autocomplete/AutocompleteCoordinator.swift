@@ -72,9 +72,8 @@ final class AutocompleteCoordinator: ObservableObject {
     }
 
     func requestPermission() {
-        permission.requestPrompt()
         permission.openSystemSettings()
-        permission.refresh()
+        permission.refreshAfterRequest()
         isPermissionGranted = permission.isTrusted
         updateActivity()
     }

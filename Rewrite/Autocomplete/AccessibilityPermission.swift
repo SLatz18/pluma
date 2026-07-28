@@ -21,14 +21,11 @@ final class AccessibilityPermission {
         onChange?(trusted)
     }
 
-    func requestPrompt() {
-        // String literal avoids the non-Sendable kAXTrustedCheckOptionPrompt global.
-        let options = ["AXTrustedCheckOption": true] as CFDictionary
-        let trusted = AXIsProcessTrustedWithOptions(options)
-        if trusted != isTrusted {
-            isTrusted = trusted
-            onChange?(trusted)
-        }
+    // AXIsProcessTrustedWithOptions crashes inside HIServices on macOS 26 when
+    // handed a Swift-bridged options dictionary, so the system prompt is
+    // skipped; the settings deep link plus polling covers the grant flow.
+    func refreshAfterRequest() {
+        refresh()
     }
 
     func openSystemSettings() {
