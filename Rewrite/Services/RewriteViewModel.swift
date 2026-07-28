@@ -6,7 +6,7 @@ final class RewriteViewModel: ObservableObject {
     @Published private(set) var provider: RewriteProviderChoice
     @Published private(set) var selectedIntent: RewriteIntent
     @Published private(set) var status: ProviderStatus = .checking
-    @Published var inputText = "I wanted to check in and see if you had a chance to look at the draft I sent over yesterday."
+    @Published var inputText = "yo idk if u c the deck but ngl the numbers r kinda mid rn, lmk if u want me 2 fix em up b4 the meeting tmrw fr fr"
     @Published var outputText = ""
     @Published var ollamaModel: String
     @Published private(set) var availableOllamaModels: [String] = []
