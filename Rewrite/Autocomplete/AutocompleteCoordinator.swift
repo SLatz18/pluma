@@ -251,27 +251,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
         var selection = CFRange()
         guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &selection) else { return nil }
-
-        var caretRange = CFRange(location: selection.location, length: 0)
-        guard let caretRangeValue = AXValueCreate(.cfRange, &caretRange) else { return nil }
-
-        var boundsValue: CFTypeRef?
-        guard
-            AXUIElementCopyParameterizedAttributeValue(
-                element,
-                kAXBoundsForRangeParameterizedAttribute as CFString,
-                caretRangeValue,
-                &boundsValue
-            ) == .success,
-            let boundsValue,
-            CFGetTypeID(boundsValue) == AXValueGetTypeID()
-        else { return nil }
-
-        var rect = CGRect.zero
-        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect), rect.height > 0 else {
-            return nil
-        }
-        return CGPoint(x: rect.maxX + 4, y: rect.minY)
+        return FocusedFieldTracker.caretPoint(for: element, location: selection.location)
     }
 
     private func dismissSuggestion() {

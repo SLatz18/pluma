@@ -264,11 +264,15 @@ final class FocusedFieldTracker {
             element: element,
             text: text,
             caretLocation: selection.location,
-            caretScreenPoint: Self.caretPoint(for: element, location: selection.location)
+            caretScreenPoint: caretPoint(for: element, location: selection.location)
         )
     }
 
-    private static func caretPoint(for element: AXUIElement, location: Int) -> CGPoint? {
+    // Caret geometry from Chromium fields is unreliable: end-of-text carets
+    // report a degenerate rect at the screen's bottom-left corner. Validate
+    // against the field's own frame; anything implausible returns nil so the
+    // overlay falls back to the mouse anchor.
+    static func caretPoint(for element: AXUIElement, location: Int) -> CGPoint? {
         var caretRange = CFRange(location: location, length: 0)
         guard
             let rangeValue = AXValueCreate(.cfRange, &caretRange)
@@ -288,9 +292,33 @@ final class FocusedFieldTracker {
 
         var rect = CGRect.zero
         guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else { return nil }
-        // Chromium sometimes reports a degenerate caret rect; treat it as
-        // unavailable so callers fall back to the mouse anchor.
         guard rect.height > 0 else { return nil }
+
+        if let fieldFrame = frame(of: element), !fieldFrame.insetBy(dx: -8, dy: -8).contains(rect.origin) {
+            DebugLog.log("caret rect \(rect) outside field frame \(fieldFrame); using fallback")
+            return nil
+        }
+
         return CGPoint(x: rect.maxX + 4, y: rect.minY)
+    }
+
+    private static func frame(of element: AXUIElement) -> CGRect? {
+        var positionValue: CFTypeRef?
+        var sizeValue: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &positionValue) == .success,
+            AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success,
+            let positionValue, let sizeValue,
+            CFGetTypeID(positionValue) == AXValueGetTypeID(),
+            CFGetTypeID(sizeValue) == AXValueGetTypeID()
+        else { return nil }
+
+        var origin = CGPoint.zero
+        var size = CGSize.zero
+        guard
+            AXValueGetValue(positionValue as! AXValue, .cgPoint, &origin),
+            AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
+        else { return nil }
+        return CGRect(origin: origin, size: size)
     }
 }

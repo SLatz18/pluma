@@ -88,7 +88,9 @@ final class SuggestionOverlayController {
             panel.backgroundColor = .clear
             panel.hasShadow = false
             panel.level = .floating
-            panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+            panel.collectionBehavior = [
+                .canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary
+            ]
             panel.ignoresMouseEvents = true
             panel.contentView = hosting
             self.panel = panel
