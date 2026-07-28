@@ -311,10 +311,30 @@ final class AutocompleteCoordinator: ObservableObject {
         lastSnapshotPrefix = (lastSnapshotPrefix ?? "") + accepted
 
         if suggestion.isEmpty {
+            let element = activeElement
             dismissSuggestion()
+            if let element {
+                scheduleContinuationRequest(element: element)
+            }
         } else {
             activeSuggestion = suggestion
             showOverlay(for: suggestion)
+        }
+    }
+
+    // Tabbing through a whole suggestion means the writer wants more; fetch
+    // the next continuation without waiting for fresh keystrokes.
+    private func scheduleContinuationRequest(element: AXUIElement) {
+        guard let prefix = lastSnapshotPrefix,
+              CompletionSuggestion.shouldTrigger(for: prefix)
+        else { return }
+
+        DebugLog.log("suggestion exhausted; continuing")
+        debounceTask?.cancel()
+        debounceTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard !Task.isCancelled else { return }
+            await self?.requestCompletion(prefix: prefix, element: element, caretPoint: nil)
         }
     }
 
