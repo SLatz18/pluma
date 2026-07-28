@@ -22,9 +22,6 @@ targets:
         excludes:
           - Info.plist
           - Rewrite.entitlements
-          - Resources
-    resources:
-      - path: Rewrite/Resources/Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.Rewrite

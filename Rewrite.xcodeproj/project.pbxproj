@@ -12,6 +12,7 @@
 		177D9B33C7968722A6F75213 /* AppleIntelligenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2988AE8305A3F736D136B9D5 /* AppleIntelligenceEngine.swift */; };
 		1E7DC9CAB1288EE107DCEE73 /* RewriteServiceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */; };
 		20CBE8C882A6B588B00BB38F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3269C366CBF5C6B50F183168 /* SettingsView.swift */; };
+		23F9B6986EB46E74BD9F9B04 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 236F5EE924A508B0459934FD /* Assets.xcassets */; };
 		253095C9CFA6FF89EED75204 /* AXTextInsertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */; };
 		2B59E99E075A6DF0EBEABE25 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC0CC83363DAFFB195B1A31 /* Preferences.swift */; };
 		2E467DD1468CCD8EFFC36C99 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF3D92D1C90BF3C4E392242 /* HotkeyManager.swift */; };
@@ -57,6 +58,7 @@
 		17048874BC6393F1BC959476 /* OllamaEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaEngine.swift; sourceTree = "<group>"; };
 		1D0AB218FB7BADF6CAEF6B8F /* CompletionSuggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionSuggestion.swift; sourceTree = "<group>"; };
 		21CFD1DD05571F92114A129E /* RewriteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RewriteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		236F5EE924A508B0459934FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2988AE8305A3F736D136B9D5 /* AppleIntelligenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleIntelligenceEngine.swift; sourceTree = "<group>"; };
 		2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionSuggestionTests.swift; sourceTree = "<group>"; };
 		2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderMenu.swift; sourceTree = "<group>"; };
@@ -146,6 +148,14 @@
 			path = Autocomplete;
 			sourceTree = "<group>";
 		};
+		B1BBB07A4B708176DAE02962 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				236F5EE924A508B0459934FD /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		B316854461870815E1278BEE /* Rewrite */ = {
 			isa = PBXGroup;
 			children = (
@@ -154,6 +164,7 @@
 				DA4F69A0E956F66D401ED650 /* Hotkey */,
 				8CA62C3C33E30CB356EA66F9 /* Models */,
 				D3C1EB69C189166D62ED85C3 /* Providers */,
+				B1BBB07A4B708176DAE02962 /* Resources */,
 				4D147024AA574C43193FFAC2 /* Services */,
 				F727C5F1E1009991A65D2F10 /* Views */,
 			);
@@ -239,6 +250,7 @@
 			buildConfigurationList = 3655CD61B3F58FCC95A32F69 /* Build configuration list for PBXNativeTarget "Rewrite" */;
 			buildPhases = (
 				02B8A09ECB082CBF96596687 /* Sources */,
+				AAA5593621972C0ABB61714F /* Resources */,
 			);
 			buildRules = (
 			);
@@ -284,6 +296,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AAA5593621972C0ABB61714F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				23F9B6986EB46E74BD9F9B04 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		02B8A09ECB082CBF96596687 /* Sources */ = {
