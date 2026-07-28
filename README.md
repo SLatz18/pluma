@@ -24,8 +24,9 @@ easy to rename before release.
 - A built-in playground for trying each recipe.
 - Live Apple Intelligence availability state.
 - Optional Ollama discovery at `http://127.0.0.1:11434`.
-- A macOS Service named **Edit with Rewrite** with a default
-  **Shift-Command-E** shortcut and support for a user-assigned Hyperkey chord.
+- A global **Rewrite selection** hotkey — **Shift-Command-E** by default,
+  re-recordable in the app to any combo including Hyperkey chords — that
+  rewrites the current selection in any app via the Accessibility API.
 - **Autocomplete everywhere**: debounced ghost-text completions at the caret in
   other apps' text fields, powered by the same on-device provider. **Tab**
   accepts the next word, **Shift-Tab** accepts the whole suggestion, **Escape**
@@ -77,17 +78,17 @@ xcodebuild \
 ## Use it in other apps
 
 1. Build and copy `Rewrite.app` into `/Applications`.
-2. Open Rewrite once.
+2. Open Rewrite once and grant Accessibility access.
 3. Select editable text in another Mac app.
-4. Press **Shift-Command-E**, or right-click and choose
-   **Services → Edit with Rewrite**.
+4. Press **Shift-Command-E** (or your recorded shortcut).
 
-macOS lets people change the shortcut under **System Settings → Keyboard →
-Keyboard Shortcuts → Services → Text**. To use Hyperkey, assign
-**Control-Option-Shift-Command-E** to **Edit with Rewrite**. Because macOS
-invokes the Service inside the current app, Rewrite receives and replaces the
-selection without Accessibility permission. An app’s own shortcut wins if it
-conflicts with the Service shortcut.
+The hotkey is registered by the app itself and the rewrite happens through
+the Accessibility API, so the shortcut is configured in the app window —
+**Change…** on the "Rewrite selection" card records any combo, Hyperkey
+chords included. The **Edit with Rewrite** macOS Service remains available
+from the right-click Services menu as a fallback for apps where
+Accessibility insertion misbehaves; it no longer has a default shortcut, so
+assign one in Keyboard Settings only if you want it.
 
 ## Privacy
 

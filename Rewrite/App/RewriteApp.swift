@@ -5,12 +5,14 @@ struct RewriteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = RewriteViewModel()
     @StateObject private var autocomplete = AutocompleteCoordinator()
+    @StateObject private var selectionRewrite = SelectionRewriteController()
 
     var body: some Scene {
         WindowGroup("Rewrite", id: "main") {
             ContentView()
                 .environmentObject(model)
                 .environmentObject(autocomplete)
+                .environmentObject(selectionRewrite)
         }
         .defaultSize(width: 840, height: 740)
         .windowResizability(.contentMinSize)

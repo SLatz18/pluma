@@ -31,6 +31,28 @@ struct SuggestionOverlayView: View {
     }
 }
 
+struct StatusOverlayView: View {
+    let systemImage: String
+    let message: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text(message)
+                .font(.system(size: 12, weight: .medium))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.1))
+        }
+    }
+}
+
 @MainActor
 final class SuggestionOverlayController {
     private var panel: NSPanel?
@@ -38,7 +60,11 @@ final class SuggestionOverlayController {
     var isVisible: Bool { panel?.isVisible ?? false }
 
     func show(text: String, atTopLeftPoint point: CGPoint) {
-        let hosting = NSHostingView(rootView: SuggestionOverlayView(text: text))
+        show(content: SuggestionOverlayView(text: text), atTopLeftPoint: point)
+    }
+
+    func show<Content: View>(content: Content, atTopLeftPoint point: CGPoint) {
+        let hosting = NSHostingView(rootView: content)
         hosting.layout()
         let fitting = hosting.fittingSize
 

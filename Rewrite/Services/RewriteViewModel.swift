@@ -118,13 +118,4 @@ final class RewriteViewModel: ObservableObject {
         outputText = ""
         errorMessage = nil
     }
-
-    func openKeyboardSettings() {
-        guard
-            let url = URL(
-                string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension"
-            )
-        else { return }
-        NSWorkspace.shared.open(url)
-    }
 }
