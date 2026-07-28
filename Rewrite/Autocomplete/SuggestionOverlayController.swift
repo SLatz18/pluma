@@ -56,6 +56,7 @@ struct StatusOverlayView: View {
 @MainActor
 final class SuggestionOverlayController {
     private var panel: NSPanel?
+    private var hostingView: NSHostingView<AnyView>?
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
@@ -72,16 +73,12 @@ final class SuggestionOverlayController {
     }
 
     func show<Content: View>(content: Content, atTopLeftPoint point: CGPoint) {
-        let hosting = NSHostingView(rootView: content)
-        hosting.layout()
-        let fitting = hosting.fittingSize
-
-        let panel: NSPanel
-        if let existing = self.panel {
-            panel = existing
-            panel.contentView = hosting
+        let view = AnyView(content)
+        if let hostingView {
+            hostingView.rootView = view
         } else {
-            panel = NSPanel(
+            let hosting = NSHostingView(rootView: view)
+            let panel = NSPanel(
                 contentRect: .zero,
                 styleMask: [.borderless, .nonactivatingPanel],
                 backing: .buffered,
@@ -95,15 +92,26 @@ final class SuggestionOverlayController {
             panel.ignoresMouseEvents = true
             panel.contentView = hosting
             self.panel = panel
+            self.hostingView = hosting
         }
 
-        panel.setContentSize(fitting)
-        panel.setFrameOrigin(cocoaOrigin(forTopLeftPoint: point, panelHeight: fitting.height))
-        panel.orderFrontRegardless()
+        // Mutating the window inside an in-flight display cycle makes SwiftUI
+        // re-enter setNeedsUpdateConstraints and AppKit throws; defer to the
+        // next run loop turn.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let panel, let hostingView else { return }
+            hostingView.layoutSubtreeIfNeeded()
+            let fitting = hostingView.fittingSize
+            panel.setContentSize(fitting)
+            panel.setFrameOrigin(cocoaOrigin(forTopLeftPoint: point, panelHeight: fitting.height))
+            panel.orderFrontRegardless()
+        }
     }
 
     func hide() {
-        panel?.orderOut(nil)
+        DispatchQueue.main.async { [weak panel] in
+            panel?.orderOut(nil)
+        }
     }
 
     // AX coordinates are top-left-origin relative to the primary display;

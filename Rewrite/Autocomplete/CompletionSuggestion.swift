@@ -8,11 +8,25 @@ struct CompletionSuggestion: Equatable, Sendable {
         if let newlineIndex = text.firstIndex(of: "\n") {
             text = String(text[..<newlineIndex])
         }
+        guard !Self.looksLikeRefusal(text) else {
+            remaining = ""
+            return
+        }
         let words = text.split(separator: " ", omittingEmptySubsequences: false)
         if words.count > Self.maxWords {
             text = words.prefix(Self.maxWords).joined(separator: " ")
         }
         remaining = text
+    }
+
+    // Apple's on-device model sometimes answers with a refusal preamble
+    // instead of a completion; never render that as a suggestion.
+    static func looksLikeRefusal(_ text: String) -> Bool {
+        let lowered = text.lowercased()
+        let prefixes = ["i'm sorry", "i am sorry", "i apologize", "i cannot", "i can't"]
+        return prefixes.contains(where: { lowered.hasPrefix($0) })
+            || lowered.contains("as an ai")
+            || lowered.contains("as an llm")
     }
 
     var isEmpty: Bool { remaining.isEmpty }

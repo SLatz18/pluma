@@ -66,6 +66,23 @@ final class CompletionSuggestionTests: XCTestCase {
         XCTAssertTrue(suggestion.isEmpty)
     }
 
+    func testRefusalPreamblesProduceEmptySuggestion() {
+        let refusals = [
+            "I'm sorry, but as an LLM created by Apple, I cannot comply",
+            "I cannot complete that text.",
+            "I can't help with that",
+            "As an AI, I must decline"
+        ]
+        for refusal in refusals {
+            XCTAssertTrue(CompletionSuggestion(rawOutput: refusal).isEmpty, refusal)
+        }
+    }
+
+    func testNormalCompletionsAreNotFlaggedAsRefusals() {
+        XCTAssertFalse(CompletionSuggestion(rawOutput: "the report by Friday").isEmpty)
+        XCTAssertFalse(CompletionSuggestion.looksLikeRefusal("the report by Friday"))
+    }
+
     func testCompletionPromptDelimitsContext() {
         let prompt = PromptComposer.completionUserPrompt(context: "Some context")
         XCTAssertTrue(prompt.contains("<context>\nSome context\n</context>"))
