@@ -62,7 +62,11 @@ enum AppleIntelligenceEngine {
         return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func complete(_ context: String, surrounding: String? = nil) async throws -> String {
+    static func complete(
+        _ context: String,
+        surrounding: String? = nil,
+        memory: String? = nil
+    ) async throws -> String {
         guard model.isAvailable else {
             throw RewriteEngineError.modelUnavailable(status().detail)
         }
@@ -72,7 +76,9 @@ enum AppleIntelligenceEngine {
             instructions: PromptComposer.completionSystemInstructions
         )
         let response = try await session.respond(
-            to: PromptComposer.completionUserPrompt(context: context, surrounding: surrounding),
+            to: PromptComposer.completionUserPrompt(
+                context: context, surrounding: surrounding, memory: memory
+            ),
             options: GenerationOptions(temperature: 0.3, maximumResponseTokens: 80)
         )
         let output = response.content.trimmingCharacters(in: .whitespacesAndNewlines)

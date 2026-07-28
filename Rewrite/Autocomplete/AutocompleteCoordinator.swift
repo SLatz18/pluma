@@ -33,18 +33,27 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var memoryEnabled: Bool {
+        didSet {
+            defaults.set(memoryEnabled, forKey: Preferences.memoryEnabledKey)
+        }
+    }
+
     @Published private(set) var isScreenContextPermitted: Bool
+    @Published private(set) var memoryEntryCount: Int
 
     private let defaults: UserDefaults
     private let tracker = FocusedFieldTracker()
     private let overlay = SuggestionOverlayController()
     private let permission = AccessibilityPermission.shared
     private let screenContext = ScreenContextProvider.shared
+    private let memory = MemoryStore.shared
 
     private var debounceTask: Task<Void, Never>?
     private var activeSuggestion: CompletionSuggestion?
     private var activeElement: AXUIElement?
     private var lastSnapshotPrefix: String?
+    private var acceptedFromCurrentSuggestion = ""
     private var requestSequence = 0
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
@@ -55,8 +64,10 @@ final class AutocompleteCoordinator: ObservableObject {
         self.defaults = defaults
         isEnabled = Preferences.autocompleteEnabled(from: defaults)
         screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
+        memoryEnabled = Preferences.memoryEnabled(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
+        memoryEntryCount = memory.count
         DebugLog.truncate()
         DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)")
 
@@ -106,6 +117,11 @@ final class AutocompleteCoordinator: ObservableObject {
     func requestScreenContextPermission() {
         screenContext.requestPermission()
         isScreenContextPermitted = screenContext.isPermitted
+    }
+
+    func clearMemory() {
+        memory.clear()
+        memoryEntryCount = 0
     }
 
     private func startIfPossible() {
@@ -221,6 +237,7 @@ final class AutocompleteCoordinator: ObservableObject {
             surrounding = await ScreenContextProvider.surroundingText()
             DebugLog.log("screen context: \(surrounding?.count ?? 0) chars")
         }
+        let memoryDigest = memoryEnabled ? memory.digest() : nil
 
         DebugLog.log("request provider=\(provider.rawValue) contextLen=\(context.count)")
         do {
@@ -228,6 +245,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
+                memory: memoryDigest,
                 ollamaModel: ollamaModel
             )
             guard
@@ -248,6 +266,7 @@ final class AutocompleteCoordinator: ObservableObject {
             DebugLog.log("suggestion: \(suggestion.remaining)")
             activeSuggestion = suggestion
             activeElement = element
+            acceptedFromCurrentSuggestion = ""
             showOverlay(for: suggestion, at: caretPoint)
             updateActivity()
         } catch {
@@ -351,6 +370,7 @@ final class AutocompleteCoordinator: ObservableObject {
             dismissSuggestion()
             return
         }
+        acceptedFromCurrentSuggestion += boundary + accepted
 
         // Chromium fields normalize whitespace on insert; re-sync the baseline
         // to the field's actual text rather than assuming what landed,
@@ -363,6 +383,10 @@ final class AutocompleteCoordinator: ObservableObject {
 
         if suggestion.isEmpty {
             let element = activeElement
+            if memoryEnabled {
+                memory.record(acceptedFromCurrentSuggestion)
+                memoryEntryCount = memory.count
+            }
             dismissSuggestion()
             if let element {
                 scheduleContinuationRequest(element: element)

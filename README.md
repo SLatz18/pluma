@@ -111,3 +111,9 @@ completion is requested and extracts visible text with on-device OCR. The
 image and extracted text live only for that one request; neither is written
 to disk, logged, or transmitted. Declining the permission keeps autocomplete
 fully functional with field text only.
+
+Style memory (optional, off by default) records only the suggestion text you
+accept — never raw keystrokes and never screen contents — into a local JSON
+file (`~/Library/Application Support/Rewrite/writing-memory.json`, capped at
+300 entries). Recent phrases are fed back to the model so suggestions drift
+toward your vocabulary. Clear it any time from the autocomplete card.

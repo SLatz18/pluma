@@ -19,13 +19,18 @@ enum RewriteRunner {
         provider: RewriteProviderChoice,
         context: String,
         surrounding: String? = nil,
+        memory: String? = nil,
         ollamaModel: String
     ) async throws -> String {
         switch provider {
         case .appleIntelligence:
-            try await AppleIntelligenceEngine.complete(context, surrounding: surrounding)
+            try await AppleIntelligenceEngine.complete(
+                context, surrounding: surrounding, memory: memory
+            )
         case .ollama:
-            try await OllamaEngine().complete(context, model: ollamaModel, surrounding: surrounding)
+            try await OllamaEngine().complete(
+                context, model: ollamaModel, surrounding: surrounding, memory: memory
+            )
         }
     }
 }

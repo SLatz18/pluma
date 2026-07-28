@@ -6,6 +6,7 @@ enum Preferences {
     static let ollamaModelKey = "rewrite.ollamaModel"
     static let autocompleteEnabledKey = "rewrite.autocompleteEnabled"
     static let screenContextEnabledKey = "rewrite.screenContextEnabled"
+    static let memoryEnabledKey = "rewrite.memoryEnabled"
     static let shortcutKeyCodeKey = "rewrite.shortcut.keyCode"
     static let shortcutModifiersKey = "rewrite.shortcut.modifiers"
     static let shortcutDisplayKey = "rewrite.shortcut.display"
@@ -40,6 +41,10 @@ enum Preferences {
 
     static func screenContextEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: screenContextEnabledKey)
+    }
+
+    static func memoryEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: memoryEnabledKey)
     }
 
     static func globalShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		06BB7E1516247937F80A4495 /* OllamaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17048874BC6393F1BC959476 /* OllamaEngine.swift */; };
+		11A4FD16B710D6F9C7702B5B /* MemoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DC182BC552BECB0F002C3A /* MemoryStoreTests.swift */; };
 		1690C030D0276933A8D48859 /* AccessibilityPrompt.m in Sources */ = {isa = PBXBuildFile; fileRef = C1DDBFE966E597DAD153C0CD /* AccessibilityPrompt.m */; };
 		177D9B33C7968722A6F75213 /* AppleIntelligenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2988AE8305A3F736D136B9D5 /* AppleIntelligenceEngine.swift */; };
 		1E7DC9CAB1288EE107DCEE73 /* RewriteServiceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */; };
@@ -20,6 +21,7 @@
 		37DCEFA5C00A1B6159EB20C3 /* RewriteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE8EB042F0BD8A68637063C /* RewriteApp.swift */; };
 		3D43E4219CB09634C5B02930 /* ProviderStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB0464FD3DA298DB022AB87 /* ProviderStatus.swift */; };
 		41914FF917F724684BEC9C63 /* CompletionSuggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0AB218FB7BADF6CAEF6B8F /* CompletionSuggestion.swift */; };
+		4B6DB5ACBB23AC928DDDB016 /* MemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E6C20DF432D64F2F13667E /* MemoryStore.swift */; };
 		4B9724C4F8AC0A0A67CCD770 /* ShortcutSettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613332DED9FAB4741046F649 /* ShortcutSettingsCard.swift */; };
 		62922D2981C1AFC89F3A482B /* RewriteProviderChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = F215BC8542AD42C8DB487C56 /* RewriteProviderChoice.swift */; };
 		62EF19F9A96DB4C5B8896B23 /* AutocompleteSettingsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1DAB002CC854D52409BE5A3 /* AutocompleteSettingsCard.swift */; };
@@ -66,10 +68,12 @@
 		2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderMenu.swift; sourceTree = "<group>"; };
 		3269C366CBF5C6B50F183168 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4A15D6D629C11040F896E833 /* AccessibilityPrompt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AccessibilityPrompt.h; sourceTree = "<group>"; };
+		58E6C20DF432D64F2F13667E /* MemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryStore.swift; sourceTree = "<group>"; };
 		5AB40D680100BFA48F17735C /* PromptComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposer.swift; sourceTree = "<group>"; };
 		604D0B397733765D80DD509B /* RewriteRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteRunner.swift; sourceTree = "<group>"; };
 		613332DED9FAB4741046F649 /* ShortcutSettingsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutSettingsCard.swift; sourceTree = "<group>"; };
 		6F0A59B42D5B91815E16F709 /* AccessibilityPermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityPermission.swift; sourceTree = "<group>"; };
+		74DC182BC552BECB0F002C3A /* MemoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryStoreTests.swift; sourceTree = "<group>"; };
 		7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteServiceProvider.swift; sourceTree = "<group>"; };
 		843C34D84CE63E8F8E340478 /* PromptComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposerTests.swift; sourceTree = "<group>"; };
 		982A458659DDEE62AFE4AC0A /* RewritePlaygroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewritePlaygroundView.swift; sourceTree = "<group>"; };
@@ -114,6 +118,7 @@
 			isa = PBXGroup;
 			children = (
 				2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */,
+				74DC182BC552BECB0F002C3A /* MemoryStoreTests.swift */,
 				843C34D84CE63E8F8E340478 /* PromptComposerTests.swift */,
 			);
 			path = RewriteTests;
@@ -148,6 +153,7 @@
 				043A7BDDAE8BD0E963BB2531 /* AutocompleteCoordinator.swift */,
 				1D0AB218FB7BADF6CAEF6B8F /* CompletionSuggestion.swift */,
 				E1C5CEBE845C202418328C02 /* FocusedFieldTracker.swift */,
+				58E6C20DF432D64F2F13667E /* MemoryStore.swift */,
 				F4D3C5328BE1725F2ECCE100 /* ScreenContextProvider.swift */,
 				A82390548DA0CB0B4477CC1B /* SuggestionOverlayController.swift */,
 			);
@@ -335,6 +341,7 @@
 				E8088DADB6FCB1A025FD48BA /* FocusedFieldTracker.swift in Sources */,
 				A0F0C04066A8ACDAC87ED194 /* GlobalShortcut.swift in Sources */,
 				2E467DD1468CCD8EFFC36C99 /* HotkeyManager.swift in Sources */,
+				4B6DB5ACBB23AC928DDDB016 /* MemoryStore.swift in Sources */,
 				06BB7E1516247937F80A4495 /* OllamaEngine.swift in Sources */,
 				2B59E99E075A6DF0EBEABE25 /* Preferences.swift in Sources */,
 				B242A97AF1099CBD28F8F33C /* PromptComposer.swift in Sources */,
@@ -362,6 +369,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DD21F942C165F6D6F702DA16 /* CompletionSuggestionTests.swift in Sources */,
+				11A4FD16B710D6F9C7702B5B /* MemoryStoreTests.swift in Sources */,
 				69F62166610236DFADE61CB7 /* PromptComposerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

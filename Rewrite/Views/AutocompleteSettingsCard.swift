@@ -36,6 +36,39 @@ struct AutocompleteSettingsCard: View {
                             .labelsHidden()
                             .disabled(!coordinator.isPermissionGranted)
                     }
+
+                    HStack(spacing: 6) {
+                        Text("Learn my style")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Toggle("Learn my style", isOn: $coordinator.memoryEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .disabled(!coordinator.isPermissionGranted)
+                    }
+                }
+            }
+
+            if coordinator.memoryEnabled {
+                HStack(spacing: 8) {
+                    Image(systemName: "brain")
+                        .foregroundStyle(.secondary)
+                    Text(
+                        coordinator.memoryEntryCount == 0
+                            ? "No phrases yet — accepted suggestions become style memory."
+                            : "\(coordinator.memoryEntryCount) phrases remembered, stored locally only."
+                    )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    if coordinator.memoryEntryCount > 0 {
+                        Button("Clear…") {
+                            coordinator.clearMemory()
+                        }
+                        .controlSize(.small)
+                    }
                 }
             }
 
