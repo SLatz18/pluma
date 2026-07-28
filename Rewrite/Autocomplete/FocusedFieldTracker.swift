@@ -264,7 +264,7 @@ final class FocusedFieldTracker {
             element: element,
             text: text,
             caretLocation: selection.location,
-            caretScreenPoint: caretPoint(for: element, location: selection.location)
+            caretScreenPoint: Self.caretPoint(for: element, location: selection.location)
         )
     }
 
