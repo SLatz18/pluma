@@ -166,6 +166,10 @@ final class FocusedFieldTracker {
             return
         }
 
+        var roleValue: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleValue)
+        DebugLog.log("focused text element: \(roleValue as? String ?? "?")")
+
         guard let appObserver else { return }
         let refcon = Unmanaged.passUnretained(self).toOpaque()
         AXObserverAddNotification(
@@ -182,7 +186,7 @@ final class FocusedFieldTracker {
     }
 
     private func publishSnapshot(from element: AXUIElement?) {
-        guard let element, let snapshot = Self.makeSnapshot(from: element) else {
+        guard let element, let snapshot = makeSnapshot(from: element) else {
             onSnapshot?(nil)
             return
         }
@@ -208,12 +212,23 @@ final class FocusedFieldTracker {
         return true
     }
 
-    private static func makeSnapshot(from element: AXUIElement) -> FocusedFieldSnapshot? {
+    private var lastLoggedRejection: String?
+
+    private func logRejection(_ reason: String) {
+        guard reason != lastLoggedRejection else { return }
+        lastLoggedRejection = reason
+        DebugLog.log("snapshot rejected: \(reason)")
+    }
+
+    private func makeSnapshot(from element: AXUIElement) -> FocusedFieldSnapshot? {
         var textValue: CFTypeRef?
         guard
             AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &textValue) == .success,
             let text = textValue as? String
-        else { return nil }
+        else {
+            logRejection("no string value")
+            return nil
+        }
 
         var rangeValue: CFTypeRef?
         guard
@@ -222,20 +237,32 @@ final class FocusedFieldTracker {
             ) == .success,
             let rangeValue,
             CFGetTypeID(rangeValue) == AXValueGetTypeID()
-        else { return nil }
-
-        var selection = CFRange()
-        guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &selection) else { return nil }
-
-        guard selection.length == 0, selection.location == (text as NSString).length else {
+        else {
+            logRejection("no selection range")
             return nil
         }
 
+        var selection = CFRange()
+        guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &selection) else {
+            logRejection("unreadable selection range")
+            return nil
+        }
+
+        guard selection.length == 0 else {
+            logRejection("selection not empty (\(selection.length) chars)")
+            return nil
+        }
+        guard selection.location > 0 else {
+            logRejection("caret at start")
+            return nil
+        }
+
+        lastLoggedRejection = nil
         return FocusedFieldSnapshot(
             element: element,
             text: text,
             caretLocation: selection.location,
-            caretScreenPoint: caretPoint(for: element, location: selection.location)
+            caretScreenPoint: Self.caretPoint(for: element, location: selection.location)
         )
     }
 
@@ -259,6 +286,9 @@ final class FocusedFieldTracker {
 
         var rect = CGRect.zero
         guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else { return nil }
+        // Chromium sometimes reports a degenerate caret rect; treat it as
+        // unavailable so callers fall back to the mouse anchor.
+        guard rect.height > 0 else { return nil }
         return CGPoint(x: rect.maxX + 4, y: rect.minY)
     }
 }

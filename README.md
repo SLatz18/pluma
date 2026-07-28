@@ -35,8 +35,8 @@ easy to rename before release.
 
 ## Autocomplete notes
 
-- Completion requires the caret to be at the end of the text with no selection,
-  and at least 16 characters of context.
+- Completion works from any caret position with no selection, using the text
+  before the caret as context (minimum 16 characters).
 - Suggestions insert via the Accessibility API, so they work in most native
   apps (AppKit, most Electron and browser fields) but not everywhere — apps
   that don't expose text via Accessibility (some custom editors) won't get

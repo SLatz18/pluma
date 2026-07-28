@@ -32,7 +32,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private var debounceTask: Task<Void, Never>?
     private var activeSuggestion: CompletionSuggestion?
     private var activeElement: AXUIElement?
-    private var lastSnapshotText: String?
+    private var lastSnapshotPrefix: String?
     private var requestSequence = 0
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
@@ -118,7 +118,7 @@ final class AutocompleteCoordinator: ObservableObject {
         guard let snapshot else {
             debounceTask?.cancel()
             dismissSuggestion()
-            lastSnapshotText = nil
+            lastSnapshotPrefix = nil
             updateActivity()
             return
         }
@@ -127,12 +127,12 @@ final class AutocompleteCoordinator: ObservableObject {
 
         if activeSuggestion != nil {
             handleTypedProgress(prefix: prefix)
-            lastSnapshotText = snapshot.text
+            lastSnapshotPrefix = prefix
             return
         }
 
-        guard snapshot.text != lastSnapshotText else { return }
-        lastSnapshotText = snapshot.text
+        guard prefix != lastSnapshotPrefix else { return }
+        lastSnapshotPrefix = prefix
         DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)")
 
         debounceTask?.cancel()
@@ -154,12 +154,12 @@ final class AutocompleteCoordinator: ObservableObject {
     private func handleTypedProgress(prefix: String) {
         guard var suggestion = activeSuggestion else { return }
 
-        if prefix.isEmpty || lastSnapshotText == nil {
+        if prefix.isEmpty || lastSnapshotPrefix == nil {
             dismissSuggestion()
             return
         }
 
-        let previous = (lastSnapshotText ?? "") as NSString
+        let previous = (lastSnapshotPrefix ?? "") as NSString
         let current = prefix as NSString
         guard
             current.length >= previous.length,
@@ -200,7 +200,7 @@ final class AutocompleteCoordinator: ObservableObject {
             guard
                 sequence == requestSequence,
                 !Task.isCancelled,
-                prefix == lastSnapshotText
+                prefix == lastSnapshotPrefix
             else {
                 DebugLog.log("response discarded: stale")
                 return
@@ -268,7 +268,9 @@ final class AutocompleteCoordinator: ObservableObject {
         else { return nil }
 
         var rect = CGRect.zero
-        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else { return nil }
+        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect), rect.height > 0 else {
+            return nil
+        }
         return CGPoint(x: rect.maxX + 4, y: rect.minY)
     }
 
@@ -293,7 +295,7 @@ final class AutocompleteCoordinator: ObservableObject {
             return
         }
 
-        lastSnapshotText = (lastSnapshotText ?? "") + accepted
+        lastSnapshotPrefix = (lastSnapshotPrefix ?? "") + accepted
 
         if suggestion.isEmpty {
             dismissSuggestion()
