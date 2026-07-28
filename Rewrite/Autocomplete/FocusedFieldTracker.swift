@@ -24,7 +24,9 @@ final class FocusedFieldTracker {
     private var frontmostObserver: NSObjectProtocol?
     private var running = false
 
-    private static let textRoles: Set<String> = ["AXTextArea", "AXTextField"]
+    // ComboBox covers rich web composers like Slack's, which report the
+    // editable role as AXComboBox while still exposing value + selection.
+    private static let textRoles: Set<String> = ["AXTextArea", "AXTextField", "AXComboBox"]
 
     func start() {
         guard !running else { return }
