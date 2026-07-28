@@ -294,7 +294,7 @@ final class AutocompleteCoordinator: ObservableObject {
         updateActivity()
     }
 
-    private func acceptSuggestion(wholeSuggestion: Bool) {
+    private func acceptSuggestion(wholeSuggestion: Bool) async {
         guard
             var suggestion = activeSuggestion,
             let element = activeElement
@@ -303,7 +303,7 @@ final class AutocompleteCoordinator: ObservableObject {
         let accepted = wholeSuggestion ? suggestion.acceptAll() : suggestion.acceptNextWord()
         guard !accepted.isEmpty else { return }
 
-        guard AXTextInsertion.insert(accepted, into: element) else {
+        guard await AXTextInsertion.insert(accepted, into: element) else {
             dismissSuggestion()
             return
         }
@@ -451,9 +451,9 @@ final class AutocompleteCoordinator: ObservableObject {
         }
 
         if isShiftPressed {
-            acceptSuggestion(wholeSuggestion: true)
+            Task { await self.acceptSuggestion(wholeSuggestion: true) }
         } else if !hasOtherModifiers {
-            acceptSuggestion(wholeSuggestion: false)
+            Task { await self.acceptSuggestion(wholeSuggestion: false) }
         } else {
             return false
         }

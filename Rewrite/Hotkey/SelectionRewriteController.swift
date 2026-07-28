@@ -64,7 +64,7 @@ final class SelectionRewriteController: ObservableObject {
                 text: selectedText,
                 ollamaModel: Preferences.ollamaModel(from: defaults)
             )
-            if AXTextInsertion.insert(output, into: element) {
+            if await AXTextInsertion.insert(output, into: element) {
                 DebugLog.log("rewrite inserted OK")
                 overlay.hide()
             } else {
