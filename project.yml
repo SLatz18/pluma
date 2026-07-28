@@ -32,7 +32,11 @@ targets:
         INFOPLIST_FILE: Rewrite/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Rewrite/Rewrite.entitlements
-        CODE_SIGN_STYLE: Automatic
+        # A stable local signature keeps Accessibility/TCC grants valid across
+        # rebuilds; ad-hoc signing changes the binary identity every build.
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: Local Self-Signed
+        PROVISIONING_PROFILE_SPECIFIER: ""
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CURRENT_PROJECT_VERSION: 1
