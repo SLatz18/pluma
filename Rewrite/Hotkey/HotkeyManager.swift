@@ -3,17 +3,28 @@ import Carbon.HIToolbox
 
 @MainActor
 final class HotkeyManager {
-    var onHotKey: (() -> Void)?
+    enum Slot: UInt32 {
+        case rewriteSelection = 1
+        case dictation = 2
+    }
 
-    private var hotKeyRef: EventHotKeyRef?
+    var onHotKey: (() -> Void)?
+    var onPress: ((Slot) -> Void)?
+    var onRelease: ((Slot) -> Void)?
+
+    private var hotKeyRefs: [Slot: EventHotKeyRef] = [:]
     private var handlerRef: EventHandlerRef?
 
     private static let signature = OSType(0x52575254) // 'RWRT'
 
     func register(_ shortcut: GlobalShortcut) {
-        unregisterHotKey()
+        register(shortcut, in: .rewriteSelection)
+    }
 
-        var hotKeyID = EventHotKeyID(signature: Self.signature, id: 1)
+    func register(_ shortcut: GlobalShortcut, in slot: Slot) {
+        unregisterHotKey(slot)
+
+        var hotKeyID = EventHotKeyID(signature: Self.signature, id: slot.rawValue)
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(
             shortcut.keyCode,
@@ -23,41 +34,95 @@ final class HotkeyManager {
             0,
             &ref
         )
-        DebugLog.log("hotkey register \(shortcut.display): status \(status)")
-        guard status == noErr else { return }
-        hotKeyRef = ref
+        DebugLog.log("hotkey register \(shortcut.display) slot=\(slot.rawValue): status \(status)")
+        guard status == noErr, let ref else { return }
+        hotKeyRefs[slot] = ref
 
+        installHandlerIfNeeded()
+    }
+
+    private func installHandlerIfNeeded() {
         guard handlerRef == nil else { return }
-        var eventType = EventTypeSpec(
-            eventClass: OSType(kEventClassKeyboard),
-            eventKind: UInt32(kEventHotKeyPressed)
-        )
+
+        // Both kinds go through one handler; the hotkey ID distinguishes which
+        // shortcut fired, and press vs. release drives push-to-talk.
+        var eventTypes = [
+            EventTypeSpec(
+                eventClass: OSType(kEventClassKeyboard),
+                eventKind: UInt32(kEventHotKeyPressed)
+            ),
+            EventTypeSpec(
+                eventClass: OSType(kEventClassKeyboard),
+                eventKind: UInt32(kEventHotKeyReleased)
+            )
+        ]
         let selfPointer = Unmanaged.passUnretained(self).toOpaque()
         InstallEventHandler(
             GetEventDispatcherTarget(),
-            { _, _, userData -> OSStatus in
-                guard let userData else {
+            { _, event, userData -> OSStatus in
+                guard let userData, let event else {
                     return OSStatus(eventNotHandledErr)
                 }
                 let manager = Unmanaged<HotkeyManager>
                     .fromOpaque(userData)
                     .takeUnretainedValue()
-                MainActor.assumeIsolated {
-                    manager.onHotKey?()
+
+                var hotKeyID = EventHotKeyID()
+                let status = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &hotKeyID
+                )
+                guard
+                    status == noErr,
+                    hotKeyID.signature == HotkeyManager.signature,
+                    let slot = Slot(rawValue: hotKeyID.id)
+                else {
+                    return OSStatus(eventNotHandledErr)
                 }
-                return noErr
+
+                let isRelease = GetEventKind(event) == UInt32(kEventHotKeyReleased)
+                return MainActor.assumeIsolated {
+                    // Handlers are installed per instance on the shared
+                    // dispatcher target, so every instance sees every hotkey.
+                    // Only act on slots this instance actually registered.
+                    guard manager.hotKeyRefs[slot] != nil else {
+                        return OSStatus(eventNotHandledErr)
+                    }
+                    manager.dispatch(slot: slot, isRelease: isRelease)
+                    return noErr
+                }
             },
-            1,
-            &eventType,
+            2,
+            &eventTypes,
             selfPointer,
             &handlerRef
         )
     }
 
-    func unregisterHotKey() {
-        if let hotKeyRef {
-            UnregisterEventHotKey(hotKeyRef)
+    private func dispatch(slot: Slot, isRelease: Bool) {
+        if isRelease {
+            onRelease?(slot)
+            return
         }
-        hotKeyRef = nil
+        onPress?(slot)
+        if slot == .rewriteSelection {
+            onHotKey?()
+        }
+    }
+
+    func unregisterHotKey() {
+        unregisterHotKey(.rewriteSelection)
+    }
+
+    func unregisterHotKey(_ slot: Slot) {
+        if let ref = hotKeyRefs[slot] {
+            UnregisterEventHotKey(ref)
+        }
+        hotKeyRefs[slot] = nil
     }
 }

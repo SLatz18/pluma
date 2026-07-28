@@ -47,7 +47,7 @@ enum AppleIntelligenceEngine {
         }
     }
 
-    static func rewrite(_ text: String, intent: RewriteIntent) async throws -> String {
+    static func rewrite(_ text: String, directive: String) async throws -> String {
         guard model.isAvailable else {
             throw RewriteEngineError.modelUnavailable(status().detail)
         }
@@ -57,7 +57,7 @@ enum AppleIntelligenceEngine {
             instructions: PromptComposer.systemInstructions
         )
         let response = try await session.respond(
-            to: PromptComposer.userPrompt(intent: intent, text: text)
+            to: PromptComposer.userPrompt(directive: directive, text: text)
         )
         return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }

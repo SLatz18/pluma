@@ -88,6 +88,55 @@ final class ScreenContextProvider {
         }
     }
 
+    // Recognition bias wants discrete terms, not prose. Proper nouns and
+    // unusual words are what the speech model gets wrong and what OCR is most
+    // likely to have on screen, so keep those and drop ordinary vocabulary.
+    nonisolated static func contextualStrings(from text: String) -> [String] {
+        var seen = Set<String>()
+        var terms: [String] = []
+
+        for token in text.components(separatedBy: tokenSeparators) {
+            let term = token.trimmingCharacters(in: .punctuationCharacters)
+            guard term.count >= 3, term.count <= 40 else { continue }
+            guard term.rangeOfCharacter(from: .letters) != nil else { continue }
+            guard let first = term.first else { continue }
+
+            let isCapitalized = first.isUppercase
+            let hasInnerCaps = term.dropFirst().contains { $0.isUppercase }
+            let hasDigits = term.rangeOfCharacter(from: .decimalDigits) != nil
+            guard isCapitalized || hasInnerCaps || hasDigits else { continue }
+            guard !commonWords.contains(term.lowercased()) else { continue }
+
+            guard seen.insert(term.lowercased()).inserted else { continue }
+            terms.append(term)
+            if terms.count >= maximumContextualStrings { break }
+        }
+
+        return terms
+    }
+
+    private nonisolated static let maximumContextualStrings = 60
+
+    private nonisolated static let tokenSeparators = CharacterSet
+        .whitespacesAndNewlines
+        .union(CharacterSet(charactersIn: "|/\\()[]{}<>,;:\"'“”‘’•…"))
+
+    // Sentence-initial capitals make ordinary words look like proper nouns;
+    // biasing toward these would waste the budget and skew common words.
+    private nonisolated static let commonWords: Set<String> = [
+        "the", "and", "but", "for", "with", "from", "this", "that", "these",
+        "those", "you", "your", "our", "their", "they", "them", "there", "here",
+        "what", "when", "where", "which", "who", "why", "how", "all", "any",
+        "can", "will", "would", "should", "could", "have", "has", "had", "not",
+        "are", "was", "were", "been", "being", "into", "out", "off", "over",
+        "then", "than", "now", "new", "get", "got", "see", "say", "said",
+        "hi", "hey", "hello", "thanks", "thank", "please", "sorry", "yes", "no",
+        "one", "two", "three", "some", "more", "most", "other", "also", "just",
+        "like", "want", "need", "make", "made", "know", "think", "let", "may",
+        "sent", "reply", "inbox", "search", "menu", "file", "edit", "view",
+        "window", "help", "done", "cancel", "close", "open", "save", "send"
+    ]
+
     private nonisolated static func ocr(_ image: CGImage) throws -> String? {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .fast
