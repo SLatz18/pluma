@@ -262,14 +262,54 @@ final class AutocompleteCoordinator: ObservableObject {
             return
         }
 
+        let display = boundaryPrefix(
+            prefix: lastSnapshotPrefix ?? "", accepted: suggestion.remaining
+        ) + suggestion.remaining
+
         if let point {
-            overlay.show(text: suggestion.remaining, atTopLeftPoint: point)
+            overlay.show(text: display, atTopLeftPoint: point)
         } else if let element = activeElement, let point = currentCaretPoint(for: element) {
-            overlay.show(text: suggestion.remaining, atTopLeftPoint: point)
+            overlay.show(text: display, atTopLeftPoint: point)
         } else {
             DebugLog.log("caret bounds unavailable; overlay at mouse")
-            overlay.show(text: suggestion.remaining, atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint())
+            overlay.show(text: display, atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint())
         }
+    }
+
+    // Returns " " when the accepted text needs a separating space from the
+    // prefix: the prefix ends with a spell-checkable complete word or with
+    // sentence punctuation. Mid-word continuations ("execu" → "tion") stay
+    // fused on purpose.
+    private func boundaryPrefix(prefix: String, accepted: String) -> String {
+        guard
+            let last = prefix.last,
+            let first = accepted.first,
+            !last.isWhitespace,
+            !first.isWhitespace,
+            first.isLetter
+        else { return "" }
+
+        if last.isLetter {
+            let trailing = String(prefix.reversed().prefix(while: \.isLetter).reversed())
+            return isCompleteWord(trailing) ? " " : ""
+        }
+        if ".!?…".contains(last) {
+            return " "
+        }
+        return ""
+    }
+
+    private func isCompleteWord(_ word: String) -> Bool {
+        guard !word.isEmpty else { return false }
+        let misspelled = NSSpellChecker.shared.checkSpelling(
+            of: word,
+            startingAt: 0,
+            language: nil,
+            wrap: false,
+            inSpellDocumentWithTag: 0,
+            wordCount: nil
+        )
+        return misspelled.location == NSNotFound
     }
 
     private func currentCaretPoint(for element: AXUIElement) -> CGPoint? {
@@ -303,7 +343,11 @@ final class AutocompleteCoordinator: ObservableObject {
         let accepted = wholeSuggestion ? suggestion.acceptAll() : suggestion.acceptNextWord()
         guard !accepted.isEmpty else { return }
 
-        guard await AXTextInsertion.insert(accepted, into: element) else {
+        // FoundationModels strips leading spaces, so word-boundary spacing is
+        // computed mechanically: a space is inserted only where the prefix
+        // provably ends with a complete word.
+        let boundary = boundaryPrefix(prefix: lastSnapshotPrefix ?? "", accepted: accepted)
+        guard await AXTextInsertion.insert(boundary + accepted, into: element) else {
             dismissSuggestion()
             return
         }

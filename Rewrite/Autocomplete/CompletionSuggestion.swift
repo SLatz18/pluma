@@ -56,6 +56,11 @@ struct CompletionSuggestion: Equatable, Sendable {
     // the boundary, so typed text may omit it.
     mutating func consumeTypedText(_ typed: String) -> Bool {
         guard !typed.isEmpty else { return true }
+        // A typed space at a word boundary consumes the boundary itself; the
+        // suggestion (whose leading space the model may have stripped) lives on.
+        if typed == " ", !remaining.hasPrefix(" ") {
+            return true
+        }
         let lowered = remaining.lowercased()
         let typedLower = typed.lowercased()
 
