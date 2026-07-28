@@ -308,7 +308,14 @@ final class AutocompleteCoordinator: ObservableObject {
             return
         }
 
-        lastSnapshotPrefix = (lastSnapshotPrefix ?? "") + accepted
+        // Chromium fields normalize whitespace on insert; re-sync the baseline
+        // to the field's actual text rather than assuming what landed,
+        // otherwise the next snapshot mismatches and the suggestion regenerates.
+        if let refreshed = FocusedFieldTracker.readPrefix(of: element) {
+            lastSnapshotPrefix = refreshed
+        } else {
+            lastSnapshotPrefix = (lastSnapshotPrefix ?? "") + accepted
+        }
 
         if suggestion.isEmpty {
             let element = activeElement

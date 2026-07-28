@@ -268,6 +268,28 @@ final class FocusedFieldTracker {
         )
     }
 
+    // Reads the field's text up to the caret; used to re-sync state to field
+    // truth after insertions instead of assuming what landed.
+    static func readPrefix(of element: AXUIElement) -> String? {
+        var textValue: CFTypeRef?
+        var rangeValue: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &textValue) == .success,
+            let text = textValue as? String,
+            AXUIElementCopyAttributeValue(
+                element, kAXSelectedTextRangeAttribute as CFString, &rangeValue
+            ) == .success,
+            let rangeValue,
+            CFGetTypeID(rangeValue) == AXValueGetTypeID()
+        else { return nil }
+
+        var selection = CFRange()
+        guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &selection) else { return nil }
+        let nsText = text as NSString
+        guard selection.location <= nsText.length else { return nil }
+        return nsText.substring(to: selection.location)
+    }
+
     // Caret geometry from Chromium fields is unreliable: end-of-text carets
     // report a degenerate rect at the screen's bottom-left corner. Validate
     // against the field's own frame; anything implausible returns nil so the
