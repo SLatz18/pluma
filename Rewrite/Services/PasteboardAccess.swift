@@ -27,7 +27,7 @@ enum PasteboardAccess {
 
     /// Checks for plain-text content without reading it, avoiding a privacy alert.
     static func preflightHasString(on pasteboard: NSPasteboard = .general) -> Bool {
-        if pasteboard.types(forItem: 0)?.contains(.string) == true {
+        if pasteboard.types?.contains(.string) == true {
             return true
         }
         return pasteboard.availableType(from: [.string]) != nil

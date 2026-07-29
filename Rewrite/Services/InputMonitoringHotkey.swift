@@ -57,7 +57,6 @@ final class InputMonitoringHotkey: @unchecked Sendable {
     }
 
     private static let callback: CGEventTapCallBack = { _, type, event, userInfo in
-        guard let event else { return nil }
         guard type == .keyDown, let userInfo else {
             return Unmanaged.passUnretained(event)
         }

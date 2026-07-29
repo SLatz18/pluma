@@ -12,8 +12,11 @@ final class GlobalHotkey {
     static let shared = GlobalHotkey()
 
     private var hotKeyRef: EventHotKeyRef?
+    private var handlerRef: EventHandlerRef?
     private var action: (() -> Void)?
     private(set) var isRegistered = false
+    private static let signature: OSType = 0x52574342 // 'RWCB'
+    private static let identifier: UInt32 = 100
 
     private init() {}
 
@@ -24,29 +27,12 @@ final class GlobalHotkey {
         self.action = action
         isRegistered = false
 
-        var eventType = EventTypeSpec(
-            eventClass: OSType(kEventClassKeyboard),
-            eventKind: UInt32(kEventHotKeyPressed)
-        )
+        installHandlerIfNeeded()
 
-        InstallEventHandler(
-            GetApplicationEventTarget(),
-            { _, _, userData in
-                guard let userData else { return noErr }
-                let hotkey = Unmanaged<GlobalHotkey>
-                    .fromOpaque(userData)
-                    .takeUnretainedValue()
-                Task { @MainActor in hotkey.action?() }
-                return noErr
-            },
-            1,
-            &eventType,
-            Unmanaged.passUnretained(self).toOpaque(),
-            nil
+        let hotKeyID = EventHotKeyID(
+            signature: Self.signature,
+            id: Self.identifier
         )
-
-        // 'RWRT' signature, id 1
-        let hotKeyID = EventHotKeyID(signature: 0x52575254, id: 1)
         let modifiers = UInt32(controlKey | optionKey | shiftKey | cmdKey)
 
         let status = RegisterEventHotKey(
@@ -59,6 +45,51 @@ final class GlobalHotkey {
         )
         isRegistered = status == noErr
         return isRegistered
+    }
+
+    private func installHandlerIfNeeded() {
+        guard handlerRef == nil else { return }
+
+        var eventType = EventTypeSpec(
+            eventClass: OSType(kEventClassKeyboard),
+            eventKind: UInt32(kEventHotKeyPressed)
+        )
+        InstallEventHandler(
+            GetApplicationEventTarget(),
+            { _, event, userData in
+                guard let event, let userData else {
+                    return OSStatus(eventNotHandledErr)
+                }
+
+                var hotKeyID = EventHotKeyID()
+                let status = GetEventParameter(
+                    event,
+                    EventParamName(kEventParamDirectObject),
+                    EventParamType(typeEventHotKeyID),
+                    nil,
+                    MemoryLayout<EventHotKeyID>.size,
+                    nil,
+                    &hotKeyID
+                )
+                guard
+                    status == noErr,
+                    hotKeyID.signature == GlobalHotkey.signature,
+                    hotKeyID.id == GlobalHotkey.identifier
+                else {
+                    return OSStatus(eventNotHandledErr)
+                }
+
+                let hotkey = Unmanaged<GlobalHotkey>
+                    .fromOpaque(userData)
+                    .takeUnretainedValue()
+                Task { @MainActor in hotkey.action?() }
+                return noErr
+            },
+            1,
+            &eventType,
+            Unmanaged.passUnretained(self).toOpaque(),
+            &handlerRef
+        )
     }
 
     func unregister() {

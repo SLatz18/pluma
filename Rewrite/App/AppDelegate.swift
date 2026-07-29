@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NotificationCenter.default.addObserver(
             self,
-            selector: #selector(applicationDidBecomeActive),
+            selector: #selector(applicationDidBecomeActive(_:)),
             name: NSApplication.didBecomeActiveNotification,
             object: nil
         )
@@ -73,7 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ClipboardHotkeyManager.shared.stop()
     }
 
-    @objc private func applicationDidBecomeActive() {
+    @objc private func applicationDidBecomeActive(_ notification: Notification) {
         ClipboardHotkeyManager.shared.refresh()
     }
 }
