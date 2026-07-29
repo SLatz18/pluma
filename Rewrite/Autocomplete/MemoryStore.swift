@@ -1,16 +1,23 @@
 import Foundation
 
 @MainActor
-final class MemoryStore {
-    struct Entry: Codable, Equatable, Sendable {
+final class MemoryStore: ObservableObject {
+    struct Entry: Codable, Equatable, Sendable, Identifiable {
+        let id: UUID
         let date: Date
         let text: String
+
+        init(date: Date, text: String) {
+            id = UUID()
+            self.date = date
+            self.text = text
+        }
     }
 
     static let shared = MemoryStore()
 
-    private(set) var entries: [Entry] = []
-    private let url: URL
+    @Published private(set) var entries: [Entry] = []
+    let url: URL
     private let maxEntries = 300
 
     init(url: URL? = nil) {

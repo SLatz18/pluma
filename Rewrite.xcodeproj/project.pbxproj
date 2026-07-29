@@ -32,6 +32,7 @@
 		8E286D9E3E60B396BBF50FD4 /* SuggestionOverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A82390548DA0CB0B4477CC1B /* SuggestionOverlayController.swift */; };
 		8EF7C01C70286BB142FB3038 /* RewritePlaygroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982A458659DDEE62AFE4AC0A /* RewritePlaygroundView.swift */; };
 		A053CB2DCF183D2940C5570D /* AutocompleteCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 043A7BDDAE8BD0E963BB2531 /* AutocompleteCoordinator.swift */; };
+		A0D94E3975064CA634A0059D /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C84502B6C3F6031C5831379 /* AdvancedSettingsView.swift */; };
 		A0F0C04066A8ACDAC87ED194 /* GlobalShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEF1B27E1BCFE63B6303A1B2 /* GlobalShortcut.swift */; };
 		A4FF0BA731ECFDD5952F48EC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16520930043B1C5E4A395054 /* AppDelegate.swift */; };
 		AB194F6BFE3DBC1537FFFBC9 /* RewriteActionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */; };
@@ -64,6 +65,7 @@
 		21CFD1DD05571F92114A129E /* RewriteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RewriteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		236F5EE924A508B0459934FD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2988AE8305A3F736D136B9D5 /* AppleIntelligenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleIntelligenceEngine.swift; sourceTree = "<group>"; };
+		2C84502B6C3F6031C5831379 /* AdvancedSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsView.swift; sourceTree = "<group>"; };
 		2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionSuggestionTests.swift; sourceTree = "<group>"; };
 		2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderMenu.swift; sourceTree = "<group>"; };
 		3269C366CBF5C6B50F183168 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -225,6 +227,7 @@
 		F727C5F1E1009991A65D2F10 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				2C84502B6C3F6031C5831379 /* AdvancedSettingsView.swift */,
 				E1DAB002CC854D52409BE5A3 /* AutocompleteSettingsCard.swift */,
 				AFD2F1DA028BC5A836492E10 /* ContentView.swift */,
 				2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */,
@@ -331,6 +334,7 @@
 				253095C9CFA6FF89EED75204 /* AXTextInsertion.swift in Sources */,
 				778312DDCBDD1EA4640F2CDF /* AccessibilityPermission.swift in Sources */,
 				1690C030D0276933A8D48859 /* AccessibilityPrompt.m in Sources */,
+				A0D94E3975064CA634A0059D /* AdvancedSettingsView.swift in Sources */,
 				A4FF0BA731ECFDD5952F48EC /* AppDelegate.swift in Sources */,
 				177D9B33C7968722A6F75213 /* AppleIntelligenceEngine.swift in Sources */,
 				A053CB2DCF183D2940C5570D /* AutocompleteCoordinator.swift in Sources */,

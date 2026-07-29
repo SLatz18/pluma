@@ -27,6 +27,8 @@ struct RewriteApp: App {
         Settings {
             SettingsView()
                 .environmentObject(model)
+                .environmentObject(autocomplete)
+                .environmentObject(MemoryStore.shared)
         }
     }
 }
