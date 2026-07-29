@@ -82,6 +82,22 @@ final class DictationTranscriptTests: XCTestCase {
         XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott..."), "Scott...")
     }
 
+    // Paragraph breaks help a dictated document and wreck a dictated message, so
+    // the directive changes with length rather than always asking for them.
+    func testShortDictationIsToldToStaySingleParagraph() {
+        let directive = PromptComposer.dictationDirective(for: "let us ship this tonight")
+        XCTAssertTrue(directive.contains("single paragraph"))
+        XCTAssertFalse(directive.contains("Break the result into paragraphs"))
+    }
+
+    func testLongDictationIsAllowedParagraphs() {
+        let long = Array(repeating: "word", count: PromptComposer.paragraphWordThreshold)
+            .joined(separator: " ")
+        let directive = PromptComposer.dictationDirective(for: long)
+        XCTAssertTrue(directive.contains("Break the result into paragraphs"))
+        XCTAssertFalse(directive.contains("single paragraph"))
+    }
+
     func testShortTranscriptsSkipCleanup() {
         XCTAssertFalse(DictationTranscript.isWorthCleaningUp("yes"))
         XCTAssertFalse(DictationTranscript.isWorthCleaningUp("sounds good"))
