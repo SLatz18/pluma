@@ -288,6 +288,13 @@ final class DictationController: ObservableObject {
         }
 
         activity = .tidying
+        // Recording is over the moment the key comes up, but the HUD would
+        // keep pulsing until insertion. Switch it to an honest status for the
+        // finish/cleanup window — longest when transcription is a network call.
+        showHUD(
+            message: cleanupEnabled ? "Tidying…" : "Transcribing…",
+            systemImage: cleanupEnabled ? "sparkles" : "waveform"
+        )
         let transcript = await engine.finish()
         guard !transcript.isEmpty else {
             await cancelSession()
@@ -296,16 +303,13 @@ final class DictationController: ObservableObject {
         }
 
         var output = transcript
-        if cleanupEnabled {
-            showHUD(message: "Tidying…", systemImage: "sparkles")
-            if let cleaned = await RewriteRunner.cleanUpDictation(
-                provider: cleanupProvider,
-                openAIModel: openAIModel,
-                ollamaModel: ollamaModel,
-                transcript: transcript
-            ) {
-                output = cleaned
-            }
+        if cleanupEnabled, let cleaned = await RewriteRunner.cleanUpDictation(
+            provider: cleanupProvider,
+            openAIModel: openAIModel,
+            ollamaModel: ollamaModel,
+            transcript: transcript
+        ) {
+            output = cleaned
         }
 
         await insert(DictationTranscript.withoutFragmentPeriod(output))
