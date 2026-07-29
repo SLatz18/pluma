@@ -77,8 +77,7 @@ final class InputMonitoringHotkey: @unchecked Sendable {
             return false
         }
 
-        let flags = event.flags.intersection(.deviceIndependentFlagsMask)
         let required: CGEventFlags = [.maskControl, .maskAlternate, .maskShift, .maskCommand]
-        return flags.contains(required)
+        return event.flags.intersection(required) == required
     }
 }
