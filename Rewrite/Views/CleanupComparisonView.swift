@@ -97,9 +97,8 @@ struct CleanupComparisonView: View {
         _ title: String, @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Divider()
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(DS.meta.weight(.semibold))
                 .foregroundStyle(.secondary)
             content()
         }
@@ -111,9 +110,9 @@ struct CleanupComparisonView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Text(title)
-                    .font(.caption.weight(.semibold))
+                    .font(DS.meta.weight(.semibold))
                 Text(String(format: "%.2fs", seconds))
-                    .font(.caption)
+                    .font(DS.meta)
                     .foregroundStyle(.secondary)
             }
 
@@ -131,8 +130,8 @@ struct CleanupComparisonView: View {
         }
         .padding(10)
         .background(
-            Color(nsColor: .textBackgroundColor),
-            in: RoundedRectangle(cornerRadius: 8)
+            DS.insetBackground,
+            in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
         )
     }
 }

@@ -20,13 +20,13 @@ struct RewriteApp: App {
 
     var body: some Scene {
         WindowGroup("Rewrite", id: "main") {
-            ContentView()
+            MainWindowView()
                 .environmentObject(model)
                 .environmentObject(autocomplete)
                 .environmentObject(selectionRewrite)
                 .environmentObject(dictation)
         }
-        .defaultSize(width: 840, height: 740)
+        .defaultSize(width: 980, height: 700)
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
 
