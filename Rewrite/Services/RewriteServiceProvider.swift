@@ -19,16 +19,18 @@ final class RewriteServiceProvider: NSObject {
 
         let defaults = UserDefaults.standard
         let provider = Preferences.provider(from: defaults)
-        let intent = Preferences.intent(from: defaults)
+        let chain = Preferences.chain(from: defaults)
         let ollamaModel = Preferences.ollamaModel(from: defaults)
         let resultBox = LockedResultBox<Result<String, Error>>()
         let semaphore = DispatchSemaphore(value: 0)
 
         Task.detached(priority: .userInitiated) {
             do {
-                let output = try await RewriteRunner.rewrite(
+                // Nonisolated chain: the semaphore below blocks this thread,
+                // so hopping to the main actor here would deadlock.
+                let output = try await RewriteRunner.rewriteChain(
                     provider: provider,
-                    intent: intent,
+                    steps: chain,
                     text: source,
                     ollamaModel: ollamaModel
                 )
