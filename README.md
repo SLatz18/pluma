@@ -101,6 +101,38 @@ with model and style-profile settings under ⌘,.
   and App Sandbox are mutually exclusive, the sandbox entitlement was removed;
   the hardened runtime remains.
 
+## Developer mode
+
+Hidden behind a cheat code: with the Rewrite window focused, press
+**↑ ↑ ↓ ↓ ← → ← →**. A **Developer** page appears in the sidebar; entering the
+code again removes it. There is also a plain switch in Settings → Advanced for
+when the code slips your mind.
+
+It holds the things worth having when a feature misbehaves in another app:
+
+- **Caret inspector** — what the ghost-text code sees in the last field you
+  typed in: which Accessibility probe found the caret, the rect it returned,
+  the font size derived from it, the width budget, and why ghost text was
+  allowed or refused. Rewrite's own fields are skipped, so switching to this
+  page doesn't clear the reading.
+- **Draw caret box on screen** — outlines the caret rect in red and the ghost
+  text's actual frame in blue, so a few points of misalignment is something you
+  see rather than something you calculate.
+- **Diagnostics log** — a live tail of `autocomplete-debug.log` with a text
+  filter, a Clear button, and three detail levels. **Verbose** adds per-probe
+  caret results and every overlay presentation; **quiet** keeps only failures
+  and state changes. Open in editor is still there.
+- **Compare transcription and cleanup** — moved here from the Dictation page,
+  where a benchmarking tool never belonged.
+
+Nothing here runs until it is switched on. The inspector's poll and the log
+watcher exist only while the Developer page is open, the trace panel is built
+when its switch goes on and released when it goes off, and locking developer
+mode tears all of it down and resets the log level. Verbose log calls sit
+behind an autoclosure, so at any other level they cost one integer compare and
+build no string — which is what makes it safe to trace code that runs on every
+keystroke.
+
 ## Requirements
 
 - macOS 26 or later.

@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F6A4FB8FD26EE5089263D540 /* CheatCodeRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C78BEDC7FB188C5C503431E2 /* CheatCodeRecognizer.swift */; };
+		7523181DB8E72F206F446EFA /* DeveloperMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 587A31E4E45D4019A57EA077 /* DeveloperMode.swift */; };
+		6BA600A6E968D514363E42E9 /* CaretInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B913446F0743B7FD5DD1DD5 /* CaretInspector.swift */; };
+		6FAF276EC726CFC50A1F1137 /* CaretTracePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F2CF7F540158FD420C54EA /* CaretTracePanel.swift */; };
+		259643A7AA61662057D07444 /* LogViewerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C1298CDDEFD9B3F0CD753DA /* LogViewerModel.swift */; };
+		F91CFF576075F58CC65430FC /* DeveloperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4FF0C973C7680A27210BC8B /* DeveloperView.swift */; };
+		1E534171F4D1F97B8570BDC8 /* CheatCodeRecognizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0056671F57F6CD6AA2F14FF /* CheatCodeRecognizerTests.swift */; };
+		84AD1511786D292874791DEC /* DebugLogLevelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3D0963C372516DF7473D440 /* DebugLogLevelTests.swift */; };
 		C91611D706C7A794E490409C /* CaretGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A817A09414DBA8407E4D9F /* CaretGeometry.swift */; };
 		0ECA35F6CE36D122BF8B37CB /* GhostTextGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75D7A85D6F99D4E0ECC8D33 /* GhostTextGeometry.swift */; };
 		B228CBD3ABCF3585E5C441E9 /* GhostTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C18BF032752576C8DD9E242 /* GhostTextView.swift */; };
@@ -95,6 +103,14 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		C78BEDC7FB188C5C503431E2 /* CheatCodeRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheatCodeRecognizer.swift; sourceTree = "<group>"; };
+		587A31E4E45D4019A57EA077 /* DeveloperMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperMode.swift; sourceTree = "<group>"; };
+		9B913446F0743B7FD5DD1DD5 /* CaretInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaretInspector.swift; sourceTree = "<group>"; };
+		F4F2CF7F540158FD420C54EA /* CaretTracePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaretTracePanel.swift; sourceTree = "<group>"; };
+		2C1298CDDEFD9B3F0CD753DA /* LogViewerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewerModel.swift; sourceTree = "<group>"; };
+		D4FF0C973C7680A27210BC8B /* DeveloperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperView.swift; sourceTree = "<group>"; };
+		F0056671F57F6CD6AA2F14FF /* CheatCodeRecognizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheatCodeRecognizerTests.swift; sourceTree = "<group>"; };
+		E3D0963C372516DF7473D440 /* DebugLogLevelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogLevelTests.swift; sourceTree = "<group>"; };
 		55A817A09414DBA8407E4D9F /* CaretGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaretGeometry.swift; sourceTree = "<group>"; };
 		A75D7A85D6F99D4E0ECC8D33 /* GhostTextGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextGeometry.swift; sourceTree = "<group>"; };
 		6C18BF032752576C8DD9E242 /* GhostTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextView.swift; sourceTree = "<group>"; };
@@ -177,6 +193,18 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		9A26622B15506BFD10977BC0 /* Developer */ = {
+			isa = PBXGroup;
+			children = (
+				C78BEDC7FB188C5C503431E2 /* CheatCodeRecognizer.swift */,
+				587A31E4E45D4019A57EA077 /* DeveloperMode.swift */,
+				9B913446F0743B7FD5DD1DD5 /* CaretInspector.swift */,
+				F4F2CF7F540158FD420C54EA /* CaretTracePanel.swift */,
+				2C1298CDDEFD9B3F0CD753DA /* LogViewerModel.swift */,
+			);
+			path = Developer;
+			sourceTree = "<group>";
+		};
 		4D147024AA574C43193FFAC2 /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -206,6 +234,8 @@
 				2BB64C65CAEC81178C3DB494 /* RecipeChainTests.swift */,
 				B6907892401FECE1D2C27E3A /* ScreenContextKeywordsTests.swift */,
 				51773EB1D1BAE94ABBFE1589 /* StyleProfileStoreTests.swift */,
+				F0056671F57F6CD6AA2F14FF /* CheatCodeRecognizerTests.swift */,
+				E3D0963C372516DF7473D440 /* DebugLogLevelTests.swift */,
 				42D33C0545883933F7790DA4 /* CaretResolverTests.swift */,
 				98F57FD6D147C3ED5E26B862 /* GhostTextGeometryTests.swift */,
 			);
@@ -288,6 +318,7 @@
 				EAE19BE89966FA5A3AF64B8D /* App */,
 				9CDE78A8CF5FFDF08E976A33 /* Autocomplete */,
 				6D1FC5BA2F5E6A01978DE84A /* Dictation */,
+				9A26622B15506BFD10977BC0 /* Developer */,
 				DA4F69A0E956F66D401ED650 /* Hotkey */,
 				8CA62C3C33E30CB356EA66F9 /* Models */,
 				D3C1EB69C189166D62ED85C3 /* Providers */,
@@ -353,6 +384,7 @@
 				DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */,
 				982A458659DDEE62AFE4AC0A /* RewritePlaygroundView.swift */,
 				3269C366CBF5C6B50F183168 /* SettingsView.swift */,
+				D4FF0C973C7680A27210BC8B /* DeveloperView.swift */,
 				2E033149EBE02D29FD338F0B /* ShortcutRecorderView.swift */,
 			);
 			path = Views;
@@ -510,6 +542,12 @@
 				C253E8AB6B75092830790FEF /* ScreenContextProvider.swift in Sources */,
 				ECB19901D69E9BB1B0B95935 /* SelectionRewriteController.swift in Sources */,
 				20CBE8C882A6B588B00BB38F /* SettingsView.swift in Sources */,
+				F6A4FB8FD26EE5089263D540 /* CheatCodeRecognizer.swift in Sources */,
+				7523181DB8E72F206F446EFA /* DeveloperMode.swift in Sources */,
+				6BA600A6E968D514363E42E9 /* CaretInspector.swift in Sources */,
+				6FAF276EC726CFC50A1F1137 /* CaretTracePanel.swift in Sources */,
+				259643A7AA61662057D07444 /* LogViewerModel.swift in Sources */,
+				F91CFF576075F58CC65430FC /* DeveloperView.swift in Sources */,
 				B8716755FCF7EE9C5E3F61E3 /* ShortcutRecorderView.swift in Sources */,
 				D509F4D27678AEE5600FFA12 /* SpeechTranscriptionEngine.swift in Sources */,
 				12E5D4B2D56470DC7CBB026B /* StyleProfileStore.swift in Sources */,
@@ -531,6 +569,8 @@
 				89A5F2F9A291EF524A36DF35 /* RecipeChainTests.swift in Sources */,
 				7CC09ECF4A78D00895CFBEF0 /* ScreenContextKeywordsTests.swift in Sources */,
 				207B3667A9A2682E137003FA /* StyleProfileStoreTests.swift in Sources */,
+				1E534171F4D1F97B8570BDC8 /* CheatCodeRecognizerTests.swift in Sources */,
+				84AD1511786D292874791DEC /* DebugLogLevelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

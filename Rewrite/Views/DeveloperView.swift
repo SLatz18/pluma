@@ -1,0 +1,281 @@
+import AppKit
+import SwiftUI
+
+/// The hidden page behind ↑ ↑ ↓ ↓ ← → ← →. Everything diagnostic lives here so
+/// the consumer pages stay clean, and everything on it starts on `.onAppear`
+/// and stops on `.onDisappear` so it costs nothing when you are not looking.
+struct DeveloperView: View {
+    @EnvironmentObject private var developer: DeveloperMode
+    @EnvironmentObject private var dictation: DictationController
+
+    @StateObject private var inspector = CaretInspector()
+    @StateObject private var log = LogViewerModel()
+    @State private var isComparing = false
+    @State private var didCopyDebugInfo = false
+    @State private var hasOpenAIKey = OpenAIKey.isPresent
+
+    var body: some View {
+        DSPage(
+            title: "Developer",
+            subtitle: "Diagnostics for the caret, the log, and transcription quality.",
+            eyebrow: "cheat code"
+        ) {
+            caretCard
+            logCard
+            compareCard
+        }
+        .onAppear {
+            inspector.onSample = { [weak developer] caret in
+                developer?.traceCaret(caret)
+            }
+            inspector.start()
+            log.start()
+        }
+        .onDisappear {
+            inspector.stop()
+            log.stop()
+        }
+        .sheet(isPresented: $isComparing) {
+            CleanupComparisonView()
+        }
+    }
+
+    // MARK: Caret
+
+    private var caretCard: some View {
+        DSCard {
+            VStack(alignment: .leading, spacing: 14) {
+                header(
+                    symbol: "cursorarrow.rays",
+                    tint: DS.Feature.autocomplete.color,
+                    title: "Caret inspector",
+                    detail: "What the ghost-text code sees in the last field you typed in."
+                )
+
+                if let readout = inspector.readout {
+                    Divider()
+                    caretReadout(readout)
+                } else {
+                    Text("Type in another app, then come back — Rewrite's own fields are skipped.")
+                        .font(DS.meta)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                DSToggleRow(
+                    title: "Draw caret box on screen",
+                    detail: "Red where the caret was found, blue dashed where ghost text landed.",
+                    isOn: $developer.isTracingEnabled
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func caretReadout(_ readout: CaretReadout) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            row("Field", "\(readout.appName) — \(readout.role)")
+            if let caret = readout.caret {
+                row("Probe won", caret.source.title)
+                row("Caret rect", FocusedFieldTracker.describe(caret.rect))
+            } else {
+                row("Probe won", "none — every probe failed")
+            }
+            if let fontSize = readout.fontSize {
+                row("Font size", "\(Int(fontSize)) pt")
+            }
+            if let budget = readout.widthBudget {
+                row("Width budget", "\(Int(budget)) pt")
+            }
+            row("Caret at", "offset \(readout.caretLocation)")
+
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(readout.allowsGhostText ? Color.green : Color.orange)
+                    .frame(width: 7, height: 7)
+                Text(readout.verdict)
+                    .font(DS.meta)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    private func row(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(label)
+                .font(DS.meta)
+                .foregroundStyle(.secondary)
+                .frame(width: 96, alignment: .leading)
+            Text(value)
+                .font(.system(size: 11, design: .monospaced))
+                .textSelection(.enabled)
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: Log
+
+    private var logCard: some View {
+        DSCard {
+            VStack(alignment: .leading, spacing: 14) {
+                header(
+                    symbol: "doc.text.magnifyingglass",
+                    tint: DS.Feature.shortcut.color,
+                    title: "Diagnostics log",
+                    detail: "Live tail of autocomplete-debug.log."
+                )
+
+                HStack(spacing: 10) {
+                    Picker("Detail", selection: $developer.logLevel) {
+                        ForEach(DebugLog.Level.allCases) { level in
+                            Text(level.title).tag(level)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 220)
+
+                    TextField("Filter", text: $log.filter)
+                        .textFieldStyle(.roundedBorder)
+
+                    Button("Clear") { log.clear() }
+                    Button("Open in editor") { NSWorkspace.shared.open(DebugLog.url) }
+                }
+                .controlSize(.small)
+
+                Text(developer.logLevel.detail)
+                    .font(DS.meta)
+                    .foregroundStyle(.secondary)
+
+                logLines
+
+                HStack {
+                    Button {
+                        copyDebugInfo()
+                    } label: {
+                        Label(
+                            didCopyDebugInfo ? "Copied" : "Copy debug info",
+                            systemImage: didCopyDebugInfo ? "checkmark" : "doc.on.doc"
+                        )
+                    }
+                    .controlSize(.small)
+                    Spacer()
+                    Text("\(log.filteredLines.count) lines")
+                        .font(DS.meta)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        }
+    }
+
+    private var logLines: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 1) {
+                    ForEach(log.filteredLines) { line in
+                        Text(line.text)
+                            .font(.system(size: 10, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .id(line.id)
+                    }
+                }
+                .padding(8)
+            }
+            .frame(height: 220)
+            .background(DS.insetBackground, in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous))
+            .onChange(of: log.filteredLines.last?.id) { _, id in
+                guard let id else { return }
+                proxy.scrollTo(id, anchor: .bottom)
+            }
+        }
+    }
+
+    // MARK: Compare
+
+    private var compareCard: some View {
+        DSCard {
+            VStack(alignment: .leading, spacing: 14) {
+                header(
+                    symbol: "waveform.badge.magnifyingglass",
+                    tint: DS.Feature.dictation.color,
+                    title: "Compare transcription and cleanup",
+                    detail: "Record a sample and see every provider's output side by side."
+                )
+                HStack {
+                    Button("Compare…") { isComparing = true }
+                        .disabled(!hasOpenAIKey)
+                    if !hasOpenAIKey {
+                        Text("Needs an OpenAI key — the comparison runs both engines.")
+                            .font(DS.meta)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    // MARK: Shared
+
+    private func header(symbol: String, tint: Color, title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            DSIconTile(systemImage: symbol, tint: tint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(DS.cardTitle)
+                Text(detail)
+                    .font(DS.cardBody)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    // Everything needed to make "ghost text is off in Slack" actionable.
+    private func copyDebugInfo() {
+        var report = ["# Rewrite debug info"]
+
+        let bundle = Bundle.main
+        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        report.append("App: \(version) (\(build))")
+        report.append("macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)")
+        report.append("Accessibility trusted: \(AccessibilityPermission.shared.isTrusted)")
+        report.append("Screen recording: \(ScreenContextProvider.shared.isPermitted)")
+        report.append("Microphone: \(dictation.isMicPermitted)")
+        report.append("Dictation provider: \(dictation.provider.rawValue)")
+        report.append("Cleanup provider: \(dictation.cleanupProvider.rawValue)")
+        report.append("Dictation shortcut: \(dictation.shortcut.display)")
+        report.append("Log level: \(developer.logLevel.title)")
+
+        if let readout = inspector.readout {
+            report.append("")
+            report.append("## Last caret readout")
+            report.append("Field: \(readout.appName) — \(readout.role)")
+            if let caret = readout.caret {
+                report.append("Probe: \(caret.source.title)")
+                report.append("Rect: \(FocusedFieldTracker.describe(caret.rect))")
+            } else {
+                report.append("Probe: none")
+            }
+            if let fontSize = readout.fontSize { report.append("Font: \(Int(fontSize)) pt") }
+            if let budget = readout.widthBudget { report.append("Budget: \(Int(budget)) pt") }
+            report.append("Verdict: \(readout.verdict)")
+        }
+
+        report.append("")
+        report.append("## Last log lines")
+        report.append(contentsOf: log.lines.suffix(50).map(\.text))
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(report.joined(separator: "\n"), forType: .string)
+
+        didCopyDebugInfo = true
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            didCopyDebugInfo = false
+        }
+    }
+}

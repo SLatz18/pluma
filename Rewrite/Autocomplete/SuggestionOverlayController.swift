@@ -142,8 +142,14 @@ final class SuggestionOverlayController {
     // current presentation belongs to the caller — so a delayed hide (e.g. a
     // status flash's 2.5 s timer) can't kill a newer presentation.
     enum Owner {
-        case autocomplete, rewrite, dictation
+        case autocomplete, rewrite, dictation, developer
     }
+
+    // Set only while developer-mode caret tracing is on, so the trace panel can
+    // draw where the ghost text actually landed next to where the caret was
+    // reported. Nil in every normal run — one optional check per present.
+    // Weak: the developer-mode object owns the panel, not the overlay.
+    weak var ghostTrace: (any GhostTracing)?
 
     // Two looks, one panel. The dividing line is whose words these are: ghost
     // text is text that will land in the user's document, so it is drawn as if
@@ -203,6 +209,12 @@ final class SuggestionOverlayController {
                 caretMaxX: caret.rect.maxX,
                 fieldMaxX: fieldFrame?.maxX,
                 screenMaxX: Self.screenMaxX(forCaretRect: caret.rect)
+            )
+            DebugLog.log(
+                "ghost \(style) at \(FocusedFieldTracker.describe(caret.rect)) "
+                    + "via \(caret.source.title), font \(Int(font.pointSize))pt, "
+                    + "budget \(Int(budget))pt",
+                at: .verbose
             )
             ghost.show(text: text, style: style, font: font, maxWidth: budget)
             present(ghost, placement: .ghost(caret))
@@ -291,6 +303,7 @@ final class SuggestionOverlayController {
                     y: GhostTextGeometry.baselineY(forCaretRect: caret.rect) - offset
                 )
                 target = ghostOrigin(forTopLeftPoint: topLeft, panelSize: fitting)
+                ghostTrace?.show(caret: caret, ghostFrame: NSRect(origin: target, size: fitting))
             }
 
             // Caret-tracking updates stay instant so the text never lags a

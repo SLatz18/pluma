@@ -223,7 +223,7 @@ final class FocusedFieldTracker {
     private func logRejection(_ reason: String) {
         guard reason != lastLoggedRejection else { return }
         lastLoggedRejection = reason
-        DebugLog.log("snapshot rejected: \(reason)")
+        DebugLog.log("snapshot rejected: \(reason)", at: .verbose)
     }
 
     private func makeSnapshot(from element: AXUIElement) -> FocusedFieldSnapshot? {
@@ -299,10 +299,21 @@ final class FocusedFieldTracker {
     // runs a ladder of probes rather than a single query. See CaretResolver.
     static func caretGeometry(for element: AXUIElement, location: Int) -> CaretGeometry? {
         let caret = CaretResolver.resolve(location: location, using: AXCaretProbe(element: element))
-        if caret == nil {
-            DebugLog.log("no caret geometry at \(location); falling back to the field")
+        // Autoclosure: at anything below verbose this whole string, and the
+        // rect formatting inside it, is never built. It runs per keystroke.
+        if let caret {
+            DebugLog.log(
+                "caret at \(location) via \(caret.source.title): \(Self.describe(caret.rect))",
+                at: .verbose
+            )
+        } else {
+            DebugLog.log("no caret geometry at \(location); falling back to the field", at: .verbose)
         }
         return caret
+    }
+
+    static func describe(_ rect: CGRect) -> String {
+        "x \(Int(rect.minX)) y \(Int(rect.minY)) \(Int(rect.width))×\(Int(rect.height))"
     }
 
     // Where to put a chip when no probe could find the caret. Chromium-based
@@ -310,7 +321,7 @@ final class FocusedFieldTracker {
     // and the bottom edge of a text field sits near the line being typed into.
     static func fieldEdgeAnchor(for element: AXUIElement) -> CGPoint? {
         guard let frame = frame(of: element), isPlausibleField(frame) else { return nil }
-        DebugLog.log("anchoring inside field \(frame)")
+        DebugLog.log("anchoring inside field \(frame)", at: .verbose)
         // A tall field is a terminal or a text area, where the line being typed
         // is the last one, so sit just inside the bottom edge. A short field is
         // a one-liner, so sit just above it and clear of the text.

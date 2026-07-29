@@ -1,6 +1,23 @@
 import ApplicationServices
 import Foundation
 
+// Which probe produced a caret rect. Worth naming rather than reducing to a
+// bool: the developer-mode inspector reports it, and so does verbose logging,
+// because "which probe won" is the first question when ghost text lands wrong.
+enum CaretSource: String, Equatable {
+    case exactCaret
+    case characterBefore
+    case lineBounds
+
+    var title: String {
+        switch self {
+        case .exactCaret: "exact caret"
+        case .characterBefore: "character before caret"
+        case .lineBounds: "line bounds"
+        }
+    }
+}
+
 // Where the text cursor is, and how tall the line it sits on is. The height is
 // what makes ghost text blend in: it is the field's line height, which is the
 // only clue Accessibility gives us about the size of the text being typed.
@@ -8,9 +25,10 @@ import Foundation
 // Coordinates are AX's: top-left origin, relative to the primary display.
 struct CaretGeometry: Equatable {
     let rect: CGRect
-    // False when the rect came from the line-level fallback, where the line is
-    // right but the column is a guess.
-    let isPrecise: Bool
+    let source: CaretSource
+
+    // The line-level fallback gets the line right but guesses the column.
+    var isPrecise: Bool { source != .lineBounds }
 }
 
 // The three Accessibility reads the probes need. A protocol so the ordering
@@ -34,7 +52,7 @@ enum CaretResolver {
             let rect = probe.boundsForRange(CFRange(location: location, length: 0)),
             isPlausible(rect, in: field)
         {
-            return CaretGeometry(rect: rect, isPrecise: true)
+            return CaretGeometry(rect: rect, source: .exactCaret)
         }
 
         // 2. The character before the caret. Chromium and Electron hand back a
@@ -48,7 +66,7 @@ enum CaretResolver {
         {
             return CaretGeometry(
                 rect: CGRect(x: rect.maxX, y: rect.minY, width: 1, height: rect.height),
-                isPrecise: true
+                source: .characterBefore
             )
         }
 
@@ -63,7 +81,7 @@ enum CaretResolver {
         {
             return CaretGeometry(
                 rect: CGRect(x: rect.maxX, y: rect.minY, width: 1, height: rect.height),
-                isPrecise: false
+                source: .lineBounds
             )
         }
 

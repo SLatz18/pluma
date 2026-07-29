@@ -49,10 +49,10 @@ enum KeychainStore {
             insert[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
             let addStatus = SecItemAdd(insert as CFDictionary, nil)
             if addStatus != errSecSuccess {
-                DebugLog.log("keychain add failed for \(account): \(addStatus)")
+                DebugLog.log("keychain add failed for \(account): \(addStatus)", at: .quiet)
             }
         } else if status != errSecSuccess {
-            DebugLog.log("keychain update failed for \(account): \(status)")
+            DebugLog.log("keychain update failed for \(account): \(status)", at: .quiet)
         }
     }
 

@@ -28,7 +28,7 @@ final class CaretResolverTests: XCTestCase {
 
         let resolved = CaretResolver.resolve(location: 12, using: probe)
         XCTAssertEqual(resolved?.rect, caret)
-        XCTAssertEqual(resolved?.isPrecise, true)
+        XCTAssertEqual(resolved?.source, .exactCaret)
     }
 
     // The Chromium case the ladder exists for: a zero-length range at the end
@@ -45,7 +45,7 @@ final class CaretResolverTests: XCTestCase {
         XCTAssertEqual(resolved?.rect.minX, previousCharacter.maxX)
         XCTAssertEqual(resolved?.rect.minY, previousCharacter.minY)
         XCTAssertEqual(resolved?.rect.height, previousCharacter.height)
-        XCTAssertEqual(resolved?.isPrecise, true)
+        XCTAssertEqual(resolved?.source, .characterBefore)
     }
 
     func testCaretAtStartOfTextSkipsThePrecedingCharacterProbe() {
@@ -75,7 +75,8 @@ final class CaretResolverTests: XCTestCase {
         XCTAssertEqual(resolved?.rect.height, line.height)
         // The line is right but the column is inferred, and callers treat that
         // as "the caret is at the end of its line".
-        XCTAssertEqual(resolved?.isPrecise, false)
+        XCTAssertEqual(resolved?.source, .lineBounds)
+        XCTAssertFalse(resolved?.isPrecise ?? true)
     }
 
     func testReturnsNilWhenEveryProbeFails() {
