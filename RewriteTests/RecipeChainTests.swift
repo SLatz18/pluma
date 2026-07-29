@@ -78,6 +78,21 @@ final class RecipeChainTests: XCTestCase {
         }
     }
 
+    func testNonisolatedChainRejectsEmptySteps() async {
+        do {
+            _ = try await RewriteRunner.rewriteChain(
+                provider: .appleIntelligence, steps: [], text: "x", ollamaModel: ""
+            )
+            XCTFail("expected emptyChain to throw")
+        } catch let error as RewriteEngineError {
+            guard case .emptyChain = error else {
+                return XCTFail("expected emptyChain, got \(error)")
+            }
+        } catch {
+            XCTFail("expected emptyChain, got \(error)")
+        }
+    }
+
     func testEmptyChainThrows() async {
         do {
             _ = try await RewriteRunner.rewriteChain(

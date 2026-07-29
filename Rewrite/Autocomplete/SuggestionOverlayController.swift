@@ -201,6 +201,17 @@ final class SuggestionOverlayController {
         present(at: point)
     }
 
+    // A status that dismisses itself — for permission nags, mis-presses, and
+    // failures. The owner-scoped hide means a flash that fires just before a
+    // newer presentation can't hide it.
+    func flash(systemImage: String, message: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
+        showStatus(systemImage: systemImage, message: message, atTopLeftPoint: point, from: owner)
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            self?.hide(from: owner)
+        }
+    }
+
     private func ensurePanel() {
         guard panel == nil else { return }
         let pill = PillView(frame: .zero)
