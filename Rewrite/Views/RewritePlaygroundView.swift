@@ -32,6 +32,7 @@ struct RewritePlaygroundView: View {
                 .controlSize(.large)
                 .disabled(model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .keyboardShortcut(.return, modifiers: [.command])
+                .help("Run the \(model.selectedIntent.title) recipe (⌘↩)")
             }
 
             HStack(alignment: .top, spacing: 12) {
