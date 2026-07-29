@@ -8,10 +8,11 @@ final class SelectionRewriteController: ObservableObject {
 
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
-    private let overlay = SuggestionOverlayController()
+    private let overlay: SuggestionOverlayController
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, overlay: SuggestionOverlayController = SuggestionOverlayController()) {
         self.defaults = defaults
+        self.overlay = overlay
         shortcut = Preferences.globalShortcut(from: defaults)
         hotkey.onHotKey = { [weak self] in
             Task { @MainActor [weak self] in
@@ -54,7 +55,7 @@ final class SelectionRewriteController: ObservableObject {
         let anchor = Self.selectionAnchor(of: element) ?? Self.mouseAnchor()
         overlay.showStatus(
             systemImage: "sparkles", message: "Rewriting…",
-            atTopLeftPoint: anchor
+            atTopLeftPoint: anchor, from: .rewrite
         )
 
         do {
@@ -66,7 +67,7 @@ final class SelectionRewriteController: ObservableObject {
             )
             if await AXTextInsertion.insert(output, into: element) {
                 DebugLog.log("rewrite inserted OK")
-                overlay.hide()
+                overlay.hide(from: .rewrite)
             } else {
                 DebugLog.log("rewrite insertion failed")
                 flash(systemImage: "exclamationmark.triangle", message: "This field rejected the edit")
@@ -80,11 +81,11 @@ final class SelectionRewriteController: ObservableObject {
     private func flash(systemImage: String, message: String) {
         overlay.showStatus(
             systemImage: systemImage, message: message,
-            atTopLeftPoint: Self.mouseAnchor()
+            atTopLeftPoint: Self.mouseAnchor(), from: .rewrite
         )
         Task { [overlay] in
             try? await Task.sleep(for: .seconds(2.5))
-            overlay.hide()
+            overlay.hide(from: .rewrite)
         }
     }
 

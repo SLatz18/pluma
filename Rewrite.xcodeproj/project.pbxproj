@@ -69,7 +69,6 @@
 		DD4686356E757E626291B2CE /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A49394D83999270B0C9CAF7B /* KeychainStore.swift */; };
 		DF66AC38A76AF60A54BB1C79 /* DictationTranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7601890E70E015F8A5E6D228 /* DictationTranscriptTests.swift */; };
 		E8088DADB6FCB1A025FD48BA /* FocusedFieldTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C5CEBE845C202418328C02 /* FocusedFieldTracker.swift */; };
-		EC942BA75309A34A08772243 /* DictationHUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84B0A7785D8EA529EF88700D /* DictationHUDView.swift */; };
 		ECB19901D69E9BB1B0B95935 /* SelectionRewriteController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28D7947C057879856EAC552 /* SelectionRewriteController.swift */; };
 		FCB62884762A94F44877D98B /* OpenAIErrorBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 789D8B763798302D27E31EC2 /* OpenAIErrorBody.swift */; };
 /* End PBXBuildFile section */
@@ -113,7 +112,6 @@
 		789D8B763798302D27E31EC2 /* OpenAIErrorBody.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIErrorBody.swift; sourceTree = "<group>"; };
 		7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteServiceProvider.swift; sourceTree = "<group>"; };
 		843C34D84CE63E8F8E340478 /* PromptComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposerTests.swift; sourceTree = "<group>"; };
-		84B0A7785D8EA529EF88700D /* DictationHUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationHUDView.swift; sourceTree = "<group>"; };
 		89E9DABF7A19E947CDA88014 /* OpenAIChatEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIChatEngine.swift; sourceTree = "<group>"; };
 		94A51090FDFD597519BB3660 /* OpenAITranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAITranscriptionEngine.swift; sourceTree = "<group>"; };
 		96D0AB5FFF24D18E311FE004 /* AppleFileTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFileTranscriber.swift; sourceTree = "<group>"; };
@@ -195,7 +193,6 @@
 				F44E1AC2ED9E083AF374E7D4 /* AudioSampleRecorder.swift */,
 				F9F23B7A067871F97D7268FF /* ComparisonRunner.swift */,
 				62D5EF1923E98903D6EB89F0 /* DictationController.swift */,
-				84B0A7785D8EA529EF88700D /* DictationHUDView.swift */,
 				2E056ED0C9105FF210695E4E /* DictationTranscribing.swift */,
 				EF7AD9993F1191F783A017BE /* DictationTranscript.swift */,
 				F318C646B39F6E38EB347FC2 /* MicrophonePermission.swift */,
@@ -438,7 +435,6 @@
 				B834F4340B277625455DB827 /* ContentView.swift in Sources */,
 				B67922695D2ABCD290EAD8B9 /* DebugLog.swift in Sources */,
 				5EA288AFDEC4DF848D477C2C /* DictationController.swift in Sources */,
-				EC942BA75309A34A08772243 /* DictationHUDView.swift in Sources */,
 				75F502AF8A88D95580903395 /* DictationProviderChoice.swift in Sources */,
 				9CB88ED38EA3BBAE079F8B8B /* DictationSettingsCard.swift in Sources */,
 				1938A3858D380E7C46A5DAED /* DictationTranscribing.swift in Sources */,

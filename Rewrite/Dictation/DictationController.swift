@@ -70,7 +70,7 @@ final class DictationController: ObservableObject {
 
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
-    private let overlay = SuggestionOverlayController()
+    private let overlay: SuggestionOverlayController
     private var engine: any DictationTranscribing
     private let mic = MicrophonePermission.shared
 
@@ -101,8 +101,13 @@ final class DictationController: ObservableObject {
     // short enough that returning to an app later isn't treated as continuing.
     private static let insertionRecency: Duration = .seconds(120)
 
-    init(defaults: UserDefaults = .standard, engine: (any DictationTranscribing)? = nil) {
+    init(
+        defaults: UserDefaults = .standard,
+        engine: (any DictationTranscribing)? = nil,
+        overlay: SuggestionOverlayController = SuggestionOverlayController()
+    ) {
         self.defaults = defaults
+        self.overlay = overlay
         let selected = Preferences.dictationProvider(from: defaults)
         self.engine = engine ?? Self.makeEngine(for: selected)
         provider = selected
@@ -309,7 +314,7 @@ final class DictationController: ObservableObject {
         if await AXTextInsertion.insert(insertion, into: element) {
             DebugLog.log("dictation inserted \(insertion.count) chars")
             remember(insertion, in: element)
-            overlay.hide()
+            overlay.hide(from: .dictation)
         } else {
             flash(systemImage: "exclamationmark.triangle", message: "This field rejected the text")
         }
@@ -375,7 +380,7 @@ final class DictationController: ObservableObject {
     private func cancelSession() async {
         await engine.cancel()
         resetSession()
-        overlay.hide()
+        overlay.hide(from: .dictation)
     }
 
     private func resetSession() {
@@ -413,27 +418,23 @@ final class DictationController: ObservableObject {
 
     private func showHUD(message: String? = nil, systemImage: String = "mic.fill") {
         if let message {
-            overlay.show(
-                content: StatusOverlayView(systemImage: systemImage, message: message),
-                atTopLeftPoint: anchor
-            )
+            overlay.showStatus(systemImage: systemImage, message: message, atTopLeftPoint: anchor, from: .dictation)
         } else {
-            overlay.show(
-                content: DictationHUDView(text: liveText),
-                atTopLeftPoint: anchor
-            )
+            overlay.showDictation(transcript: liveText, atTopLeftPoint: anchor, from: .dictation)
         }
     }
 
     private func flash(systemImage: String, message: String) {
-        overlay.show(
-            content: StatusOverlayView(systemImage: systemImage, message: message),
+        overlay.showStatus(
+            systemImage: systemImage,
+            message: message,
             atTopLeftPoint: isSessionActive
-                ? anchor : SuggestionOverlayController.mouseTopLeftPoint()
+                ? anchor : SuggestionOverlayController.mouseTopLeftPoint(),
+            from: .dictation
         )
         Task { [overlay] in
             try? await Task.sleep(for: .seconds(2.5))
-            overlay.hide()
+            overlay.hide(from: .dictation)
         }
     }
 
