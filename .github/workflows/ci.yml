@@ -25,6 +25,7 @@ jobs:
             -scheme Rewrite \
             -configuration Debug \
             -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
             build
 
       - name: Test
@@ -34,4 +35,5 @@ jobs:
             -scheme Rewrite \
             -configuration Debug \
             -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
             test
