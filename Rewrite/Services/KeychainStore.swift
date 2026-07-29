@@ -6,6 +6,16 @@ import Security
 enum KeychainStore {
     private static let service = "com.scottlatz.Rewrite"
 
+    // Answers "is something stored" from the item's attributes without reading
+    // its data. Reading the secret is a separate authorization, and asking a
+    // yes/no question shouldn't require it.
+    static func hasValue(for account: String) -> Bool {
+        var query = baseQuery(account: account)
+        query[kSecReturnAttributes as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
+    }
+
     static func string(for account: String) -> String? {
         var query = baseQuery(account: account)
         query[kSecReturnData as String] = true

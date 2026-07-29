@@ -8,6 +8,7 @@ struct DictationSettingsCard: View {
     @State private var keyMonitor: Any?
     @State private var apiKeyDraft = ""
     @State private var isComparing = false
+    @State private var hasKey = OpenAIKey.isPresent
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -146,20 +147,21 @@ struct DictationSettingsCard: View {
 
                 Button("Compare…") { isComparing = true }
                     .controlSize(.small)
-                    .disabled(!OpenAIKey.isPresent)
+                    .disabled(!hasKey)
             }
 
             if usesOpenAI {
                 HStack(spacing: 8) {
-                    Image(systemName: OpenAIKey.isPresent ? "key.fill" : "key")
-                        .foregroundStyle(OpenAIKey.isPresent ? .green : .orange)
-                    if let summary = OpenAIKey.redactedSummary() {
-                        Text("API key stored (\(summary))")
+                    Image(systemName: hasKey ? "key.fill" : "key")
+                        .foregroundStyle(hasKey ? .green : .orange)
+                    if hasKey {
+                        Text("API key stored in the keychain")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
                         Button("Remove") {
                             OpenAIKey.clear()
+                            hasKey = false
                             apiKeyDraft = ""
                             Task { await controller.prepare() }
                         }
@@ -170,6 +172,7 @@ struct DictationSettingsCard: View {
                             .frame(maxWidth: 280)
                         Button("Save") {
                             OpenAIKey.save(apiKeyDraft)
+                            hasKey = OpenAIKey.isPresent
                             apiKeyDraft = ""
                             Task { await controller.prepare() }
                         }

@@ -3,23 +3,6 @@ import Foundation
 enum OpenAIChatEngine {
     private static let endpoint = URL(string: "https://api.openai.com/v1/responses")!
 
-    static func status() -> ProviderStatus {
-        guard OpenAIKey.isPresent else {
-            return ProviderStatus(
-                state: .unavailable,
-                title: "No API key",
-                detail: "Add an OpenAI API key to use GPT for cleanup.",
-                symbolName: "key"
-            )
-        }
-        return ProviderStatus(
-            state: .ready,
-            title: "OpenAI ready",
-            detail: "Text is sent to OpenAI.",
-            symbolName: "cloud"
-        )
-    }
-
     static func rewrite(
         _ text: String,
         directive: String,
@@ -40,7 +23,9 @@ enum OpenAIChatEngine {
 
         let (data, response) = try await session.data(for: request)
         if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            throw RewriteEngineError.modelUnavailable("OpenAI returned HTTP \(http.statusCode)")
+            let detail = OpenAIErrorBody.describe(status: http.statusCode, data: data)
+            DebugLog.log("openai cleanup failed: \(detail)")
+            throw RewriteEngineError.modelUnavailable(detail)
         }
 
         let decoded = try JSONDecoder().decode(ResponsesReply.self, from: data)
