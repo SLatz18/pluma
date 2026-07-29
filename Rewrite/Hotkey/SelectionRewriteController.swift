@@ -15,12 +15,13 @@ final class SelectionRewriteController: ObservableObject {
         self.defaults = defaults
         self.overlay = overlay
         shortcut = Preferences.globalShortcut(from: defaults)
-        hotkey.onHotKey = { [weak self] in
+        hotkey.onPress = { [weak self] slot in
+            guard slot == .rewriteSelection else { return }
             Task { @MainActor [weak self] in
                 await self?.rewriteSelection()
             }
         }
-        hotkey.register(shortcut)
+        hotkey.register(shortcut, in: .rewriteSelection)
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
@@ -32,7 +33,7 @@ final class SelectionRewriteController: ObservableObject {
         shortcutConflict = nil
         shortcut = newShortcut
         Preferences.saveGlobalShortcut(newShortcut, to: defaults)
-        hotkey.register(newShortcut)
+        hotkey.register(newShortcut, in: .rewriteSelection)
     }
 
     private func rewriteSelection() async {
@@ -46,7 +47,7 @@ final class SelectionRewriteController: ObservableObject {
         }
 
         guard
-            let element = Self.focusedElement(),
+            let element = AXFocus.focusedElement(),
             let selectedText = Self.selectedText(of: element),
             !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
@@ -100,27 +101,10 @@ final class SelectionRewriteController: ObservableObject {
     }
 
     private func flash(systemImage: String, message: String) {
-        overlay.showStatus(
+        overlay.flash(
             systemImage: systemImage, message: message,
             atTopLeftPoint: Self.mouseAnchor(), from: .rewrite
         )
-        Task { [overlay] in
-            try? await Task.sleep(for: .seconds(2.5))
-            overlay.hide(from: .rewrite)
-        }
-    }
-
-    private static func focusedElement() -> AXUIElement? {
-        let systemWide = AXUIElementCreateSystemWide()
-        var focusedValue: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                systemWide, kAXFocusedUIElementAttribute as CFString, &focusedValue
-            ) == .success,
-            let focusedValue,
-            CFGetTypeID(focusedValue) == AXUIElementGetTypeID()
-        else { return nil }
-        return (focusedValue as! AXUIElement)
     }
 
     private static func selectedText(of element: AXUIElement) -> String? {

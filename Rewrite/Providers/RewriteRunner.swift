@@ -20,6 +20,22 @@ enum RewriteRunner {
         )
     }
 
+    // Progress-free chain for callers that can't touch the main actor — the
+    // macOS Services handler blocks its thread on a semaphore while it waits.
+    static func rewriteChain(
+        provider: RewriteProviderChoice,
+        steps: [RewriteIntent],
+        text: String,
+        ollamaModel: String
+    ) async throws -> String {
+        guard !steps.isEmpty else { throw RewriteEngineError.emptyChain }
+        var output = text
+        for intent in steps {
+            output = try await rewrite(provider: provider, intent: intent, text: output, ollamaModel: ollamaModel)
+        }
+        return output
+    }
+
     // A pipeline of recipes run in order, each step's output feeding the next.
     // Every step keeps its own tuned single-job prompt; a step that throws
     // stops the chain (the caller's text is never half-rewritten). stepRunner

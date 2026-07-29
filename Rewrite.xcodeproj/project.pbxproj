@@ -60,9 +60,11 @@
 		A4043EADE9E971FEC938C544 /* MicrophonePermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = F318C646B39F6E38EB347FC2 /* MicrophonePermission.swift */; };
 		A4FF0BA731ECFDD5952F48EC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16520930043B1C5E4A395054 /* AppDelegate.swift */; };
 		AB194F6BFE3DBC1537FFFBC9 /* RewriteActionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */; };
+		AD17B55636BE1730E927E693 /* AXFocus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD52BC9ABD952DA9072C0C6 /* AXFocus.swift */; };
 		AD3BBDA301FA51A98FB7A680 /* ProviderMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */; };
 		B242A97AF1099CBD28F8F33C /* PromptComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AB40D680100BFA48F17735C /* PromptComposer.swift */; };
 		B67922695D2ABCD290EAD8B9 /* DebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC1E797D252F9B495D85527A /* DebugLog.swift */; };
+		B8716755FCF7EE9C5E3F61E3 /* ShortcutRecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E033149EBE02D29FD338F0B /* ShortcutRecorderView.swift */; };
 		C253E8AB6B75092830790FEF /* ScreenContextProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4D3C5328BE1725F2ECCE100 /* ScreenContextProvider.swift */; };
 		CD41599630FC63D4CDD89F44 /* OpenAITranscriptionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9941B9A81D4322E764533374 /* OpenAITranscriptionTests.swift */; };
 		D0C8B0F7835A9E7DB2947D85 /* CleanupComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6CC3C6BDA2D1D2355B7705A /* CleanupComparisonView.swift */; };
@@ -99,10 +101,12 @@
 		2988AE8305A3F736D136B9D5 /* AppleIntelligenceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleIntelligenceEngine.swift; sourceTree = "<group>"; };
 		2BB64C65CAEC81178C3DB494 /* RecipeChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeChainTests.swift; sourceTree = "<group>"; };
 		2C84502B6C3F6031C5831379 /* AdvancedSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsView.swift; sourceTree = "<group>"; };
+		2E033149EBE02D29FD338F0B /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderView.swift; sourceTree = "<group>"; };
 		2E056ED0C9105FF210695E4E /* DictationTranscribing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationTranscribing.swift; sourceTree = "<group>"; };
 		2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionSuggestionTests.swift; sourceTree = "<group>"; };
 		2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderMenu.swift; sourceTree = "<group>"; };
 		3269C366CBF5C6B50F183168 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		3AD52BC9ABD952DA9072C0C6 /* AXFocus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXFocus.swift; sourceTree = "<group>"; };
 		4A15D6D629C11040F896E833 /* AccessibilityPrompt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AccessibilityPrompt.h; sourceTree = "<group>"; };
 		4D9BCFBC0124DE5BFC984F9B /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		51773EB1D1BAE94ABBFE1589 /* StyleProfileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleProfileStoreTests.swift; sourceTree = "<group>"; };
@@ -166,6 +170,7 @@
 		4D147024AA574C43193FFAC2 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				3AD52BC9ABD952DA9072C0C6 /* AXFocus.swift */,
 				D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */,
 				EC1E797D252F9B495D85527A /* DebugLog.swift */,
 				A49394D83999270B0C9CAF7B /* KeychainStore.swift */,
@@ -333,6 +338,7 @@
 				DF9967F14C34E51A4B702E54 /* RewriteActionCard.swift */,
 				982A458659DDEE62AFE4AC0A /* RewritePlaygroundView.swift */,
 				3269C366CBF5C6B50F183168 /* SettingsView.swift */,
+				2E033149EBE02D29FD338F0B /* ShortcutRecorderView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -429,6 +435,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AD17B55636BE1730E927E693 /* AXFocus.swift in Sources */,
 				253095C9CFA6FF89EED75204 /* AXTextInsertion.swift in Sources */,
 				778312DDCBDD1EA4640F2CDF /* AccessibilityPermission.swift in Sources */,
 				1690C030D0276933A8D48859 /* AccessibilityPrompt.m in Sources */,
@@ -485,6 +492,7 @@
 				C253E8AB6B75092830790FEF /* ScreenContextProvider.swift in Sources */,
 				ECB19901D69E9BB1B0B95935 /* SelectionRewriteController.swift in Sources */,
 				20CBE8C882A6B588B00BB38F /* SettingsView.swift in Sources */,
+				B8716755FCF7EE9C5E3F61E3 /* ShortcutRecorderView.swift in Sources */,
 				D509F4D27678AEE5600FFA12 /* SpeechTranscriptionEngine.swift in Sources */,
 				12E5D4B2D56470DC7CBB026B /* StyleProfileStore.swift in Sources */,
 				8E286D9E3E60B396BBF50FD4 /* SuggestionOverlayController.swift in Sources */,
