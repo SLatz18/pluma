@@ -6,7 +6,6 @@ struct DictationView: View {
 
     @State private var isRecording = false
     @State private var apiKeyDraft = ""
-    @State private var isComparing = false
     @State private var hasKey = OpenAIKey.isPresent
     @State private var ollamaModels: [String] = []
 
@@ -36,9 +35,6 @@ struct DictationView: View {
             Text(privacyNote)
                 .font(DS.meta)
                 .foregroundStyle(.tertiary)
-        }
-        .sheet(isPresented: $isComparing) {
-            CleanupComparisonView()
         }
         .task {
             ollamaModels = (try? await OllamaEngine().availableModels()) ?? []
@@ -197,10 +193,6 @@ struct DictationView: View {
                     }
 
                     Spacer()
-
-                    Button("Compare…") { isComparing = true }
-                        .controlSize(.small)
-                        .disabled(!hasKey)
                 }
 
                 if usesOpenAI {

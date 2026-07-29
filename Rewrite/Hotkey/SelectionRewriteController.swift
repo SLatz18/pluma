@@ -41,7 +41,7 @@ final class SelectionRewriteController: ObservableObject {
         DebugLog.log("hotkey fired")
 
         guard AccessibilityPermission.shared.isTrusted else {
-            DebugLog.log("rewrite blocked: not trusted")
+            DebugLog.log("rewrite blocked: not trusted", at: .quiet)
             flash(systemImage: "hand.raised", message: "Rewrite needs Accessibility access")
             return
         }
@@ -94,11 +94,11 @@ final class SelectionRewriteController: ObservableObject {
                 DebugLog.log("rewrite inserted OK")
                 overlay.hide(from: .rewrite)
             } else {
-                DebugLog.log("rewrite insertion failed")
+                DebugLog.log("rewrite insertion failed", at: .quiet)
                 flash(systemImage: "exclamationmark.triangle", message: "This field rejected the edit")
             }
         } catch {
-            DebugLog.log("rewrite failed: \(error.localizedDescription)")
+            DebugLog.log("rewrite failed: \(error.localizedDescription)", at: .quiet)
             flash(systemImage: "exclamationmark.triangle", message: error.localizedDescription)
         }
     }

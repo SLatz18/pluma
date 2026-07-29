@@ -261,7 +261,7 @@ final class DictationController: ObservableObject {
                 return ScreenContextProvider.contextualStrings(from: text)
             })
         } catch {
-            DebugLog.log("dictation start failed: \(error.localizedDescription)")
+            DebugLog.log("dictation start failed: \(error.localizedDescription)", at: .quiet)
             isStarting = false
             await cancelSession()
             flash(systemImage: "exclamationmark.triangle", message: error.localizedDescription)

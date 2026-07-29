@@ -142,7 +142,7 @@ extension AudioCaptureSession: AVCaptureAudioDataOutputSampleBufferDelegate {
         case .endOfStream:
             return nil
         case .error:
-            DebugLog.log("audio convert failed: \(error?.localizedDescription ?? "unknown")")
+            DebugLog.log("audio convert failed: \(error?.localizedDescription ?? "unknown")", at: .quiet)
             return nil
         @unknown default:
             return nil

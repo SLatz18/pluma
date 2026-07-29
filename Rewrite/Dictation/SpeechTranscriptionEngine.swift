@@ -71,7 +71,7 @@ final class SpeechTranscriptionEngine: DictationTranscribing {
                 }
                 availability = .ready
             } catch {
-                DebugLog.log("speech model install failed: \(error.localizedDescription)")
+                DebugLog.log("speech model install failed: \(error.localizedDescription)", at: .quiet)
                 availability = .unsupported("The speech model could not be downloaded")
             }
         case .unsupported:
@@ -130,7 +130,7 @@ final class SpeechTranscriptionEngine: DictationTranscribing {
                     }
                 }
             } catch {
-                DebugLog.log("dictation results failed: \(error.localizedDescription)")
+                DebugLog.log("dictation results failed: \(error.localizedDescription)", at: .quiet)
             }
         }
     }
@@ -144,7 +144,7 @@ final class SpeechTranscriptionEngine: DictationTranscribing {
             do {
                 try await analyzer.finalizeAndFinishThroughEndOfInput()
             } catch {
-                DebugLog.log("dictation finalize failed: \(error.localizedDescription)")
+                DebugLog.log("dictation finalize failed: \(error.localizedDescription)", at: .quiet)
             }
         }
         await resultsTask?.value

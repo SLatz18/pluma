@@ -4,12 +4,22 @@ import SwiftUI
 struct AdvancedSettingsView: View {
     @EnvironmentObject private var memory: MemoryStore
     @EnvironmentObject private var styleProfile: StyleProfileStore
+    @EnvironmentObject private var developer: DeveloperMode
 
     @State private var filter = ""
     @State private var showClearConfirmation = false
     @State private var showImporter = false
     @State private var showEditor = false
     @State private var importError: String?
+
+    // isUnlocked is read-only from outside so the cheat code and this switch
+    // share one path through setUnlocked, which handles the teardown.
+    private var developerModeBinding: Binding<Bool> {
+        Binding(
+            get: { developer.isUnlocked },
+            set: { developer.setUnlocked($0) }
+        )
+    }
 
     private var filteredEntries: [MemoryStore.Entry] {
         let newestFirst = memory.entries.reversed()
@@ -103,6 +113,17 @@ struct AdvancedSettingsView: View {
                 Button("Clear All…", role: .destructive) {
                     showClearConfirmation = true
                 }
+            }
+
+            Divider()
+
+            // The escape hatch for people who forget the cheat code. The Dev
+            // page is normally unlocked with ↑ ↑ ↓ ↓ ← → ← → in the main window.
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle("Developer mode", isOn: developerModeBinding)
+                Text("Adds a Developer page with the caret inspector, a live diagnostics log, and the transcription comparison tools. Nothing runs while it is off.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(20)

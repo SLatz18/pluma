@@ -94,8 +94,8 @@ final class GhostTextGeometryTests: XCTestCase {
 }
 
 final class GhostTextEligibilityTests: XCTestCase {
-    private let precise = CaretGeometry(rect: CGRect(x: 40, y: 100, width: 1, height: 17), isPrecise: true)
-    private let lineLevel = CaretGeometry(rect: CGRect(x: 40, y: 100, width: 1, height: 17), isPrecise: false)
+    private let precise = CaretGeometry(rect: CGRect(x: 40, y: 100, width: 1, height: 17), source: .exactCaret)
+    private let lineLevel = CaretGeometry(rect: CGRect(x: 40, y: 100, width: 1, height: 17), source: .lineBounds)
 
     func testCaretAtEndOfTextAllowsGhostText() {
         let eligibility = GhostTextEligibility.of(text: "hello there", caretLocation: 11)

@@ -71,7 +71,7 @@ final class AutocompleteCoordinator: ObservableObject {
         isScreenContextPermitted = screenContext.isPermitted
         memoryEntryCount = memory.count
         DebugLog.truncate()
-        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)")
+        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)", at: .quiet)
 
         screenContext.onChange = { [weak self] permitted in
             Task { @MainActor [weak self] in
@@ -128,7 +128,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
     private func startIfPossible() {
         guard permission.isTrusted else {
-            DebugLog.log("start blocked: not trusted")
+            DebugLog.log("start blocked: not trusted", at: .quiet)
             updateActivity()
             return
         }
@@ -181,11 +181,11 @@ final class AutocompleteCoordinator: ObservableObject {
 
         guard prefix != lastSnapshotPrefix else { return }
         lastSnapshotPrefix = prefix
-        DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)")
+        DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)", at: .verbose)
 
         debounceTask?.cancel()
         guard CompletionSuggestion.shouldTrigger(for: prefix) else {
-            DebugLog.log("below trigger threshold")
+            DebugLog.log("below trigger threshold", at: .verbose)
             updateActivity()
             return
         }
@@ -279,7 +279,7 @@ final class AutocompleteCoordinator: ObservableObject {
             updateActivity()
         } catch {
             // Completion failures stay silent: autocomplete must never interrupt typing.
-            DebugLog.log("request failed: \(error.localizedDescription)")
+            DebugLog.log("request failed: \(error.localizedDescription)", at: .quiet)
         }
     }
 
