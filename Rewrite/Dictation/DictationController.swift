@@ -57,6 +57,7 @@ final class DictationController: ObservableObject {
     private var savedElement: AXUIElement?
     private var savedPrefix: String?
     private var recentInsertion: RecentInsertion?
+    private var editMonitor: Any?
     private var anchor: CGPoint = .zero
     private var pressedAt: ContinuousClock.Instant?
     private var sessionID = 0
@@ -259,13 +260,44 @@ final class DictationController: ObservableObject {
     private func remember(_ insertion: String, in element: AXUIElement) {
         guard let last = insertion.last, let pid = Self.pid(of: element) else { return }
         recentInsertion = RecentInsertion(pid: pid, lastCharacter: last, at: .now)
+        startWatchingForEdits()
+    }
+
+    // Pressing Return to send a message, or clicking into somewhere else, makes
+    // our record of the preceding character worthless — the classic symptom
+    // being a leading space dictated into a field the user had just emptied.
+    // Only the fact that an event happened matters here, never which key.
+    private func startWatchingForEdits() {
+        guard editMonitor == nil else { return }
+        editMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.keyDown, .leftMouseDown, .rightMouseDown]
+        ) { [weak self] event in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if event.type == .keyDown, self.isDictationChord(event) { return }
+                self.forgetRecentInsertion()
+            }
+        }
+    }
+
+    private func isDictationChord(_ event: NSEvent) -> Bool {
+        UInt32(event.keyCode) == shortcut.keyCode
+    }
+
+    private func forgetRecentInsertion() {
+        guard recentInsertion != nil else { return }
+        recentInsertion = nil
+        if let editMonitor {
+            NSEvent.removeMonitor(editMonitor)
+            self.editMonitor = nil
+        }
     }
 
     // Matching on the process rather than the element because the fields that
     // need this are the same ones that hand back a fresh, unequal AXUIElement
-    // for what is visibly the same text box. The cost of being too generous is
-    // an extra space when hopping between two fields in one app within the
-    // window, which is a far milder wrong answer than running words together.
+    // for what is visibly the same text box. Safe only because any keystroke or
+    // click since the insertion drops the memory: what makes it trustworthy is
+    // that nothing has happened to the text since we wrote it.
     private func rememberedPrefix(for element: AXUIElement) -> String? {
         guard
             let recent = recentInsertion,
@@ -408,16 +440,24 @@ final class DictationController: ObservableObject {
         if let caret = caretAnchor(of: element) {
             return caret
         }
-        if let frame = FocusedFieldTracker.frame(of: element) {
-            DebugLog.log("no caret geometry; anchoring HUD to field frame \(frame)")
-            let screenHeight = NSScreen.screens.first?.frame.height ?? frame.maxY
-            let below = frame.maxY + 6
-            let point = below + 40 > screenHeight
-                ? CGPoint(x: frame.minX + 4, y: max(frame.minY - 34, 4))
-                : CGPoint(x: frame.minX + 4, y: below)
-            return point
+        if let frame = FocusedFieldTracker.frame(of: element), isPlausibleField(frame) {
+            DebugLog.log("no caret geometry; anchoring HUD inside field \(frame)")
+            // A tall field is a terminal or a text area, where the line being
+            // typed is the last one, so sit just inside the bottom edge. A short
+            // field is a one-liner, so sit just above it and clear of the text.
+            // Deliberately no clamping to the primary screen: a field can live
+            // on a display above or left of it, at negative coordinates.
+            let y = frame.height >= 60 ? frame.maxY - 34 : frame.minY - 30
+            return CGPoint(x: frame.minX + 8, y: y)
         }
-        DebugLog.log("no caret or field geometry; anchoring HUD to mouse")
+        DebugLog.log("no usable field geometry; anchoring HUD to mouse")
         return SuggestionOverlayController.mouseTopLeftPoint()
+    }
+
+    // Chromium apps put keyboard focus on a hidden proxy input a few points
+    // across rather than on the visible text box, so a frame that small is a
+    // decoy and the mouse is a better guess than drawing next to nothing.
+    private static func isPlausibleField(_ frame: CGRect) -> Bool {
+        frame.width >= 60 && frame.height >= 14
     }
 }
