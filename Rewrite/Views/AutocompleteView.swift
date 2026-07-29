@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AutocompleteView: View {
     @EnvironmentObject private var coordinator: AutocompleteCoordinator
+    @State private var showClearMemoryConfirmation = false
 
     var body: some View {
         DSPage(
@@ -53,7 +54,7 @@ struct AutocompleteView: View {
                                 : "\(coordinator.memoryEntryCount) phrases remembered, stored locally only.",
                             actionTitle: coordinator.memoryEntryCount > 0 ? "Clear…" : nil
                         ) {
-                            coordinator.clearMemory()
+                            showClearMemoryConfirmation = true
                         }
                     }
                 }
@@ -63,6 +64,18 @@ struct AutocompleteView: View {
             Text("Uses your selected writing model, on-device only. macOS never shares password fields. Manage memory and import a style profile in Settings → Advanced.")
                 .font(DS.meta)
                 .foregroundStyle(.tertiary)
+        }
+        .confirmationDialog(
+            "Clear all remembered phrases?",
+            isPresented: $showClearMemoryConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear", role: .destructive) {
+                coordinator.clearMemory()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This deletes every stored phrase from this Mac and cannot be undone.")
         }
     }
 

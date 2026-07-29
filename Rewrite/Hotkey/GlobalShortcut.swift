@@ -34,6 +34,16 @@ struct GlobalShortcut: Equatable, Sendable {
         self.display = display
     }
 
+    // Carbon refuses to register the same chord twice in one process, so two
+    // features on the same chord would leave one silently dead. Hyperkey's
+    // three- and four-modifier variants are the same physical press.
+    func conflicts(with other: GlobalShortcut) -> Bool {
+        guard keyCode == other.keyCode else { return false }
+        if carbonModifiers == other.carbonModifiers { return true }
+        return Self.hyperChords.contains(carbonModifiers)
+            && Self.hyperChords.contains(other.carbonModifiers)
+    }
+
     init?(event: NSEvent) {
         guard
             event.type == .keyDown,

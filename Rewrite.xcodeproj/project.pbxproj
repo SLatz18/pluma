@@ -32,6 +32,7 @@
 		41914FF917F724684BEC9C63 /* CompletionSuggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D0AB218FB7BADF6CAEF6B8F /* CompletionSuggestion.swift */; };
 		4768489DE1E184532A849748 /* AudioCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEDB8CD2004259D17AD8EDE0 /* AudioCaptureSession.swift */; };
 		4B6DB5ACBB23AC928DDDB016 /* MemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E6C20DF432D64F2F13667E /* MemoryStore.swift */; };
+		5B340C3E24DC446F2F66D44B /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D9BCFBC0124DE5BFC984F9B /* LaunchAtLogin.swift */; };
 		5EA288AFDEC4DF848D477C2C /* DictationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D5EF1923E98903D6EB89F0 /* DictationController.swift */; };
 		62922D2981C1AFC89F3A482B /* RewriteProviderChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = F215BC8542AD42C8DB487C56 /* RewriteProviderChoice.swift */; };
 		67EEE378DDE1C1D153D99859 /* DictationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37C336578939DBF15338E58 /* DictationView.swift */; };
@@ -101,6 +102,7 @@
 		2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderMenu.swift; sourceTree = "<group>"; };
 		3269C366CBF5C6B50F183168 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4A15D6D629C11040F896E833 /* AccessibilityPrompt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AccessibilityPrompt.h; sourceTree = "<group>"; };
+		4D9BCFBC0124DE5BFC984F9B /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		51773EB1D1BAE94ABBFE1589 /* StyleProfileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleProfileStoreTests.swift; sourceTree = "<group>"; };
 		58E6C20DF432D64F2F13667E /* MemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryStore.swift; sourceTree = "<group>"; };
 		5AB40D680100BFA48F17735C /* PromptComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposer.swift; sourceTree = "<group>"; };
@@ -165,6 +167,7 @@
 				D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */,
 				EC1E797D252F9B495D85527A /* DebugLog.swift */,
 				A49394D83999270B0C9CAF7B /* KeychainStore.swift */,
+				4D9BCFBC0124DE5BFC984F9B /* LaunchAtLogin.swift */,
 				789D8B763798302D27E31EC2 /* OpenAIErrorBody.swift */,
 				63AC5D808DAFEA53BF5D64D6 /* OpenAIKey.swift */,
 				9AC0CC83363DAFFB195B1A31 /* Preferences.swift */,
@@ -451,6 +454,7 @@
 				E9E3530F427C2359B3AC6EE4 /* HomeView.swift in Sources */,
 				2E467DD1468CCD8EFFC36C99 /* HotkeyManager.swift in Sources */,
 				DD4686356E757E626291B2CE /* KeychainStore.swift in Sources */,
+				5B340C3E24DC446F2F66D44B /* LaunchAtLogin.swift in Sources */,
 				7083C89E519897D9ABC1BB06 /* MainWindowView.swift in Sources */,
 				4B6DB5ACBB23AC928DDDB016 /* MemoryStore.swift in Sources */,
 				A4043EADE9E971FEC938C544 /* MicrophonePermission.swift in Sources */,
