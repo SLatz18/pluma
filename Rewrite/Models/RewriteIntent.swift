@@ -38,7 +38,9 @@ enum RewriteIntent: String, CaseIterable, Codable, Identifiable, Sendable {
     var directive: String {
         switch self {
         case .improve:
-            "Improve clarity, flow, and word choice while preserving the writer's voice."
+            "Improve clarity, flow, and word choice while preserving the writer's voice and register. "
+                + "Never make the text more formal than the source: casual phrasing stays casual "
+                + "(\"fix them up\", not \"revise them\"; \"you've seen\", not \"you have seen\")."
         case .shorten:
             "Make the text meaningfully shorter while preserving every important point."
         case .grammar:
