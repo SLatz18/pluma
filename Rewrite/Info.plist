@@ -35,16 +35,15 @@
 	<string>Copyright © 2026. All rights reserved.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Rewrite can connect to Ollama on this Mac when you choose Ollama as the writing model.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Rewrite listens while you hold the dictation shortcut so your speech can be transcribed on this Mac.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Rewrite transcribes your dictation with the on-device speech model. Audio stays on this Mac.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSServices</key>
 	<array>
 		<dict>
-			<key>NSKeyEquivalent</key>
-			<dict>
-				<key>default</key>
-				<string>E</string>
-			</dict>
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>

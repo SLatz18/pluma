@@ -3,20 +3,77 @@ import SwiftUI
 @main
 struct RewriteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = RewriteViewModel()
+    @StateObject private var model: RewriteViewModel
+    @StateObject private var autocomplete: AutocompleteCoordinator
+    @StateObject private var selectionRewrite: SelectionRewriteController
+    @StateObject private var dictation: DictationController
+
+    init() {
+        // One overlay panel for ghost text, rewrite status, and the dictation
+        // HUD, so they can never stack on top of each other at the caret.
+        let overlay = SuggestionOverlayController()
+        _model = StateObject(wrappedValue: RewriteViewModel())
+        _autocomplete = StateObject(wrappedValue: AutocompleteCoordinator(overlay: overlay))
+        _selectionRewrite = StateObject(wrappedValue: SelectionRewriteController(overlay: overlay))
+        _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
+    }
 
     var body: some Scene {
-        WindowGroup("Rewrite") {
+        WindowGroup("Rewrite", id: "main") {
             ContentView()
                 .environmentObject(model)
+                .environmentObject(autocomplete)
+                .environmentObject(selectionRewrite)
+                .environmentObject(dictation)
         }
         .defaultSize(width: 840, height: 740)
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified)
 
+        MenuBarExtra("Rewrite", systemImage: "character.cursor.ibeam") {
+            AutocompleteMenuBarView()
+                .environmentObject(autocomplete)
+                .environmentObject(dictation)
+        }
+        .menuBarExtraStyle(.menu)
+
         Settings {
             SettingsView()
                 .environmentObject(model)
+                .environmentObject(autocomplete)
+                .environmentObject(MemoryStore.shared)
+                .environmentObject(StyleProfileStore.shared)
+        }
+    }
+}
+
+private struct AutocompleteMenuBarView: View {
+    @EnvironmentObject private var autocomplete: AutocompleteCoordinator
+    @EnvironmentObject private var dictation: DictationController
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button("Open Rewrite") {
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+
+        Divider()
+
+        Toggle("Autocomplete as I type", isOn: $autocomplete.isEnabled)
+            .toggleStyle(.checkbox)
+
+        Toggle("Dictate with \(dictation.shortcut.display)", isOn: $dictation.isEnabled)
+            .toggleStyle(.checkbox)
+
+        Divider()
+
+        Button("Open Diagnostics Log") {
+            NSWorkspace.shared.open(DebugLog.url)
+        }
+
+        Button("Quit Rewrite") {
+            NSApp.terminate(nil)
         }
     }
 }

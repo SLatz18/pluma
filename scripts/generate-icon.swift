@@ -70,36 +70,37 @@ func icon(size: Int) -> Data {
     ])!
     gradient.draw(in: tilePath, angle: -42)
 
-    let paragraph = NSMutableParagraphStyle()
-    paragraph.alignment = .center
-    let attributes: [NSAttributedString.Key: Any] = [
-        .font: NSFont.systemFont(ofSize: dimension * 0.46, weight: .bold),
-        .foregroundColor: NSColor.white,
-        .paragraphStyle: paragraph
-    ]
-    let letterRect = NSRect(
-        x: dimension * 0.12,
-        y: dimension * 0.20,
-        width: dimension * 0.76,
-        height: dimension * 0.56
-    )
-    NSString(string: "R").draw(in: letterRect, withAttributes: attributes)
+    // Same glyph as the menu bar icon (character.cursor.ibeam) so the Dock
+    // tile and menu bar read as one mark.
+    guard
+        let baseSymbol = NSImage(
+            systemSymbolName: "character.cursor.ibeam",
+            accessibilityDescription: nil
+        ),
+        let symbol = baseSymbol.withSymbolConfiguration(
+            .init(pointSize: dimension * 0.52, weight: .bold)
+        )
+    else {
+        fatalError("Unable to load character.cursor.ibeam symbol")
+    }
+    symbol.isTemplate = true
 
-    let sparkleCenter = NSPoint(x: dimension * 0.75, y: dimension * 0.75)
-    let longRadius = dimension * 0.105
-    let shortRadius = dimension * 0.035
-    let sparkle = NSBezierPath()
-    sparkle.move(to: NSPoint(x: sparkleCenter.x, y: sparkleCenter.y + longRadius))
-    sparkle.line(to: NSPoint(x: sparkleCenter.x + shortRadius, y: sparkleCenter.y + shortRadius))
-    sparkle.line(to: NSPoint(x: sparkleCenter.x + longRadius, y: sparkleCenter.y))
-    sparkle.line(to: NSPoint(x: sparkleCenter.x + shortRadius, y: sparkleCenter.y - shortRadius))
-    sparkle.line(to: NSPoint(x: sparkleCenter.x, y: sparkleCenter.y - longRadius))
-    sparkle.line(to: NSPoint(x: sparkleCenter.x - shortRadius, y: sparkleCenter.y - shortRadius))
-    sparkle.line(to: NSPoint(x: sparkleCenter.x - longRadius, y: sparkleCenter.y))
-    sparkle.line(to: NSPoint(x: sparkleCenter.x - shortRadius, y: sparkleCenter.y + shortRadius))
-    sparkle.close()
-    NSColor.white.setFill()
-    sparkle.fill()
+    let symbolSize = symbol.size
+    let whiteSymbol = NSImage(size: symbolSize, flipped: false) { rect in
+        NSColor.white.setFill()
+        rect.fill()
+        symbol.draw(in: rect, from: .zero, operation: .destinationIn, fraction: 1)
+        return true
+    }
+    whiteSymbol.draw(
+        at: NSPoint(
+            x: (dimension - symbolSize.width) / 2,
+            y: (dimension - symbolSize.height) / 2
+        ),
+        from: .zero,
+        operation: .sourceOver,
+        fraction: 1
+    )
 
     context.flushGraphics()
 
