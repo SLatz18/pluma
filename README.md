@@ -13,7 +13,7 @@ easy to rename before release.
 - Apple Intelligence is the default and runs entirely on-device.
 - Ollama is an optional local fallback. There is no cloud backend or account.
 - The interface uses native macOS controls, generous spacing, and simple
-  trigger-to-action cards inspired by IFTTT applets.
+  trigger → action cards.
 - Cross-app rewriting uses the macOS Services system.
 - Cross-app autocomplete uses the Accessibility API for ghost-text completions
   at the caret, so the app is no longer sandboxed or Mac App Store compatible.
@@ -25,7 +25,7 @@ recipe and try it on your own text), **Autocomplete**, and **Dictation** —
 with model and style-profile settings under ⌘,.
 
 - Four rewrite recipes: Improve, Shorten, Fix Grammar, and Professional.
-- An IFTTT-style pipeline builder: tap recipes to stack them in run order
+- A pipeline builder: tap recipes to stack them in run order
   (⇪E → Fix Grammar → Shorten → …). Each step runs its own tuned prompt and
   feeds the next; the same pipeline drives the playground and the hotkey.
 - A built-in editor for trying each recipe on your own text.

@@ -4,7 +4,7 @@ Native macOS writing tool: recipe pipelines (Rewrite page), ghost-text
 autocomplete, push-to-talk dictation, selection-rewrite hotkey. SwiftUI +
 AppKit, Swift 6 strict concurrency, macOS 26 target, xcodegen-generated
 project. Product principles and privacy model: README.md. Product language:
-native controls, generous spacing, IFTTT-style trigger → action cards.
+native controls, generous spacing, trigger → action cards.
 
 ## Build, test, install
 
