@@ -10,7 +10,6 @@ struct RewriteApp: App {
     @StateObject private var capsLock: CapsLockExpander
 
     init() {
-        DebugLog.truncate()
         Preferences.migrateShortcutDefaultsIfNeeded()
 
         // One overlay panel for ghost text, rewrite status, and the dictation
@@ -20,8 +19,10 @@ struct RewriteApp: App {
         _autocomplete = StateObject(wrappedValue: AutocompleteCoordinator(overlay: overlay))
         _selectionRewrite = StateObject(wrappedValue: SelectionRewriteController(overlay: overlay))
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
-        _capsLock = StateObject(wrappedValue: CapsLockExpander.shared)
-        CapsLockExpander.shared.startMonitoring()
+
+        let expander = CapsLockExpander()
+        expander.startMonitoring()
+        _capsLock = StateObject(wrappedValue: expander)
     }
 
     var body: some Scene {
