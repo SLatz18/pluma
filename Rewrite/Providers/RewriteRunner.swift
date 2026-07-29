@@ -1,5 +1,10 @@
 import Foundation
 
+enum ChainProgress {
+    case starting(step: Int, of: Int, intent: RewriteIntent)
+    case stepFinished(step: Int, of: Int, output: String)
+}
+
 enum RewriteRunner {
     static func rewrite(
         provider: RewriteProviderChoice,
@@ -13,6 +18,33 @@ enum RewriteRunner {
             text: text,
             ollamaModel: ollamaModel
         )
+    }
+
+    // A pipeline of recipes run in order, each step's output feeding the next.
+    // Every step keeps its own tuned single-job prompt; a step that throws
+    // stops the chain (the caller's text is never half-rewritten). stepRunner
+    // exists so tests can drive the sequence without a live model.
+    @MainActor
+    static func rewriteChain(
+        provider: RewriteProviderChoice,
+        steps: [RewriteIntent],
+        text: String,
+        ollamaModel: String,
+        stepRunner: (@MainActor (RewriteIntent, String) async throws -> String)? = nil,
+        onProgress: (@MainActor (ChainProgress) -> Void)? = nil
+    ) async throws -> String {
+        guard !steps.isEmpty else { throw RewriteEngineError.emptyChain }
+        let run = stepRunner ?? { intent, input in
+            try await rewrite(provider: provider, intent: intent, text: input, ollamaModel: ollamaModel)
+        }
+        var output = text
+        for (index, intent) in steps.enumerated() {
+            let step = index + 1
+            onProgress?(.starting(step: step, of: steps.count, intent: intent))
+            output = try await run(intent, output)
+            onProgress?(.stepFinished(step: step, of: steps.count, output: output))
+        }
+        return output
     }
 
     static func rewrite(

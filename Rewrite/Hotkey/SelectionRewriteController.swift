@@ -55,7 +55,13 @@ final class SelectionRewriteController: ObservableObject {
             return
         }
 
-        DebugLog.log("rewrite start: \(selectedText.count) chars selected")
+        let chain = Preferences.chain(from: defaults)
+        guard !chain.isEmpty else {
+            flash(systemImage: "sparkles", message: "Pick a recipe on the Rewrite page first")
+            return
+        }
+
+        DebugLog.log("rewrite start: \(selectedText.count) chars selected, chain \(chain.count) steps")
         isWorking = true
         defer { isWorking = false }
 
@@ -66,11 +72,19 @@ final class SelectionRewriteController: ObservableObject {
         )
 
         do {
-            let output = try await RewriteRunner.rewrite(
+            let output = try await RewriteRunner.rewriteChain(
                 provider: Preferences.provider(from: defaults),
-                intent: Preferences.intent(from: defaults),
+                steps: chain,
                 text: selectedText,
-                ollamaModel: Preferences.ollamaModel(from: defaults)
+                ollamaModel: Preferences.ollamaModel(from: defaults),
+                onProgress: { [overlay] progress in
+                    guard case .starting(let step, let of, let intent) = progress, of > 1 else { return }
+                    overlay.showStatus(
+                        systemImage: "sparkles",
+                        message: "Rewriting \(step) of \(of) — \(intent.title)…",
+                        atTopLeftPoint: anchor, from: .rewrite
+                    )
+                }
             )
             if await AXTextInsertion.insert(output, into: element) {
                 DebugLog.log("rewrite inserted OK")
