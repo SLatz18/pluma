@@ -1,6 +1,6 @@
 # Harden Ollama loopback and local-model handling
 
-Suggested labels: `security`, `privacy`, `ollama`  
+Suggested labels: `security`, `privacy`, `ollama`
 Priority: High
 
 ## Summary

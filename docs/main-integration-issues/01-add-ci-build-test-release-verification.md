@@ -1,6 +1,6 @@
 # Add CI build, test, and release verification
 
-Suggested labels: `ci`, `quality`, `release`  
+Suggested labels: `ci`, `quality`, `release`
 Priority: High
 
 ## Summary

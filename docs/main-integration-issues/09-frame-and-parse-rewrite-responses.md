@@ -1,6 +1,6 @@
 # Frame prompts and strictly parse rewrite responses
 
-Suggested labels: `text-processing`, `security`, `providers`  
+Suggested labels: `text-processing`, `security`, `providers`
 Priority: High
 
 ## Summary

@@ -1,6 +1,6 @@
 # Pin XcodeGen and regenerate the Xcode project
 
-Suggested labels: `build`, `tooling`, `developer-experience`  
+Suggested labels: `build`, `tooling`, `developer-experience`
 Priority: High
 
 ## Summary

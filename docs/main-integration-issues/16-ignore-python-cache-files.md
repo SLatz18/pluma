@@ -1,6 +1,6 @@
 # Ignore Python cache files
 
-Suggested labels: `chore`, `repository-hygiene`  
+Suggested labels: `chore`, `repository-hygiene`
 Priority: Low
 
 ## Summary

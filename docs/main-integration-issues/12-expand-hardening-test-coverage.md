@@ -1,6 +1,6 @@
 # Expand provider, Service, and data-integrity test coverage
 
-Suggested labels: `tests`, `quality`, `providers`  
+Suggested labels: `tests`, `quality`, `providers`
 Priority: High
 
 ## Summary

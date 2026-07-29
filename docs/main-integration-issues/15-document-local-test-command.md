@@ -1,6 +1,6 @@
 # Document the local test command
 
-Suggested labels: `documentation`, `developer-experience`  
+Suggested labels: `documentation`, `developer-experience`
 Priority: Low
 
 ## Summary

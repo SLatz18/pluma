@@ -1,6 +1,6 @@
 # Harden Apple Intelligence output and error handling
 
-Suggested labels: `apple-intelligence`, `reliability`, `privacy`  
+Suggested labels: `apple-intelligence`, `reliability`, `privacy`
 Priority: High
 
 ## Summary

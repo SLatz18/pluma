@@ -1,6 +1,6 @@
 # Package and validate a privacy manifest
 
-Suggested labels: `privacy`, `release`, `build`  
+Suggested labels: `privacy`, `release`, `build`
 Priority: High
 
 ## Summary

@@ -1,6 +1,6 @@
 # Preserve pasteboard contents during Service rewrites
 
-Suggested labels: `bug`, `data-integrity`, `services`  
+Suggested labels: `bug`, `data-integrity`, `services`
 Priority: High
 
 ## Summary

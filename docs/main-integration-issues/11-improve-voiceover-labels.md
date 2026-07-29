@@ -1,6 +1,6 @@
 # Improve VoiceOver labels for rewrite controls
 
-Suggested labels: `accessibility`, `ui`, `swiftui`  
+Suggested labels: `accessibility`, `ui`, `swiftui`
 Priority: Medium
 
 ## Summary

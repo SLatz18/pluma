@@ -1,6 +1,6 @@
 # Preserve leading and trailing whitespace during rewrites
 
-Suggested labels: `bug`, `text-processing`, `services`  
+Suggested labels: `bug`, `text-processing`, `services`
 Priority: High
 
 ## Summary

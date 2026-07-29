@@ -1,6 +1,6 @@
 # Publish accurate privacy and release documentation
 
-Suggested labels: `documentation`, `privacy`, `release`  
+Suggested labels: `documentation`, `privacy`, `release`
 Priority: High
 
 ## Summary

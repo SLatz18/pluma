@@ -1,6 +1,6 @@
 # Enforce operation-specific rewrite timeouts
 
-Suggested labels: `reliability`, `concurrency`, `services`  
+Suggested labels: `reliability`, `concurrency`, `services`
 Priority: High
 
 ## Summary

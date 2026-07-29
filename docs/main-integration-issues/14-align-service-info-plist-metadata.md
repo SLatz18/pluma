@@ -1,6 +1,6 @@
 # Align Service and distribution metadata in Info.plist
 
-Suggested labels: `services`, `release`, `configuration`  
+Suggested labels: `services`, `release`, `configuration`
 Priority: Medium
 
 ## Summary

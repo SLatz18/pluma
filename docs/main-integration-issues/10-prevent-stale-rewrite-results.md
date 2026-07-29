@@ -1,6 +1,6 @@
 # Prevent stale rewrite and provider-status results
 
-Suggested labels: `bug`, `concurrency`, `swiftui`  
+Suggested labels: `bug`, `concurrency`, `swiftui`
 Priority: High
 
 ## Summary
