@@ -60,6 +60,14 @@ final class DictationController: ObservableObject {
         }
     }
 
+    // Shared with the rewrite provider's model choice rather than duplicated:
+    // there is one Ollama install and one obvious model to talk to.
+    @Published var ollamaModel: String {
+        didSet {
+            defaults.set(ollamaModel, forKey: Preferences.ollamaModelKey)
+        }
+    }
+
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay = SuggestionOverlayController()
@@ -103,6 +111,7 @@ final class DictationController: ObservableObject {
         cleanupEnabled = Preferences.dictationCleanupEnabled(from: defaults)
         cleanupProvider = Preferences.cleanupProvider(from: defaults)
         openAIModel = Preferences.openAICleanupModel(from: defaults)
+        ollamaModel = Preferences.ollamaModel(from: defaults)
         isMicPermitted = mic.isGranted
 
         mic.onChange = { [weak self] granted in
@@ -280,6 +289,7 @@ final class DictationController: ObservableObject {
             if let cleaned = await RewriteRunner.cleanUpDictation(
                 provider: cleanupProvider,
                 openAIModel: openAIModel,
+                ollamaModel: ollamaModel,
                 transcript: transcript
             ) {
                 output = cleaned

@@ -9,6 +9,7 @@ struct DictationSettingsCard: View {
     @State private var apiKeyDraft = ""
     @State private var isComparing = false
     @State private var hasKey = OpenAIKey.isPresent
+    @State private var ollamaModels: [String] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -132,7 +133,8 @@ struct DictationSettingsCard: View {
                 .frame(width: 160)
                 .disabled(!controller.cleanupEnabled)
 
-                if controller.cleanupProvider == .openAI {
+                switch controller.cleanupProvider {
+                case .openAI:
                     Picker("Model", selection: $controller.openAIModel) {
                         ForEach(OpenAIChatModel.allCases) { model in
                             Text(model.title).tag(model)
@@ -141,6 +143,23 @@ struct DictationSettingsCard: View {
                     .labelsHidden()
                     .frame(width: 140)
                     .disabled(!controller.cleanupEnabled)
+                case .ollama:
+                    if ollamaModels.isEmpty {
+                        TextField("Ollama model", text: $controller.ollamaModel)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 160)
+                    } else {
+                        Picker("Ollama model", selection: $controller.ollamaModel) {
+                            ForEach(ollamaModels, id: \.self) { name in
+                                Text(name).tag(name)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 180)
+                        .disabled(!controller.cleanupEnabled)
+                    }
+                case .appleOnDevice:
+                    EmptyView()
                 }
 
                 Spacer()
@@ -221,6 +240,12 @@ struct DictationSettingsCard: View {
         .sheet(isPresented: $isComparing) {
             CleanupComparisonView()
         }
+        .task {
+            ollamaModels = (try? await OllamaEngine().availableModels()) ?? []
+            if controller.ollamaModel.isEmpty, let first = ollamaModels.first {
+                controller.ollamaModel = first
+            }
+        }
         .onDisappear {
             stopRecording()
         }
@@ -236,13 +261,14 @@ struct DictationSettingsCard: View {
         let audio = controller.provider == .openAI
             ? "Microphone audio is sent to OpenAI."
             : "Speech is transcribed on this Mac; audio never leaves it."
-        let text = controller.cleanupEnabled
-            ? (
-                controller.cleanupProvider == .openAI
-                    ? " The transcript is sent to OpenAI for cleanup."
-                    : " Cleanup runs on this Mac."
-            )
-            : " Cleanup is off, so the raw transcript is inserted."
+        let text: String
+        if !controller.cleanupEnabled {
+            text = " Cleanup is off, so the raw transcript is inserted."
+        } else if controller.cleanupProvider.isLocal {
+            text = " Cleanup runs on this Mac."
+        } else {
+            text = " The transcript is sent to OpenAI for cleanup."
+        }
         return audio + text + " If cleanup fails, the raw transcript is inserted instead."
     }
 

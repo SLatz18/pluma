@@ -35,12 +35,16 @@ enum RewriteRunner {
     static func cleanUpDictation(
         provider: CleanupProviderChoice,
         openAIModel: OpenAIChatModel,
+        ollamaModel: String,
         transcript: String
     ) async -> String? {
         guard DictationTranscript.isWorthCleaningUp(transcript) else { return nil }
         do {
             let output = try await runCleanup(
-                provider: provider, openAIModel: openAIModel, transcript: transcript
+                provider: provider,
+                openAIModel: openAIModel,
+                ollamaModel: ollamaModel,
+                transcript: transcript
             )
             let cleaned = output.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !cleaned.isEmpty else { return nil }
@@ -54,19 +58,17 @@ enum RewriteRunner {
     static func runCleanup(
         provider: CleanupProviderChoice,
         openAIModel: OpenAIChatModel,
+        ollamaModel: String,
         transcript: String
     ) async throws -> String {
-        switch provider {
+        let directive = PromptComposer.dictationDirective(for: transcript)
+        return switch provider {
         case .appleOnDevice:
-            try await AppleIntelligenceEngine.rewrite(
-                transcript, directive: PromptComposer.dictationDirective
-            )
+            try await AppleIntelligenceEngine.rewrite(transcript, directive: directive)
+        case .ollama:
+            try await OllamaEngine().rewrite(transcript, directive: directive, model: ollamaModel)
         case .openAI:
-            try await OpenAIChatEngine.rewrite(
-                transcript,
-                directive: PromptComposer.dictationDirective,
-                model: openAIModel
-            )
+            try await OpenAIChatEngine.rewrite(transcript, directive: directive, model: openAIModel)
         }
     }
 

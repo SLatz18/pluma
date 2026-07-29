@@ -57,7 +57,12 @@ struct CleanupComparisonView: View {
         HStack(spacing: 10) {
             Button(runner.isRecording ? "Stop and compare" : "Record a sample") {
                 if runner.isRecording {
-                    Task { await runner.stopAndCompare(openAIModel: controller.openAIModel) }
+                    Task {
+                        await runner.stopAndCompare(
+                            openAIModel: controller.openAIModel,
+                            ollamaModel: controller.ollamaModel
+                        )
+                    }
                 } else {
                     runner.startRecording()
                 }
@@ -78,7 +83,7 @@ struct CleanupComparisonView: View {
         switch runner.phase {
         case .idle:
             hasKey
-                ? "Comparing against \(controller.openAIModel.title)."
+                ? "Comparing Apple, Ollama, and \(controller.openAIModel.title)."
                 : "Add an OpenAI API key first."
         case .recording: "Recording — say a sentence or two, then stop."
         case .transcribing: "Transcribing with both engines…"

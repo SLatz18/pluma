@@ -60,7 +60,7 @@ final class ComparisonRunner: ObservableObject {
         }
     }
 
-    func stopAndCompare(openAIModel: OpenAIChatModel) async {
+    func stopAndCompare(openAIModel: OpenAIChatModel, ollamaModel: String) async {
         guard phase == .recording else { return }
 
         let samples = await recorder.stop()
@@ -88,7 +88,9 @@ final class ComparisonRunner: ObservableObject {
         }
 
         phase = .cleaning
-        cleanups = await cleanEveryWay(transcripts: usable, openAIModel: openAIModel)
+        cleanups = await cleanEveryWay(
+            transcripts: usable, openAIModel: openAIModel, ollamaModel: ollamaModel
+        )
         phase = .done
     }
 
@@ -171,12 +173,16 @@ final class ComparisonRunner: ObservableObject {
     // overlap each other and the local work without distorting anything.
     private func cleanEveryWay(
         transcripts: [TranscriptResult],
-        openAIModel: OpenAIChatModel
+        openAIModel: OpenAIChatModel,
+        ollamaModel: String
     ) async -> [CleanupResult] {
-        let cleaners: [(CleanupProviderChoice, String)] = [
-            (.appleOnDevice, CleanupProviderChoice.appleOnDevice.title),
-            (.openAI, openAIModel.title)
+        var cleaners: [(CleanupProviderChoice, String)] = [
+            (.appleOnDevice, CleanupProviderChoice.appleOnDevice.title)
         ]
+        if !ollamaModel.isEmpty {
+            cleaners.append((.ollama, "Ollama \(ollamaModel)"))
+        }
+        cleaners.append((.openAI, openAIModel.title))
 
         var jobs: [CleanupJob] = []
         for transcript in transcripts {
@@ -194,10 +200,10 @@ final class ComparisonRunner: ObservableObject {
         }
 
         async let remote = Self.runConcurrently(
-            jobs.filter { $0.provider == .openAI }, openAIModel: openAIModel
+            jobs.filter { !$0.provider.isLocal }, openAIModel: openAIModel, ollamaModel: ollamaModel
         )
         let local = await Self.runOneAtATime(
-            jobs.filter { $0.provider == .appleOnDevice }, openAIModel: openAIModel
+            jobs.filter(\.provider.isLocal), openAIModel: openAIModel, ollamaModel: ollamaModel
         )
 
         let remoteResults = await remote
@@ -208,22 +214,26 @@ final class ComparisonRunner: ObservableObject {
 
     nonisolated private static func runOneAtATime(
         _ jobs: [CleanupJob],
-        openAIModel: OpenAIChatModel
+        openAIModel: OpenAIChatModel,
+        ollamaModel: String
     ) async -> [(Int, CleanupResult)] {
         var results: [(Int, CleanupResult)] = []
         for job in jobs {
-            results.append(await run(job, openAIModel: openAIModel))
+            results.append(await run(job, openAIModel: openAIModel, ollamaModel: ollamaModel))
         }
         return results
     }
 
     nonisolated private static func runConcurrently(
         _ jobs: [CleanupJob],
-        openAIModel: OpenAIChatModel
+        openAIModel: OpenAIChatModel,
+        ollamaModel: String
     ) async -> [(Int, CleanupResult)] {
         await withTaskGroup(of: (Int, CleanupResult).self) { group in
             for job in jobs {
-                group.addTask { await run(job, openAIModel: openAIModel) }
+                group.addTask {
+                    await run(job, openAIModel: openAIModel, ollamaModel: ollamaModel)
+                }
             }
             var results: [(Int, CleanupResult)] = []
             for await result in group {
@@ -235,13 +245,15 @@ final class ComparisonRunner: ObservableObject {
 
     nonisolated private static func run(
         _ job: CleanupJob,
-        openAIModel: OpenAIChatModel
+        openAIModel: OpenAIChatModel,
+        ollamaModel: String
     ) async -> (Int, CleanupResult) {
         let started = ContinuousClock.Instant.now
         do {
             let output = try await RewriteRunner.runCleanup(
                 provider: job.provider,
                 openAIModel: openAIModel,
+                ollamaModel: ollamaModel,
                 transcript: job.transcript
             )
             return (
