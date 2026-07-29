@@ -44,7 +44,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
     private let defaults: UserDefaults
     private let tracker = FocusedFieldTracker()
-    private let overlay = SuggestionOverlayController()
+    private let overlay: SuggestionOverlayController
     private let permission = AccessibilityPermission.shared
     private let screenContext = ScreenContextProvider.shared
     private let memory = MemoryStore.shared
@@ -60,8 +60,9 @@ final class AutocompleteCoordinator: ObservableObject {
 
     private static let debounceInterval: Duration = .milliseconds(650)
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, overlay: SuggestionOverlayController = SuggestionOverlayController()) {
         self.defaults = defaults
+        self.overlay = overlay
         isEnabled = Preferences.autocompleteEnabled(from: defaults)
         screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
         memoryEnabled = Preferences.memoryEnabled(from: defaults)
@@ -288,12 +289,12 @@ final class AutocompleteCoordinator: ObservableObject {
         ) + suggestion.remaining
 
         if let point {
-            overlay.show(text: display, atTopLeftPoint: point)
+            overlay.show(text: display, atTopLeftPoint: point, from: .autocomplete)
         } else if let element = activeElement, let point = currentCaretPoint(for: element) {
-            overlay.show(text: display, atTopLeftPoint: point)
+            overlay.show(text: display, atTopLeftPoint: point, from: .autocomplete)
         } else {
             DebugLog.log("caret bounds unavailable; overlay at mouse")
-            overlay.show(text: display, atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint())
+            overlay.show(text: display, atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint(), from: .autocomplete)
         }
     }
 
@@ -351,7 +352,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private func dismissSuggestion() {
         activeSuggestion = nil
         activeElement = nil
-        overlay.hide()
+        overlay.hide(from: .autocomplete)
         updateActivity()
     }
 

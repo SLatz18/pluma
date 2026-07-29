@@ -66,28 +66,89 @@ private final class PillView: NSVisualEffectView {
     }
 
     func showSuggestion(_ text: String) {
+        stopDictationPulse()
         iconView.isHidden = true
         hintBezel.isHidden = false
         label.font = .systemFont(ofSize: 13)
         label.textColor = .secondaryLabelColor
+        label.maximumNumberOfLines = 1
+        label.lineBreakMode = .byTruncatingTail
+        label.preferredMaxLayoutWidth = 500
         label.stringValue = text
     }
 
     func showStatus(systemImage: String, message: String) {
+        stopDictationPulse()
         iconView.isHidden = false
+        iconView.contentTintColor = .secondaryLabelColor
         let base = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)
         iconView.image = base?.withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
         hintBezel.isHidden = true
         label.font = .systemFont(ofSize: 12, weight: .medium)
         label.textColor = .labelColor
+        label.maximumNumberOfLines = 1
+        label.lineBreakMode = .byTruncatingTail
+        label.preferredMaxLayoutWidth = 500
         label.stringValue = message
+    }
+
+    func showDictation(transcript: String) {
+        iconView.isHidden = false
+        iconView.contentTintColor = .systemRed
+        let base = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Recording")
+        iconView.image = base?.withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
+        startDictationPulse()
+        hintBezel.isHidden = true
+        if transcript.isEmpty {
+            label.font = .systemFont(ofSize: 12, weight: .medium)
+            label.textColor = .secondaryLabelColor
+            label.maximumNumberOfLines = 1
+            label.stringValue = "Listening…"
+        } else {
+            // Volatile results get revised as more audio arrives, so keep the
+            // tail visible rather than the beginning.
+            label.font = .systemFont(ofSize: 12)
+            label.textColor = .labelColor
+            label.maximumNumberOfLines = 2
+            label.stringValue = transcript
+        }
+        label.lineBreakMode = .byTruncatingHead
+        label.preferredMaxLayoutWidth = 320
+    }
+
+    // A breathing mic stands in for SwiftUI's repeating symbol effect, which
+    // has no AppKit equivalent; it stops the moment any other pill mode shows.
+    private func startDictationPulse() {
+        guard iconView.layer?.animation(forKey: "dictationPulse") == nil else { return }
+        iconView.wantsLayer = true
+        let pulse = CABasicAnimation(keyPath: "opacity")
+        pulse.fromValue = 1.0
+        pulse.toValue = 0.35
+        pulse.duration = 0.9
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        iconView.layer?.add(pulse, forKey: "dictationPulse")
+    }
+
+    private func stopDictationPulse() {
+        iconView.layer?.removeAnimation(forKey: "dictationPulse")
+        iconView.layer?.opacity = 1.0
     }
 }
 
 @MainActor
 final class SuggestionOverlayController {
+    // One panel is shared by autocomplete, selection rewrite, and dictation.
+    // Shows always preempt (last writer wins), but a hide only lands if the
+    // current presentation belongs to the caller — so a delayed hide (e.g. a
+    // status flash's 2.5 s timer) can't kill a newer presentation.
+    enum Owner {
+        case autocomplete, rewrite, dictation
+    }
+
     private var panel: NSPanel?
     private var pill: PillView?
+    private var currentOwner: Owner?
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
@@ -99,15 +160,24 @@ final class SuggestionOverlayController {
         return CGPoint(x: mouse.x + 8, y: primaryHeight - mouse.y + 12)
     }
 
-    func show(text: String, atTopLeftPoint point: CGPoint) {
+    func show(text: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
+        currentOwner = owner
         ensurePanel()
         pill?.showSuggestion(text)
         present(at: point)
     }
 
-    func showStatus(systemImage: String, message: String, atTopLeftPoint point: CGPoint) {
+    func showStatus(systemImage: String, message: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
+        currentOwner = owner
         ensurePanel()
         pill?.showStatus(systemImage: systemImage, message: message)
+        present(at: point)
+    }
+
+    func showDictation(transcript: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
+        currentOwner = owner
+        ensurePanel()
+        pill?.showDictation(transcript: transcript)
         present(at: point)
     }
 
@@ -147,9 +217,15 @@ final class SuggestionOverlayController {
     }
 
     func hide() {
+        currentOwner = nil
         DispatchQueue.main.async { [weak panel] in
             panel?.orderOut(nil)
         }
+    }
+
+    func hide(from owner: Owner) {
+        guard currentOwner == owner else { return }
+        hide()
     }
 
     // AX coordinates are top-left-origin relative to the primary display;

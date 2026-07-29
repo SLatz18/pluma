@@ -3,10 +3,20 @@ import SwiftUI
 @main
 struct RewriteApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = RewriteViewModel()
-    @StateObject private var autocomplete = AutocompleteCoordinator()
-    @StateObject private var selectionRewrite = SelectionRewriteController()
-    @StateObject private var dictation = DictationController()
+    @StateObject private var model: RewriteViewModel
+    @StateObject private var autocomplete: AutocompleteCoordinator
+    @StateObject private var selectionRewrite: SelectionRewriteController
+    @StateObject private var dictation: DictationController
+
+    init() {
+        // One overlay panel for ghost text, rewrite status, and the dictation
+        // HUD, so they can never stack on top of each other at the caret.
+        let overlay = SuggestionOverlayController()
+        _model = StateObject(wrappedValue: RewriteViewModel())
+        _autocomplete = StateObject(wrappedValue: AutocompleteCoordinator(overlay: overlay))
+        _selectionRewrite = StateObject(wrappedValue: SelectionRewriteController(overlay: overlay))
+        _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
+    }
 
     var body: some Scene {
         WindowGroup("Rewrite", id: "main") {
