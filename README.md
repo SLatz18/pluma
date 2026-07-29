@@ -25,6 +25,9 @@ recipe and try it on your own text), **Autocomplete**, and **Dictation** —
 with model and style-profile settings under ⌘,.
 
 - Four rewrite recipes: Improve, Shorten, Fix Grammar, and Professional.
+- An IFTTT-style pipeline builder: tap recipes to stack them in run order
+  (⇧⌘E → Fix Grammar → Shorten → …). Each step runs its own tuned prompt and
+  feeds the next; the same pipeline drives the playground and the hotkey.
 - A built-in editor for trying each recipe on your own text.
 - Live Apple Intelligence availability state.
 - Optional Ollama discovery at `http://127.0.0.1:11434`.
