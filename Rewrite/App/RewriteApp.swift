@@ -9,6 +9,8 @@ struct RewriteApp: App {
     @StateObject private var dictation: DictationController
 
     init() {
+        Preferences.migrateShortcutDefaultsIfNeeded()
+
         // One overlay panel for ghost text, rewrite status, and the dictation
         // HUD, so they can never stack on top of each other at the caret.
         let overlay = SuggestionOverlayController()

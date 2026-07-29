@@ -26,20 +26,20 @@ with model and style-profile settings under ⌘,.
 
 - Four rewrite recipes: Improve, Shorten, Fix Grammar, and Professional.
 - An IFTTT-style pipeline builder: tap recipes to stack them in run order
-  (⇧⌘E → Fix Grammar → Shorten → …). Each step runs its own tuned prompt and
+  (⇪E → Fix Grammar → Shorten → …). Each step runs its own tuned prompt and
   feeds the next; the same pipeline drives the playground and the hotkey.
 - A built-in editor for trying each recipe on your own text.
 - Live Apple Intelligence availability state.
 - Optional Ollama discovery at `http://127.0.0.1:11434`.
-- A global **Rewrite selection** hotkey — **Shift-Command-E** by default,
-  re-recordable in the app to any combo including Hyperkey chords — that
-  rewrites the current selection in any app via the Accessibility API.
+- A global **Rewrite selection** hotkey — **Caps Lock E** by default (via
+  Hyperkey), re-recordable in the app to any combo — that rewrites the
+  current selection in any app via the Accessibility API.
 - **Autocomplete everywhere**: debounced ghost-text completions at the caret in
   other apps' text fields, powered by the same on-device provider. **Tab**
   accepts the next word, **Shift-Tab** accepts the whole suggestion, **Escape**
   dismisses. Requires Accessibility access; the app stays alive in the menu
   bar after its window closes.
-- **Dictate anywhere**: hold **Caps Lock R** and talk; let go and your words
+- **Dictate anywhere**: hold **Caps Lock Space** and talk; let go and your words
   land at the caret in any app. Speech is transcribed by Apple's on-device
   model, then tidied from spoken to written form by your selected writing
   model. Requires microphone and Accessibility access.
@@ -63,8 +63,8 @@ with model and style-profile settings under ⌘,.
   times out, or returns nothing, the raw transcript is inserted instead —
   dictation never costs you your words. Transcripts under three words skip the
   cleanup round trip.
-- The shortcut is **Caps Lock R** by default, which works because
-  [Hyperkey](https://hyperkey.app) expands Caps Lock into ⌃⌥⇧⌘ before any app
+- The shortcut is **Caps Lock Space** by default, which works because
+  [Hyperkey](https://hyperkey.app) expands Caps Lock into ⌃⌥⌘ before any app
   sees the event. Rewrite deliberately does not remap Caps Lock itself: doing
   so would seize the key system-wide, disable its toggle and LED, and reset on
   every reboot. Without Hyperkey (or an equivalent), record any ordinary chord
@@ -98,8 +98,8 @@ with model and style-profile settings under ⌘,.
 - Apple Intelligence enabled and its on-device model downloaded.
 - For dictation: a supported language for Apple's `SpeechTranscriber`. The model
   downloads itself on first use and adds nothing to the app bundle.
-- Optional: [Hyperkey](https://hyperkey.app) for the default Caps Lock R
-  dictation shortcut.
+- Optional: [Hyperkey](https://hyperkey.app) for the default Caps Lock
+  shortcuts (⇪E rewrite, ⇪Space dictation).
 - Optional: [Ollama](https://ollama.com/) with at least one local model.
 
 ## Build
@@ -126,7 +126,7 @@ xcodebuild \
 1. Build and copy `Rewrite.app` into `/Applications`.
 2. Open Rewrite once and grant Accessibility access.
 3. Select editable text in another Mac app.
-4. Press **Shift-Command-E** (or your recorded shortcut).
+4. Press **Caps Lock E** (or your recorded shortcut).
 
 The hotkey is registered by the app itself and the rewrite happens through
 the Accessibility API, so the shortcut is configured in the app window —
