@@ -144,14 +144,6 @@ enum Preferences {
     }
 
     static let shortcutsVersionKey = "rewrite.shortcutsVersion"
-    static let capsLockExpanderEnabledKey = "rewrite.capsLockExpanderEnabled"
-
-    // On unless turned off: the expander is what makes the factory ⇪ chords
-    // work without Hyperkey.
-    static func capsLockExpanderEnabled(from defaults: UserDefaults = .standard) -> Bool {
-        guard defaults.object(forKey: capsLockExpanderEnabledKey) != nil else { return true }
-        return defaults.bool(forKey: capsLockExpanderEnabledKey)
-    }
 
     // 2026-07 factory chords moved from ⇧⌘E / ⇪R to ⇪E / ⇪Space. Stored
     // values only exist after a recording, so users still on the old factory
