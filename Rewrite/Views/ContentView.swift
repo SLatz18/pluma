@@ -34,6 +34,8 @@ struct ContentView: View {
 
                 AutocompleteSettingsCard()
 
+                DictationSettingsCard()
+
                 ShortcutSettingsCard()
             }
             .padding(32)

@@ -32,6 +32,37 @@ easy to rename before release.
   accepts the next word, **Shift-Tab** accepts the whole suggestion, **Escape**
   dismisses. Requires Accessibility access; the app stays alive in the menu
   bar after its window closes.
+- **Dictate anywhere**: hold **Caps Lock R** and talk; let go and your words
+  land at the caret in any app. Speech is transcribed by Apple's on-device
+  model, then tidied from spoken to written form by your selected writing
+  model. Requires microphone and Accessibility access.
+
+## Dictation notes
+
+- Push-to-talk only: recording runs while the shortcut is held, so the
+  microphone is never left open. A tap shorter than 300 ms is treated as a
+  mis-press.
+- A floating HUD near the caret shows the live transcript as you speak. Nothing
+  is inserted until you release the key, so partial guesses never reach your
+  document.
+- **Context-aware transcription**: with screen context enabled, Rewrite OCRs
+  the frontmost window and feeds the names and unusual terms it finds to the
+  speech model as recognition bias, so people and products visible on screen
+  transcribe correctly. The microphone opens first and the audio stream buffers
+  while the OCR runs, so no speech is lost waiting for it.
+- **Clean up with AI** removes filler words and false starts and fixes
+  punctuation, keeping your wording and meaning. It is deliberately
+  conservative and never answers or summarizes the transcript. If it fails,
+  times out, or returns nothing, the raw transcript is inserted instead —
+  dictation never costs you your words. Transcripts under three words skip the
+  cleanup round trip.
+- The shortcut is **Caps Lock R** by default, which works because
+  [Hyperkey](https://hyperkey.app) expands Caps Lock into ⌃⌥⇧⌘ before any app
+  sees the event. Rewrite deliberately does not remap Caps Lock itself: doing
+  so would seize the key system-wide, disable its toggle and LED, and reset on
+  every reboot. Without Hyperkey (or an equivalent), record any ordinary chord
+  instead via **Change…**.
+- Speech never leaves the Mac, and audio is not written to disk.
 
 ## Autocomplete notes
 
@@ -58,6 +89,10 @@ easy to rename before release.
 - macOS 26 or later.
 - Xcode 26 or later.
 - Apple Intelligence enabled and its on-device model downloaded.
+- For dictation: a supported language for Apple's `SpeechTranscriber`. The model
+  downloads itself on first use and adds nothing to the app bundle.
+- Optional: [Hyperkey](https://hyperkey.app) for the default Caps Lock R
+  dictation shortcut.
 - Optional: [Ollama](https://ollama.com/) with at least one local model.
 
 ## Build
@@ -123,3 +158,9 @@ SKILL.md another AI wrote about your voice — from Settings → Advanced. YAML
 frontmatter is stripped on import, the text is stored locally
 (`~/Library/Application Support/Rewrite/style-profile.md`, capped at 3,000
 characters), and it guides completions until cleared.
+
+Dictation records only while you hold the shortcut. Audio is transcribed by
+Apple's on-device speech model and is never written to disk or transmitted.
+The transcript is held in memory for the one insertion; when cleanup is on it
+is passed to your selected writing model, which is Apple Intelligence
+on-device by default, or Ollama on the loopback address if you chose it.

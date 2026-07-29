@@ -2,9 +2,12 @@ import Foundation
 
 enum DebugLog {
     static let url: URL = {
+        // Keyed off the bundle name so two installs of this app (a release copy
+        // and a renamed test build) don't truncate each other's log.
+        let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Rewrite"
         let directory = FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appending(path: "Rewrite", directoryHint: .isDirectory)
+            .appending(path: name, directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory.appending(path: "autocomplete-debug.log")
     }()

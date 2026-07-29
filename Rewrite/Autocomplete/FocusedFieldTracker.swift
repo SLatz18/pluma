@@ -324,7 +324,7 @@ final class FocusedFieldTracker {
         return CGPoint(x: rect.maxX + 4, y: rect.minY)
     }
 
-    private static func frame(of element: AXUIElement) -> CGRect? {
+    static func frame(of element: AXUIElement) -> CGRect? {
         var positionValue: CFTypeRef?
         var sizeValue: CFTypeRef?
         guard

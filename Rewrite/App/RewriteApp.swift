@@ -6,6 +6,7 @@ struct RewriteApp: App {
     @StateObject private var model = RewriteViewModel()
     @StateObject private var autocomplete = AutocompleteCoordinator()
     @StateObject private var selectionRewrite = SelectionRewriteController()
+    @StateObject private var dictation = DictationController()
 
     var body: some Scene {
         WindowGroup("Rewrite", id: "main") {
@@ -13,6 +14,7 @@ struct RewriteApp: App {
                 .environmentObject(model)
                 .environmentObject(autocomplete)
                 .environmentObject(selectionRewrite)
+                .environmentObject(dictation)
         }
         .defaultSize(width: 840, height: 740)
         .windowResizability(.contentMinSize)
@@ -21,6 +23,7 @@ struct RewriteApp: App {
         MenuBarExtra("Rewrite", systemImage: "character.cursor.ibeam") {
             AutocompleteMenuBarView()
                 .environmentObject(autocomplete)
+                .environmentObject(dictation)
         }
         .menuBarExtraStyle(.menu)
 
@@ -36,6 +39,7 @@ struct RewriteApp: App {
 
 private struct AutocompleteMenuBarView: View {
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
+    @EnvironmentObject private var dictation: DictationController
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -47,6 +51,9 @@ private struct AutocompleteMenuBarView: View {
         Divider()
 
         Toggle("Autocomplete as I type", isOn: $autocomplete.isEnabled)
+            .toggleStyle(.checkbox)
+
+        Toggle("Dictate with \(dictation.shortcut.display)", isOn: $dictation.isEnabled)
             .toggleStyle(.checkbox)
 
         Divider()
