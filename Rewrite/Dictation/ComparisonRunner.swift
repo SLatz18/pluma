@@ -156,6 +156,19 @@ final class ComparisonRunner: ObservableObject {
         }
     }
 
+    private struct CleanupJob: Sendable {
+        let order: Int
+        let transcriber: String
+        let transcript: String
+        let provider: CleanupProviderChoice
+        let label: String
+    }
+
+    // Two on-device cleanups running at once contend for the same local model, so
+    // both report a time neither would take alone — which reads as the on-device
+    // model being slow rather than as measurement error. On-device work is
+    // therefore serialized. Network calls spend their time waiting, so they can
+    // overlap each other and the local work without distorting anything.
     private func cleanEveryWay(
         transcripts: [TranscriptResult],
         openAIModel: OpenAIChatModel
@@ -165,55 +178,93 @@ final class ComparisonRunner: ObservableObject {
             (.openAI, openAIModel.title)
         ]
 
-        var pairs: [(Int, TranscriptResult, CleanupProviderChoice, String)] = []
-        var order = 0
+        var jobs: [CleanupJob] = []
         for transcript in transcripts {
             for cleaner in cleaners {
-                pairs.append((order, transcript, cleaner.0, cleaner.1))
-                order += 1
+                jobs.append(
+                    CleanupJob(
+                        order: jobs.count,
+                        transcriber: transcript.source,
+                        transcript: transcript.text ?? "",
+                        provider: cleaner.0,
+                        label: cleaner.1
+                    )
+                )
             }
         }
 
-        return await withTaskGroup(of: (Int, CleanupResult).self) { group in
-            for pair in pairs {
-                group.addTask {
-                    let started = ContinuousClock.Instant.now
-                    do {
-                        let output = try await RewriteRunner.runCleanup(
-                            provider: pair.2,
-                            openAIModel: openAIModel,
-                            transcript: pair.1.text ?? ""
-                        )
-                        return (
-                            pair.0,
-                            CleanupResult(
-                                transcriber: pair.1.source,
-                                cleaner: pair.3,
-                                output: output.trimmingCharacters(in: .whitespacesAndNewlines),
-                                failure: nil,
-                                seconds: Self.elapsed(since: started)
-                            )
-                        )
-                    } catch {
-                        return (
-                            pair.0,
-                            CleanupResult(
-                                transcriber: pair.1.source,
-                                cleaner: pair.3,
-                                output: nil,
-                                failure: error.localizedDescription,
-                                seconds: Self.elapsed(since: started)
-                            )
-                        )
-                    }
-                }
-            }
+        async let remote = Self.runConcurrently(
+            jobs.filter { $0.provider == .openAI }, openAIModel: openAIModel
+        )
+        let local = await Self.runOneAtATime(
+            jobs.filter { $0.provider == .appleOnDevice }, openAIModel: openAIModel
+        )
 
+        let remoteResults = await remote
+        return (local + remoteResults)
+            .sorted { $0.0 < $1.0 }
+            .map(\.1)
+    }
+
+    nonisolated private static func runOneAtATime(
+        _ jobs: [CleanupJob],
+        openAIModel: OpenAIChatModel
+    ) async -> [(Int, CleanupResult)] {
+        var results: [(Int, CleanupResult)] = []
+        for job in jobs {
+            results.append(await run(job, openAIModel: openAIModel))
+        }
+        return results
+    }
+
+    nonisolated private static func runConcurrently(
+        _ jobs: [CleanupJob],
+        openAIModel: OpenAIChatModel
+    ) async -> [(Int, CleanupResult)] {
+        await withTaskGroup(of: (Int, CleanupResult).self) { group in
+            for job in jobs {
+                group.addTask { await run(job, openAIModel: openAIModel) }
+            }
             var results: [(Int, CleanupResult)] = []
             for await result in group {
                 results.append(result)
             }
-            return results.sorted { $0.0 < $1.0 }.map(\.1)
+            return results
+        }
+    }
+
+    nonisolated private static func run(
+        _ job: CleanupJob,
+        openAIModel: OpenAIChatModel
+    ) async -> (Int, CleanupResult) {
+        let started = ContinuousClock.Instant.now
+        do {
+            let output = try await RewriteRunner.runCleanup(
+                provider: job.provider,
+                openAIModel: openAIModel,
+                transcript: job.transcript
+            )
+            return (
+                job.order,
+                CleanupResult(
+                    transcriber: job.transcriber,
+                    cleaner: job.label,
+                    output: output.trimmingCharacters(in: .whitespacesAndNewlines),
+                    failure: nil,
+                    seconds: elapsed(since: started)
+                )
+            )
+        } catch {
+            return (
+                job.order,
+                CleanupResult(
+                    transcriber: job.transcriber,
+                    cleaner: job.label,
+                    output: nil,
+                    failure: error.localizedDescription,
+                    seconds: elapsed(since: started)
+                )
+            )
         }
     }
 
