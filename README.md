@@ -20,12 +20,12 @@ easy to rename before release.
 
 ## Current milestone
 
-The app window is organized into three sidebar pages — **Playground** (try
-recipes on your own text), **Autocomplete**, and **Dictation** — with model
-and style-profile settings under ⌘,.
+The app window is organized into three sidebar pages — **Rewrite** (pick a
+recipe and try it on your own text), **Autocomplete**, and **Dictation** —
+with model and style-profile settings under ⌘,.
 
 - Four rewrite recipes: Improve, Shorten, Fix Grammar, and Professional.
-- A built-in playground for trying each recipe.
+- A built-in editor for trying each recipe on your own text.
 - Live Apple Intelligence availability state.
 - Optional Ollama discovery at `http://127.0.0.1:11434`.
 - A global **Rewrite selection** hotkey — **Shift-Command-E** by default,
@@ -127,7 +127,7 @@ xcodebuild \
 
 The hotkey is registered by the app itself and the rewrite happens through
 the Accessibility API, so the shortcut is configured in the app window —
-**Change…** on the Playground page's "Rewrite the selection" card records
+**Change…** on the Rewrite page's "Rewrite the selection" card records
 any combo, Hyperkey chords included. The **Edit with Rewrite** macOS Service remains available
 from the right-click Services menu as a fallback for apps where
 Accessibility insertion misbehaves; it no longer has a default shortcut, so

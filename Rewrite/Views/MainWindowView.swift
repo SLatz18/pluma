@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum MainPage: String, CaseIterable, Identifiable, Hashable {
-    case playground
+    case rewrite
     case autocomplete
     case dictation
 
@@ -9,7 +9,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .playground: "Playground"
+        case .rewrite: "Rewrite"
         case .autocomplete: "Autocomplete"
         case .dictation: "Dictation"
         }
@@ -17,7 +17,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
 
     var symbolName: String {
         switch self {
-        case .playground: "sparkles.rectangle.stack"
+        case .rewrite: "sparkles.rectangle.stack"
         case .autocomplete: "character.cursor.ibeam"
         case .dictation: "mic"
         }
@@ -25,7 +25,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
 
     var tint: Color {
         switch self {
-        case .playground: .accentColor
+        case .rewrite: .accentColor
         case .autocomplete: DS.Feature.autocomplete.color
         case .dictation: DS.Feature.dictation.color
         }
@@ -33,10 +33,10 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
 }
 
 /// One window, one job per page: the sidebar routes between trying Rewrite
-/// (Playground) and the two always-on features. This replaces the single
+/// (the home page) and the two always-on features. This replaces the single
 /// endless scroll that mixed doing and configuring.
 struct MainWindowView: View {
-    @State private var selection: MainPage? = .playground
+    @State private var selection: MainPage? = .rewrite
 
     var body: some View {
         NavigationSplitView {
@@ -52,8 +52,8 @@ struct MainWindowView: View {
             .listStyle(.sidebar)
             .navigationTitle("Rewrite")
         } detail: {
-            switch selection ?? .playground {
-            case .playground:
+            switch selection ?? .rewrite {
+            case .rewrite:
                 HomeView()
             case .autocomplete:
                 AutocompleteView()
