@@ -5,35 +5,22 @@ struct RewriteActionCard: View {
     let isSelected: Bool
     let action: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Image(systemName: intent.symbolName)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(intent.tint)
-                    .frame(width: 42, height: 42)
-                    .background(
-                        intent.tint.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    )
+                DSIconTile(systemImage: intent.symbolName, tint: intent.feature.color)
 
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text("SELECTED TEXT")
-                            .font(.caption2.weight(.bold))
-                            .tracking(0.5)
-                            .foregroundStyle(.tertiary)
-                        Image(systemName: "arrow.right")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
+                VStack(alignment: .leading, spacing: 4) {
+                    DSEyebrow(trigger: "Selected text")
 
                     Text(intent.title)
-                        .font(.headline)
+                        .font(DS.cardTitle)
                         .foregroundStyle(.primary)
 
                     Text(intent.shortDescription)
-                        .font(.caption)
+                        .font(DS.meta)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -42,23 +29,23 @@ struct RewriteActionCard: View {
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isSelected ? intent.tint : Color.secondary.opacity(0.35))
+                    .foregroundStyle(isSelected ? intent.feature.color : Color.secondary.opacity(0.35))
+                    .contentTransition(.symbolEffect(.replace))
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+            .padding(DS.cardPadding)
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
             .background(
-                isSelected
-                    ? intent.tint.opacity(0.075)
-                    : Color(nsColor: .controlBackgroundColor),
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                isSelected ? intent.feature.color.opacity(0.08) : DS.cardBackground,
+                in: RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
             )
             .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
                     .strokeBorder(
-                        isSelected ? intent.tint.opacity(0.5) : Color.primary.opacity(0.07),
+                        isSelected ? intent.feature.color.opacity(0.55) : DS.hairline,
                         lineWidth: isSelected ? 1.5 : 1
                     )
             }
+            .animation(reduceMotion ? nil : .spring(duration: 0.35), value: isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(intent.title): \(intent.shortDescription)")
@@ -66,13 +53,13 @@ struct RewriteActionCard: View {
     }
 }
 
-private extension RewriteIntent {
-    var tint: Color {
+extension RewriteIntent {
+    var feature: DS.Feature {
         switch self {
-        case .improve: .blue
-        case .shorten: .purple
-        case .grammar: .green
-        case .professional: .orange
+        case .improve: .improve
+        case .shorten: .shorten
+        case .grammar: .grammar
+        case .professional: .professional
         }
     }
 }

@@ -1,0 +1,257 @@
+import SwiftUI
+
+// One visual language for the whole app. Every surface, icon tile, eyebrow,
+// and status row comes from here so a feature page and the playground can
+// never drift into different dialects.
+//
+// The grammar is IFTTT-style trigger → action: an uppercase eyebrow names the
+// trigger ("SELECTED TEXT", "AS YOU TYPE"), an arrow, then the outcome. If a
+// new surface can't state its trigger, it doesn't get an eyebrow.
+enum DS {
+
+    // MARK: Color
+
+    /// Page background — lets cards read as lifted surfaces.
+    static let pageBackground = Color(nsColor: .windowBackgroundColor)
+    /// The one card surface.
+    static let cardBackground = Color(nsColor: .controlBackgroundColor)
+    /// Inset fields (editors, readouts) inside a card.
+    static let insetBackground = Color(nsColor: .textBackgroundColor)
+    /// 1 pt separation that works on both surfaces in light and dark.
+    static let hairline = Color.primary.opacity(0.07)
+
+    // MARK: Shape
+
+    static let cardRadius: CGFloat = 14
+    static let tileRadius: CGFloat = 11
+    static let insetRadius: CGFloat = 10
+
+    // MARK: Spacing (8 pt grid)
+
+    static let cardPadding: CGFloat = 16
+    static let pagePadding: CGFloat = 28
+    static let sectionGap: CGFloat = 22
+
+    // MARK: Type
+
+    static let pageTitle = Font.system(size: 28, weight: .bold, design: .rounded)
+    static let cardTitle = Font.headline
+    static let cardBody = Font.subheadline
+    static let meta = Font.caption
+    static let eyebrow = Font.caption2.weight(.bold)
+
+    // MARK: Feature tints — one hue per feature, used for its tile, toggle,
+    // and selection state everywhere it appears.
+
+    enum Feature {
+        case improve, shorten, grammar, professional
+        case autocomplete, dictation, shortcut
+
+        var color: Color {
+            switch self {
+            case .improve: .blue
+            case .shorten: .purple
+            case .grammar: .green
+            case .professional: .orange
+            case .autocomplete: .indigo
+            case .dictation: .pink
+            case .shortcut: .mint
+            }
+        }
+    }
+}
+
+// MARK: - Card surface
+
+struct DSCard<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(DS.cardPadding)
+            .background(DS.cardBackground, in: RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
+                    .strokeBorder(DS.hairline)
+            }
+    }
+}
+
+extension View {
+    func dsCard() -> some View {
+        padding(DS.cardPadding)
+            .background(DS.cardBackground, in: RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
+                    .strokeBorder(DS.hairline)
+            }
+    }
+}
+
+// MARK: - Icon tile
+
+/// The 42 pt tinted rounded square that anchors every card header.
+struct DSIconTile: View {
+    let systemImage: String
+    let tint: Color
+    var size: CGFloat = 42
+    var symbolSize: CGFloat = 19
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: symbolSize, weight: .semibold))
+            .foregroundStyle(tint)
+            .frame(width: size, height: size)
+            .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: DS.tileRadius, style: .continuous))
+    }
+}
+
+// MARK: - Eyebrow (trigger → action)
+
+/// The IFTTT grammar rendered as type: TRIGGER  →  outcome, uppercase,
+/// tracked out, tertiary. `action` stays unstyled-uppercase so the pair reads
+/// as one sentence.
+struct DSEyebrow: View {
+    let trigger: String
+    var action: String? = nil
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Text(trigger.uppercased())
+            if let action {
+                Image(systemName: "arrow.right")
+                Text(action.uppercased())
+            }
+        }
+        .font(DS.eyebrow)
+        .tracking(0.6)
+        .foregroundStyle(.tertiary)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Status row
+
+/// The 8 pt dot + caption that reports liveness at the bottom of a card.
+struct DSStatusRow: View {
+    let color: Color
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+            Text(text)
+                .font(DS.meta)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Permission / notice row
+
+/// Icon + explanation + trailing action, used for grants and warnings.
+struct DSNoticeRow: View {
+    let systemImage: String
+    let tint: Color
+    let text: String
+    var actionTitle: String? = nil
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 18)
+            Text(text)
+                .font(DS.meta)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .controlSize(.small)
+            }
+        }
+    }
+}
+
+// MARK: - Labeled switch row
+
+/// One switch with its own row: bold label, description, toggle at the
+/// trailing edge. Replaces the cramped caption-label toggle stacks.
+struct DSToggleRow: View {
+    let title: String
+    var detail: String? = nil
+    @Binding var isOn: Bool
+    var disabled: Bool = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(DS.cardBody.weight(.medium))
+                if let detail {
+                    Text(detail)
+                        .font(DS.meta)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 12)
+            Toggle(title, isOn: $isOn)
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .disabled(disabled)
+        }
+        .disabled(disabled)
+        .foregroundStyle(disabled ? .tertiary : .primary)
+    }
+}
+
+// MARK: - Page scaffold
+
+/// Every sidebar page: optional eyebrow, big rounded title, subtitle, then
+/// the page content on the shared page background.
+struct DSPage<Content: View>: View {
+    let title: String
+    let subtitle: String
+    var eyebrow: String? = nil
+    let content: Content
+
+    init(title: String, subtitle: String, eyebrow: String? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.subtitle = subtitle
+        self.eyebrow = eyebrow
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DS.sectionGap) {
+                VStack(alignment: .leading, spacing: 6) {
+                    if let eyebrow {
+                        DSEyebrow(trigger: eyebrow)
+                    }
+                    Text(title)
+                        .font(DS.pageTitle)
+                    Text(subtitle)
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+
+                content
+            }
+            .padding(DS.pagePadding)
+            .frame(maxWidth: 780, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .background(DS.pageBackground)
+    }
+}

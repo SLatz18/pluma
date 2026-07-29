@@ -2,15 +2,16 @@ import SwiftUI
 
 struct RewritePlaygroundView: View {
     @EnvironmentObject private var model: RewriteViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Try it here")
-                        .font(.headline)
+                        .font(DS.cardTitle)
                     Text("Your text never leaves this Mac.")
-                        .font(.caption)
+                        .font(DS.meta)
                         .foregroundStyle(.secondary)
                 }
 
@@ -45,19 +46,11 @@ struct RewritePlaygroundView: View {
 
             if let errorMessage = model.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                    .font(DS.meta)
                     .foregroundStyle(.red)
             }
         }
-        .padding(18)
-        .background(
-            Color(nsColor: .controlBackgroundColor),
-            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.07))
-        }
+        .dsCard()
     }
 
     private func editor(
@@ -67,7 +60,7 @@ struct RewritePlaygroundView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title.uppercased())
-                .font(.caption2.weight(.bold))
+                .font(DS.eyebrow)
                 .tracking(0.6)
                 .foregroundStyle(.tertiary)
 
@@ -77,8 +70,8 @@ struct RewritePlaygroundView: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, minHeight: 132)
                 .background(
-                    Color(nsColor: .textBackgroundColor),
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    DS.insetBackground,
+                    in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
                 )
                 .disabled(!isEditable)
         }
@@ -89,7 +82,7 @@ struct RewritePlaygroundView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("RESULT")
-                    .font(.caption2.weight(.bold))
+                    .font(DS.eyebrow)
                     .tracking(0.6)
                     .foregroundStyle(.tertiary)
 
@@ -115,21 +108,26 @@ struct RewritePlaygroundView: View {
             }
 
             ScrollView {
-                Text(
-                    model.outputText.isEmpty
-                        ? "Your rewritten text will appear here."
-                        : model.outputText
-                )
+                ZStack(alignment: .topLeading) {
+                    if model.outputText.isEmpty {
+                        Text("Your rewritten text will appear here.")
+                            .foregroundStyle(.tertiary)
+                            .transition(.opacity)
+                    } else {
+                        Text(model.outputText)
+                            .transition(.opacity)
+                    }
+                }
+                .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: model.outputText.isEmpty)
                 .font(.body)
-                .foregroundStyle(model.outputText.isEmpty ? .tertiary : .primary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
                 .padding(12)
             }
             .frame(maxWidth: .infinity, minHeight: 132)
             .background(
-                Color(nsColor: .textBackgroundColor),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                DS.insetBackground,
+                in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
             )
         }
         .frame(maxWidth: .infinity)
