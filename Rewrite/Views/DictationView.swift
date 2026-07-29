@@ -95,7 +95,7 @@ struct DictationView: View {
                 Text(
                     isRecording
                         ? "Press and hold the new shortcut. Esc cancels."
-                        : "Hold to talk. Hyperkey maps Caps Lock to ⌃⌥⇧⌘, so Caps Lock R works."
+                        : "Hold to talk. Hyperkey maps Caps Lock to ⌃⌥⌘, so Caps Lock Space works."
                 )
                     .font(DS.meta)
                     .foregroundStyle(.secondary)

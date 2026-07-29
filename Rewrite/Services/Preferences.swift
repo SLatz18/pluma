@@ -1,3 +1,4 @@
+import Carbon.HIToolbox
 import Foundation
 
 enum Preferences {
@@ -140,6 +141,30 @@ enum Preferences {
         defaults.set(Int(shortcut.keyCode), forKey: dictationShortcutKeyCodeKey)
         defaults.set(Int(shortcut.carbonModifiers), forKey: dictationShortcutModifiersKey)
         defaults.set(shortcut.display, forKey: dictationShortcutDisplayKey)
+    }
+
+    static let shortcutsVersionKey = "rewrite.shortcutsVersion"
+
+    // 2026-07 factory chords moved from ⇧⌘E / ⇪R to ⇪E / ⇪Space. Stored
+    // values only exist after a recording, so users still on the old factory
+    // chords get moved forward; anyone who recorded something custom is left
+    // exactly where they were.
+    static func migrateShortcutDefaultsIfNeeded(from defaults: UserDefaults = .standard) {
+        guard defaults.integer(forKey: shortcutsVersionKey) < 1 else { return }
+
+        let storedRewrite = globalShortcut(from: defaults)
+        if storedRewrite.keyCode == UInt32(kVK_ANSI_E),
+           storedRewrite.carbonModifiers == UInt32(cmdKey | shiftKey) {
+            saveGlobalShortcut(.default, to: defaults)
+        }
+
+        let storedDictation = dictationShortcut(from: defaults)
+        if storedDictation.keyCode == UInt32(kVK_ANSI_R),
+           storedDictation.carbonModifiers == UInt32(controlKey | optionKey | cmdKey) {
+            saveDictationShortcut(.dictationDefault, to: defaults)
+        }
+
+        defaults.set(1, forKey: shortcutsVersionKey)
     }
 
     static func globalShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
