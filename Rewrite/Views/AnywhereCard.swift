@@ -1,6 +1,8 @@
 import SwiftUI
 
-struct ShortcutSettingsCard: View {
+/// The bridge from playground to system-wide: the selection-rewrite hotkey,
+/// in trigger → action form.
+struct AnywhereCard: View {
     @EnvironmentObject private var controller: SelectionRewriteController
 
     @State private var isRecording = false
@@ -8,34 +10,26 @@ struct ShortcutSettingsCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Text(isRecording ? "…" : controller.shortcut.display)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 8)
-                .frame(minHeight: 24)
-                .background(
-                    Color(nsColor: .textBackgroundColor),
-                    in: RoundedRectangle(cornerRadius: 6)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(
-                            isRecording ? Color.accentColor : Color.primary.opacity(0.12)
-                        )
-                }
+            DSIconTile(systemImage: "keyboard", tint: DS.Feature.shortcut.color)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Rewrite selection")
-                    .font(.headline)
+            VStack(alignment: .leading, spacing: 4) {
+                DSEyebrow(trigger: "In any app")
+
+                Text("Rewrite the selection")
+                    .font(DS.cardTitle)
+
                 Text(
                     isRecording
                         ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
-                        : "Works in any app with Accessibility access. Select text, press the shortcut."
+                        : "Select text anywhere, press the shortcut, get a cleaner version back."
                 )
-                    .font(.subheadline)
+                    .font(DS.meta)
                     .foregroundStyle(.secondary)
             }
 
-            Spacer()
+            Spacer(minLength: 12)
+
+            shortcutBadge
 
             Button(isRecording ? "Cancel" : "Change…") {
                 if isRecording {
@@ -44,15 +38,29 @@ struct ShortcutSettingsCard: View {
                     startRecording()
                 }
             }
+            .controlSize(.small)
         }
-        .padding(16)
-        .background(
-            Color(nsColor: .controlBackgroundColor),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
+        .dsCard()
         .onDisappear {
             stopRecording()
         }
+    }
+
+    private var shortcutBadge: some View {
+        Text(isRecording ? "…" : controller.shortcut.display)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 8)
+            .frame(minHeight: 24)
+            .background(
+                DS.insetBackground,
+                in: RoundedRectangle(cornerRadius: 6)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(
+                        isRecording ? Color.accentColor : DS.hairline
+                    )
+            }
     }
 
     private func startRecording() {
