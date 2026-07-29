@@ -40,19 +40,19 @@ jobs:
 
       - name: Validate property lists
         run: |
-          plutil -lint Rewrite/Info.plist
-          plutil -lint Rewrite/PrivacyInfo.xcprivacy
-          plutil -lint Rewrite/Rewrite.entitlements
+          plutil -lint Pluma/Info.plist
+          plutil -lint Pluma/PrivacyInfo.xcprivacy
+          plutil -lint Pluma/Pluma.entitlements
 
       - name: Confirm privacy manifest is packaged
         run: |
-          test -f Rewrite/PrivacyInfo.xcprivacy
+          test -f Pluma/PrivacyInfo.xcprivacy
 
       - name: Build and test
         run: |
           xcodebuild \
-            -project Rewrite.xcodeproj \
-            -scheme Rewrite \
+            -project Pluma.xcodeproj \
+            -scheme Pluma \
             -configuration Debug \
             -destination 'platform=macOS' \
             -derivedDataPath DerivedData \
@@ -62,8 +62,8 @@ jobs:
       - name: Build release configuration
         run: |
           xcodebuild \
-            -project Rewrite.xcodeproj \
-            -scheme Rewrite \
+            -project Pluma.xcodeproj \
+            -scheme Pluma \
             -configuration Release \
             -destination 'platform=macOS' \
             -derivedDataPath DerivedData \
@@ -72,5 +72,5 @@ jobs:
 
       - name: Verify packaged privacy manifest
         run: |
-          resources='DerivedData/Build/Products/Release/Rewrite.app/Contents/Resources'
+          resources='DerivedData/Build/Products/Release/Pluma.app/Contents/Resources'
           test -f "$resources/PrivacyInfo.xcprivacy"

@@ -1,5 +1,5 @@
 name: Bug report
-description: Something Rewrite does wrong on your Mac
+description: Something pluma does wrong on your Mac
 title: "[Bug]: "
 labels: ["bug"]
 body:

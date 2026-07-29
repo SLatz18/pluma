@@ -8,4 +8,4 @@ cd "$PROJECT_DIR"
 swift scripts/generate-icon.swift
 xcodegen generate
 
-echo "Generated Rewrite.xcodeproj"
+echo "Generated Pluma.xcodeproj"

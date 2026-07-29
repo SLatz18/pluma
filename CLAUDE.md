@@ -1,30 +1,31 @@
-# Rewrite for Mac — agent notes
+# pluma — agent notes
 
-Native macOS writing tool: recipe pipelines (Rewrite page), ghost-text
-autocomplete, push-to-talk dictation, selection-rewrite hotkey. SwiftUI +
-AppKit, Swift 6 strict concurrency, macOS 26 target, xcodegen-generated
-project. Product principles: README.md. Privacy model: PRIVACY.md. Product
-language: native controls, generous spacing, trigger → action cards.
+Native macOS writing tool (**pluma** / formal **plumafina**): recipe pipelines
+(Rewrite page), ghost-text autocomplete, push-to-talk dictation,
+selection-rewrite hotkey. SwiftUI + AppKit, Swift 6 strict concurrency,
+macOS 26 target, xcodegen-generated project. Product principles: README.md.
+Privacy model: PRIVACY.md. Product language: native controls, generous
+spacing, trigger → action cards.
 
 ## Build, test, install
 
 ```sh
 xcodegen generate          # REQUIRED after adding/removing files; globs folders
-xcodebuild -project Rewrite.xcodeproj -scheme Rewrite -configuration Debug \
+xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
   -derivedDataPath DerivedData build   # append `test` for tests
 ```
 
-- `Rewrite.xcodeproj` is generated — never hand-edit; edit `project.yml` or
+- `Pluma.xcodeproj` is generated — never hand-edit; edit `project.yml` or
   add/remove files and regenerate. Regenerate AFTER file writes land (parallel
   tool calls race it).
 - Signing is the stable "Local Self-Signed" identity so Accessibility/TCC
   grants survive rebuilds. Keep it.
-- Install: `ditto DerivedData/Build/Products/Debug/Rewrite.app ~/Applications/Rewrite.app`
+- Install: `ditto DerivedData/Build/Products/Debug/Pluma.app ~/Applications/Pluma.app`
   (`/Applications` needs admin; `~/Applications` behaves identically).
 
 ## Architecture map
 
-- `App/RewriteApp.swift` — builds shared `SuggestionOverlayController` and
+- `App/PlumaApp.swift` — builds shared `SuggestionOverlayController` and
   injects it into all three presenters. One overlay panel, owner-scoped hides.
 - `Views/DesignSystem.swift` — the one card/tile/eyebrow/status-row grammar
   (`DS.*`). New surfaces use it or they drift.
@@ -75,7 +76,7 @@ xcodebuild -project Rewrite.xcodeproj -scheme Rewrite -configuration Debug \
 
 ## House rules for changes
 
-- Worktree + branch per chat (`git worktree add ../rewrite-mac-wt-<topic> -b
+- Worktree + branch per chat (`git worktree add ../pluma-wt-<topic> -b
   feat/<topic> main`), merge to main after verification, remove the worktree.
 - Tests run with `xcodebuild ... test`; keep them green before merging.
 - The overlay is pure AppKit by deliberate choice (SwiftUI hosting crashed
