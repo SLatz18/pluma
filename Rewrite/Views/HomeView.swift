@@ -1,6 +1,9 @@
 import SwiftUI
 
-struct ContentView: View {
+/// Home: pick a recipe, try it on your own text, then take it system-wide
+/// with the shortcut strip. Doing lives here; configuring lives on the
+/// feature pages.
+struct HomeView: View {
     @EnvironmentObject private var model: RewriteViewModel
 
     private let columns = [
@@ -10,12 +13,11 @@ struct ContentView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 28) {
+            VStack(alignment: .leading, spacing: DS.sectionGap) {
                 header
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Choose what happens")
-                        .font(.headline)
+                    DSEyebrow(trigger: "Choose what happens")
 
                     LazyVGrid(columns: columns, spacing: 12) {
                         ForEach(RewriteIntent.allCases) { intent in
@@ -32,18 +34,13 @@ struct ContentView: View {
                 RewritePlaygroundView()
                     .environmentObject(model)
 
-                AutocompleteSettingsCard()
-
-                DictationSettingsCard()
-
-                ShortcutSettingsCard()
+                AnywhereCard()
             }
-            .padding(32)
-            .frame(maxWidth: 920)
-            .frame(maxWidth: .infinity)
+            .padding(DS.pagePadding)
+            .frame(maxWidth: 780, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .frame(minWidth: 720, minHeight: 640)
+        .background(DS.pageBackground)
         .task {
             await model.refreshStatus()
         }
@@ -51,11 +48,11 @@ struct ContentView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("Rewrite anything.")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(DS.pageTitle)
 
-                Text("Select text. Pick an action. Keep your meaning.")
+                Text("Select text. Pick a recipe. Keep your meaning.")
                     .font(.title3)
                     .foregroundStyle(.secondary)
             }
@@ -66,5 +63,4 @@ struct ContentView: View {
                 .environmentObject(model)
         }
     }
-
 }
