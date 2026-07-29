@@ -43,8 +43,9 @@ enum RewriteIntent: String, CaseIterable, Codable, Identifiable, Sendable {
             "Make the text meaningfully shorter while preserving every important point."
         case .grammar:
             "Correct grammar, spelling, punctuation, and awkward phrasing without changing tone. "
-                + "Expand texting shorthand and abbreviations to the words the writer meant, "
-                + "never adding modals or changing verb tense when expanding."
+                + "Expand texting shorthand to the words the writer meant in context "
+                + "(\"u c the deck\" → \"you have seen the deck\", never \"you can see the deck\"), "
+                + "and do not add modals the writer did not write."
         case .professional:
             "Make the text polished, concise, professional, and confident without sounding stiff."
         }
