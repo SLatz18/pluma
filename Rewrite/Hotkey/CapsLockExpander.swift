@@ -9,10 +9,6 @@ import Carbon.HIToolbox
 // two expanders fighting over the same key would double-transform it.
 @MainActor
 final class CapsLockExpander: ObservableObject {
-    // One owner for the tap. SwiftUI can re-initialize the App struct, and a
-    // second instance would create a second poll and a second tap.
-    static let shared = CapsLockExpander()
-
     @Published private(set) var isActive = false
     @Published private(set) var hyperAppRunning = false
 
@@ -102,11 +98,10 @@ final class CapsLockExpander: ObservableObject {
     }
 
     func reevaluate() {
-        let enabled = Preferences.capsLockExpanderEnabled(from: defaults)
         hyperAppRunning = Self.hyperAppBundleIDs.contains {
             !NSRunningApplication.runningApplications(withBundleIdentifier: $0).isEmpty
         }
-        let shouldRun = enabled && !hyperAppRunning
+        let shouldRun = Preferences.capsLockExpanderEnabled(from: defaults) && !hyperAppRunning
         if shouldRun {
             startTap()
         } else {
@@ -133,11 +128,8 @@ final class CapsLockExpander: ObservableObject {
 
         let userInfo = Unmanaged.passUnretained(tapState).toOpaque()
         guard
-            // HID level, not session: the window server applies caps state
-            // (and lights the LED) before a session tap can consume the event
-            // — the physical key was leaking through and toggling anyway.
             let tap = CGEvent.tapCreate(
-                tap: .cghidEventTap,
+                tap: .cgSessionEventTap,
                 place: .headInsertEventTap,
                 options: .defaultTap,
                 eventsOfInterest: mask,
@@ -163,11 +155,10 @@ final class CapsLockExpander: ObservableObject {
                 userInfo: userInfo
             )
         else {
-            DebugLog.log("capslock expander: tapCreate failed (Input Monitoring missing?)")
+            DebugLog.log("capslock expander: tapCreate failed (Accessibility missing?)")
             return
         }
 
-        DebugLog.log("capslock expander: tap created")
         tapState.lock.lock()
         tapState.tap = tap
         tapState.lock.unlock()
