@@ -7,7 +7,6 @@ struct AnywhereCard: View {
     @EnvironmentObject private var model: RewriteViewModel
 
     @State private var isRecording = false
-    @State private var keyMonitor: Any?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -33,16 +32,12 @@ struct AnywhereCard: View {
 
                 Spacer(minLength: 12)
 
-                shortcutBadge
-
-                Button(isRecording ? "Cancel" : "Change…") {
-                    if isRecording {
-                        stopRecording()
-                    } else {
-                        startRecording()
-                    }
+                ShortcutRecorderView(
+                    shortcut: controller.shortcut,
+                    isRecording: $isRecording
+                ) { shortcut in
+                    controller.recordShortcut(shortcut)
                 }
-                .controlSize(.small)
             }
 
             if let conflict = controller.shortcutConflict {
@@ -52,49 +47,5 @@ struct AnywhereCard: View {
             }
         }
         .dsCard()
-        .onDisappear {
-            stopRecording()
-        }
-    }
-
-    private var shortcutBadge: some View {
-        Text(isRecording ? "…" : controller.shortcut.display)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 8)
-            .frame(minHeight: 24)
-            .background(
-                DS.insetBackground,
-                in: RoundedRectangle(cornerRadius: 6)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(
-                        isRecording ? Color.accentColor : DS.hairline
-                    )
-            }
-    }
-
-    private func startRecording() {
-        isRecording = true
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 53 {
-                stopRecording()
-                return nil
-            }
-            if let shortcut = GlobalShortcut(event: event) {
-                controller.recordShortcut(shortcut)
-                stopRecording()
-                return nil
-            }
-            return nil
-        }
-    }
-
-    private func stopRecording() {
-        if let keyMonitor {
-            NSEvent.removeMonitor(keyMonitor)
-        }
-        keyMonitor = nil
-        isRecording = false
     }
 }

@@ -8,7 +8,6 @@ final class HotkeyManager {
         case dictation = 2
     }
 
-    var onHotKey: (() -> Void)?
     var onPress: ((Slot) -> Void)?
     var onRelease: ((Slot) -> Void)?
 
@@ -16,10 +15,6 @@ final class HotkeyManager {
     private var handlerRef: EventHandlerRef?
 
     private static let signature = OSType(0x52575254) // 'RWRT'
-
-    func register(_ shortcut: GlobalShortcut) {
-        register(shortcut, in: .rewriteSelection)
-    }
 
     func register(_ shortcut: GlobalShortcut, in slot: Slot) {
         unregisterHotKey(slot)
@@ -107,16 +102,9 @@ final class HotkeyManager {
     private func dispatch(slot: Slot, isRelease: Bool) {
         if isRelease {
             onRelease?(slot)
-            return
+        } else {
+            onPress?(slot)
         }
-        onPress?(slot)
-        if slot == .rewriteSelection {
-            onHotKey?()
-        }
-    }
-
-    func unregisterHotKey() {
-        unregisterHotKey(.rewriteSelection)
     }
 
     func unregisterHotKey(_ slot: Slot) {

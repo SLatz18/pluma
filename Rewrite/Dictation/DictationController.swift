@@ -229,7 +229,7 @@ final class DictationController: ObservableObject {
             await prepare()
             return
         }
-        guard let element = Self.focusedElement() else {
+        guard let element = AXFocus.focusedElement() else {
             flash(systemImage: "text.cursor", message: "Click into a text field first")
             return
         }
@@ -438,30 +438,13 @@ final class DictationController: ObservableObject {
     }
 
     private func flash(systemImage: String, message: String) {
-        overlay.showStatus(
+        overlay.flash(
             systemImage: systemImage,
             message: message,
             atTopLeftPoint: isSessionActive
                 ? anchor : SuggestionOverlayController.mouseTopLeftPoint(),
             from: .dictation
         )
-        Task { [overlay] in
-            try? await Task.sleep(for: .seconds(2.5))
-            overlay.hide(from: .dictation)
-        }
-    }
-
-    private static func focusedElement() -> AXUIElement? {
-        let systemWide = AXUIElementCreateSystemWide()
-        var focusedValue: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                systemWide, kAXFocusedUIElementAttribute as CFString, &focusedValue
-            ) == .success,
-            let focusedValue,
-            CFGetTypeID(focusedValue) == AXUIElementGetTypeID()
-        else { return nil }
-        return (focusedValue as! AXUIElement)
     }
 
     private static func caretRange(of element: AXUIElement) -> CFRange? {
