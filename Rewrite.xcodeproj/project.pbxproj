@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C91611D706C7A794E490409C /* CaretGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A817A09414DBA8407E4D9F /* CaretGeometry.swift */; };
+		0ECA35F6CE36D122BF8B37CB /* GhostTextGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75D7A85D6F99D4E0ECC8D33 /* GhostTextGeometry.swift */; };
+		B228CBD3ABCF3585E5C441E9 /* GhostTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C18BF032752576C8DD9E242 /* GhostTextView.swift */; };
+		54BCF683C35A0E4DAA4ABC7A /* CaretResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D33C0545883933F7790DA4 /* CaretResolverTests.swift */; };
+		DA99A3FEC4E1C024D5135FC9 /* GhostTextGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F57FD6D147C3ED5E26B862 /* GhostTextGeometryTests.swift */; };
 		06BB7E1516247937F80A4495 /* OllamaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17048874BC6393F1BC959476 /* OllamaEngine.swift */; };
 		08256C2A9C707028323F53E6 /* OpenAITranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94A51090FDFD597519BB3660 /* OpenAITranscriptionEngine.swift */; };
 		0B4D8C85F44B948D3BEE4A4D /* OpenAIChatEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E9DABF7A19E947CDA88014 /* OpenAIChatEngine.swift */; };
@@ -90,6 +95,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		55A817A09414DBA8407E4D9F /* CaretGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaretGeometry.swift; sourceTree = "<group>"; };
+		A75D7A85D6F99D4E0ECC8D33 /* GhostTextGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextGeometry.swift; sourceTree = "<group>"; };
+		6C18BF032752576C8DD9E242 /* GhostTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextView.swift; sourceTree = "<group>"; };
+		42D33C0545883933F7790DA4 /* CaretResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaretResolverTests.swift; sourceTree = "<group>"; };
+		98F57FD6D147C3ED5E26B862 /* GhostTextGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextGeometryTests.swift; sourceTree = "<group>"; };
 		043A7BDDAE8BD0E963BB2531 /* AutocompleteCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutocompleteCoordinator.swift; sourceTree = "<group>"; };
 		10719583E11EA0F76AB79784 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		16520930043B1C5E4A395054 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -196,6 +206,8 @@
 				2BB64C65CAEC81178C3DB494 /* RecipeChainTests.swift */,
 				B6907892401FECE1D2C27E3A /* ScreenContextKeywordsTests.swift */,
 				51773EB1D1BAE94ABBFE1589 /* StyleProfileStoreTests.swift */,
+				42D33C0545883933F7790DA4 /* CaretResolverTests.swift */,
+				98F57FD6D147C3ED5E26B862 /* GhostTextGeometryTests.swift */,
 			);
 			path = RewriteTests;
 			sourceTree = "<group>";
@@ -255,6 +267,9 @@
 				F4D3C5328BE1725F2ECCE100 /* ScreenContextProvider.swift */,
 				A2BB33840ADD98B14288917A /* StyleProfileStore.swift */,
 				A82390548DA0CB0B4477CC1B /* SuggestionOverlayController.swift */,
+				55A817A09414DBA8407E4D9F /* CaretGeometry.swift */,
+				A75D7A85D6F99D4E0ECC8D33 /* GhostTextGeometry.swift */,
+				6C18BF032752576C8DD9E242 /* GhostTextView.swift */,
 			);
 			path = Autocomplete;
 			sourceTree = "<group>";
@@ -460,6 +475,9 @@
 				3DE36DC702DCD907D2734543 /* DictationTranscript.swift in Sources */,
 				67EEE378DDE1C1D153D99859 /* DictationView.swift in Sources */,
 				E8088DADB6FCB1A025FD48BA /* FocusedFieldTracker.swift in Sources */,
+				C91611D706C7A794E490409C /* CaretGeometry.swift in Sources */,
+				0ECA35F6CE36D122BF8B37CB /* GhostTextGeometry.swift in Sources */,
+				B228CBD3ABCF3585E5C441E9 /* GhostTextView.swift in Sources */,
 				A0F0C04066A8ACDAC87ED194 /* GlobalShortcut.swift in Sources */,
 				E9E3530F427C2359B3AC6EE4 /* HomeView.swift in Sources */,
 				2E467DD1468CCD8EFFC36C99 /* HotkeyManager.swift in Sources */,
@@ -504,6 +522,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				DD21F942C165F6D6F702DA16 /* CompletionSuggestionTests.swift in Sources */,
+				54BCF683C35A0E4DAA4ABC7A /* CaretResolverTests.swift in Sources */,
+				DA99A3FEC4E1C024D5135FC9 /* GhostTextGeometryTests.swift in Sources */,
 				DF66AC38A76AF60A54BB1C79 /* DictationTranscriptTests.swift in Sources */,
 				11A4FD16B710D6F9C7702B5B /* MemoryStoreTests.swift in Sources */,
 				CD41599630FC63D4CDD89F44 /* OpenAITranscriptionTests.swift in Sources */,

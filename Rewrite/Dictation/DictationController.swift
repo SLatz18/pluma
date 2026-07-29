@@ -87,7 +87,11 @@ final class DictationController: ObservableObject {
     private var savedPrefix: String?
     private var recentInsertion: RecentInsertion?
     private var editMonitor: Any?
-    private var anchor: CGPoint = .zero
+    // Re-read as the transcript grows rather than frozen at session start, so
+    // the HUD survives the window moving or the field scrolling under it.
+    private var caret: CaretGeometry?
+    private var caretReadAt: ContinuousClock.Instant?
+    private var ghostEligibility = GhostTextEligibility.unknown
     private var pressedAt: ContinuousClock.Instant?
     private var sessionID = 0
     private var isSessionActive = false
@@ -242,7 +246,9 @@ final class DictationController: ObservableObject {
         pressedAt = .now
         savedElement = element
         savedPrefix = Self.textBeforeCaret(of: element) ?? rememberedPrefix(for: element)
-        anchor = Self.anchorPoint(for: element)
+        caret = nil
+        caretReadAt = nil
+        ghostEligibility = Self.ghostEligibility(of: element)
         liveText = ""
         activity = .listening
         showHUD()
@@ -401,6 +407,9 @@ final class DictationController: ObservableObject {
         pressedAt = nil
         savedElement = nil
         savedPrefix = nil
+        caret = nil
+        caretReadAt = nil
+        ghostEligibility = .unknown
         liveText = ""
         updateActivity()
     }
@@ -429,12 +438,64 @@ final class DictationController: ObservableObject {
         }
     }
 
-    private func showHUD(message: String? = nil, systemImage: String = "mic.fill") {
-        if let message {
-            overlay.showStatus(systemImage: systemImage, message: message, atTopLeftPoint: anchor, from: .dictation)
-        } else {
-            overlay.showDictation(transcript: liveText, atTopLeftPoint: anchor, from: .dictation)
+    // Volatile transcripts arrive several times a second. Re-reading the caret
+    // on every one would be a burst of AX round trips for a cursor that has not
+    // moved, so cache it briefly — and when a read fails, keep the last known
+    // geometry rather than letting the HUD teleport mid-sentence.
+    private static let caretRefreshInterval: Duration = .milliseconds(80)
+
+    private func refreshCaret() {
+        guard let element = savedElement else { return }
+        let now = ContinuousClock.Instant.now
+        if let caretReadAt, now - caretReadAt < Self.caretRefreshInterval { return }
+        caretReadAt = now
+
+        guard let range = Self.caretRange(of: element) else { return }
+        if let fresh = FocusedFieldTracker.caretGeometry(for: element, location: range.location) {
+            caret = fresh
         }
+    }
+
+    // Just below the caret's line, so a chip never covers the words already
+    // there. The mouse is the last resort because it is the one anchor with no
+    // relationship to where the transcript will land.
+    private var chipAnchor: CGPoint {
+        if let caret {
+            return CGPoint(x: caret.rect.minX, y: caret.rect.maxY + 4)
+        }
+        if let element = savedElement, let anchor = FocusedFieldTracker.fieldEdgeAnchor(for: element) {
+            return anchor
+        }
+        return SuggestionOverlayController.mouseTopLeftPoint()
+    }
+
+    private func showHUD(message: String? = nil, systemImage: String = "mic.fill") {
+        refreshCaret()
+
+        // "Tidying…" and the like are the app talking about itself, not the
+        // user's words, so they wear the chip instead of posing as transcript
+        // about to be inserted.
+        if let message {
+            overlay.show(
+                .status(systemImage: systemImage, message: message, anchor: chipAnchor),
+                from: .dictation
+            )
+            return
+        }
+
+        guard let caret, ghostEligibility.allows(caret) else {
+            overlay.show(.dictationChip(transcript: liveText, anchor: chipAnchor), from: .dictation)
+            return
+        }
+        overlay.show(
+            .ghost(
+                text: liveText.isEmpty ? "Listening…" : liveText,
+                caret: caret,
+                style: .dictation,
+                fieldFrame: savedElement.flatMap { FocusedFieldTracker.frame(of: $0) }
+            ),
+            from: .dictation
+        )
     }
 
     private func flash(systemImage: String, message: String) {
@@ -442,7 +503,7 @@ final class DictationController: ObservableObject {
             systemImage: systemImage,
             message: message,
             atTopLeftPoint: isSessionActive
-                ? anchor : SuggestionOverlayController.mouseTopLeftPoint(),
+                ? chipAnchor : SuggestionOverlayController.mouseTopLeftPoint(),
             from: .dictation
         )
     }
@@ -482,37 +543,17 @@ final class DictationController: ObservableObject {
         return prefix.isEmpty ? nil : prefix
     }
 
-    private static func caretAnchor(of element: AXUIElement) -> CGPoint? {
-        guard let range = caretRange(of: element) else { return nil }
-        return FocusedFieldTracker.caretPoint(for: element, location: range.location)
-    }
+    // Read once at the start of a session: nothing is inserted until the key
+    // comes up, so the caret does not move while it is held.
+    private static func ghostEligibility(of element: AXUIElement) -> GhostTextEligibility {
+        var valueRef: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef)
+                == .success,
+            let value = valueRef as? String,
+            let range = caretRange(of: element)
+        else { return .unknown }
 
-    // Chromium-based fields expose no caret geometry, but their own frame is
-    // still available, and the bottom edge of a text field sits near the line
-    // being dictated into. The mouse is the last resort because it is the one
-    // anchor with no relationship to where the words will land.
-    private static func anchorPoint(for element: AXUIElement) -> CGPoint {
-        if let caret = caretAnchor(of: element) {
-            return caret
-        }
-        if let frame = FocusedFieldTracker.frame(of: element), isPlausibleField(frame) {
-            DebugLog.log("no caret geometry; anchoring HUD inside field \(frame)")
-            // A tall field is a terminal or a text area, where the line being
-            // typed is the last one, so sit just inside the bottom edge. A short
-            // field is a one-liner, so sit just above it and clear of the text.
-            // Deliberately no clamping to the primary screen: a field can live
-            // on a display above or left of it, at negative coordinates.
-            let y = frame.height >= 60 ? frame.maxY - 34 : frame.minY - 30
-            return CGPoint(x: frame.minX + 8, y: y)
-        }
-        DebugLog.log("no usable field geometry; anchoring HUD to mouse")
-        return SuggestionOverlayController.mouseTopLeftPoint()
-    }
-
-    // Chromium apps put keyboard focus on a hidden proxy input a few points
-    // across rather than on the visible text box, so a frame that small is a
-    // decoy and the mouse is a better guess than drawing next to nothing.
-    private static func isPlausibleField(_ frame: CGRect) -> Bool {
-        frame.width >= 60 && frame.height >= 14
+        return .of(text: value, caretLocation: range.location)
     }
 }

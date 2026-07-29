@@ -67,9 +67,9 @@ final class SelectionRewriteController: ObservableObject {
         defer { isWorking = false }
 
         let anchor = Self.selectionAnchor(of: element) ?? Self.mouseAnchor()
-        overlay.showStatus(
-            systemImage: "sparkles", message: "Rewriting…",
-            atTopLeftPoint: anchor, from: .rewrite
+        overlay.show(
+            .status(systemImage: "sparkles", message: "Rewriting…", anchor: anchor),
+            from: .rewrite
         )
 
         do {
@@ -80,10 +80,13 @@ final class SelectionRewriteController: ObservableObject {
                 ollamaModel: Preferences.ollamaModel(from: defaults),
                 onProgress: { [overlay] progress in
                     guard case .starting(let step, let of, let intent) = progress, of > 1 else { return }
-                    overlay.showStatus(
-                        systemImage: "sparkles",
-                        message: "Rewriting \(step) of \(of) — \(intent.title)…",
-                        atTopLeftPoint: anchor, from: .rewrite
+                    overlay.show(
+                        .status(
+                            systemImage: "sparkles",
+                            message: "Rewriting \(step) of \(of) — \(intent.title)…",
+                            anchor: anchor
+                        ),
+                        from: .rewrite
                     )
                 }
             )
@@ -117,6 +120,8 @@ final class SelectionRewriteController: ObservableObject {
         return selectedValue as? String
     }
 
+    // Just below the start of the selection, so the progress chip never covers
+    // the text being rewritten.
     private static func selectionAnchor(of element: AXUIElement) -> CGPoint? {
         var rangeValue: CFTypeRef?
         guard
@@ -130,24 +135,10 @@ final class SelectionRewriteController: ObservableObject {
         var selection = CFRange()
         guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &selection) else { return nil }
 
-        var anchorRange = CFRange(location: selection.location, length: 0)
-        guard let anchorRangeValue = AXValueCreate(.cfRange, &anchorRange) else { return nil }
-
-        var boundsValue: CFTypeRef?
         guard
-            AXUIElementCopyParameterizedAttributeValue(
-                element,
-                kAXBoundsForRangeParameterizedAttribute as CFString,
-                anchorRangeValue,
-                &boundsValue
-            ) == .success,
-            let boundsValue,
-            CFGetTypeID(boundsValue) == AXValueGetTypeID()
-        else { return nil }
-
-        var rect = CGRect.zero
-        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else { return nil }
-        return CGPoint(x: rect.minX, y: rect.maxY + 6)
+            let caret = FocusedFieldTracker.caretGeometry(for: element, location: selection.location)
+        else { return FocusedFieldTracker.fieldEdgeAnchor(for: element) }
+        return CGPoint(x: caret.rect.minX, y: caret.rect.maxY + 6)
     }
 
     private static func mouseAnchor() -> CGPoint {
