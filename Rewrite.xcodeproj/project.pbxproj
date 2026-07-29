@@ -22,7 +22,6 @@
 		20CBE8C882A6B588B00BB38F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3269C366CBF5C6B50F183168 /* SettingsView.swift */; };
 		23F9B6986EB46E74BD9F9B04 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 236F5EE924A508B0459934FD /* Assets.xcassets */; };
 		253095C9CFA6FF89EED75204 /* AXTextInsertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */; };
-		275F20EE811E32EF5D55D614 /* CapsLockExpander.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7793AC6B118226F1A05A1D1 /* CapsLockExpander.swift */; };
 		2B59E99E075A6DF0EBEABE25 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC0CC83363DAFFB195B1A31 /* Preferences.swift */; };
 		2E467DD1468CCD8EFFC36C99 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF3D92D1C90BF3C4E392242 /* HotkeyManager.swift */; };
 		368B8C7139A2985F9E7F6664 /* RewriteIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9C569F9FB551F99E5DBF433 /* RewriteIntent.swift */; };
@@ -36,7 +35,6 @@
 		5B340C3E24DC446F2F66D44B /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D9BCFBC0124DE5BFC984F9B /* LaunchAtLogin.swift */; };
 		5EA288AFDEC4DF848D477C2C /* DictationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62D5EF1923E98903D6EB89F0 /* DictationController.swift */; };
 		62922D2981C1AFC89F3A482B /* RewriteProviderChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = F215BC8542AD42C8DB487C56 /* RewriteProviderChoice.swift */; };
-		665A5EA60EEDD064030C62C9 /* CapsLockExpanderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9670F77104AFB9E71A1697D3 /* CapsLockExpanderTests.swift */; };
 		67EEE378DDE1C1D153D99859 /* DictationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37C336578939DBF15338E58 /* DictationView.swift */; };
 		69F62166610236DFADE61CB7 /* PromptComposerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843C34D84CE63E8F8E340478 /* PromptComposerTests.swift */; };
 		6CCBC9B8CF67E3B9EDA71E0A /* AutocompleteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5B925D39328FF1DDB075100 /* AutocompleteView.swift */; };
@@ -75,7 +73,6 @@
 		DD21F942C165F6D6F702DA16 /* CompletionSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */; };
 		DD4686356E757E626291B2CE /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A49394D83999270B0C9CAF7B /* KeychainStore.swift */; };
 		DF66AC38A76AF60A54BB1C79 /* DictationTranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7601890E70E015F8A5E6D228 /* DictationTranscriptTests.swift */; };
-		E768550CFFF37A3D6ABBA138 /* CapsLockStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10FB8767CF445E085901B0B /* CapsLockStateMachine.swift */; };
 		E8088DADB6FCB1A025FD48BA /* FocusedFieldTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1C5CEBE845C202418328C02 /* FocusedFieldTracker.swift */; };
 		E9E3530F427C2359B3AC6EE4 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E89CDD6115DEB5130D383B /* HomeView.swift */; };
 		ECB19901D69E9BB1B0B95935 /* SelectionRewriteController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E28D7947C057879856EAC552 /* SelectionRewriteController.swift */; };
@@ -127,7 +124,6 @@
 		843C34D84CE63E8F8E340478 /* PromptComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposerTests.swift; sourceTree = "<group>"; };
 		89E9DABF7A19E947CDA88014 /* OpenAIChatEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIChatEngine.swift; sourceTree = "<group>"; };
 		94A51090FDFD597519BB3660 /* OpenAITranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAITranscriptionEngine.swift; sourceTree = "<group>"; };
-		9670F77104AFB9E71A1697D3 /* CapsLockExpanderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockExpanderTests.swift; sourceTree = "<group>"; };
 		96D0AB5FFF24D18E311FE004 /* AppleFileTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleFileTranscriber.swift; sourceTree = "<group>"; };
 		982A458659DDEE62AFE4AC0A /* RewritePlaygroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewritePlaygroundView.swift; sourceTree = "<group>"; };
 		9941B9A81D4322E764533374 /* OpenAITranscriptionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAITranscriptionTests.swift; sourceTree = "<group>"; };
@@ -161,13 +157,11 @@
 		E28D7947C057879856EAC552 /* SelectionRewriteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionRewriteController.swift; sourceTree = "<group>"; };
 		EC1E797D252F9B495D85527A /* DebugLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLog.swift; sourceTree = "<group>"; };
 		EF7AD9993F1191F783A017BE /* DictationTranscript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationTranscript.swift; sourceTree = "<group>"; };
-		F10FB8767CF445E085901B0B /* CapsLockStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockStateMachine.swift; sourceTree = "<group>"; };
 		F1F9C7B0619BCA169F7DCD57 /* AccessibilityPrompt-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AccessibilityPrompt-Bridging-Header.h"; sourceTree = "<group>"; };
 		F215BC8542AD42C8DB487C56 /* RewriteProviderChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteProviderChoice.swift; sourceTree = "<group>"; };
 		F318C646B39F6E38EB347FC2 /* MicrophonePermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophonePermission.swift; sourceTree = "<group>"; };
 		F44E1AC2ED9E083AF374E7D4 /* AudioSampleRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSampleRecorder.swift; sourceTree = "<group>"; };
 		F4D3C5328BE1725F2ECCE100 /* ScreenContextProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenContextProvider.swift; sourceTree = "<group>"; };
-		F7793AC6B118226F1A05A1D1 /* CapsLockExpander.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockExpander.swift; sourceTree = "<group>"; };
 		F9F23B7A067871F97D7268FF /* ComparisonRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonRunner.swift; sourceTree = "<group>"; };
 		FE31A22331E7991AB4E79230 /* SpeechTranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechTranscriptionEngine.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -194,7 +188,6 @@
 		6645D44D2BD08F38020A37F2 /* RewriteTests */ = {
 			isa = PBXGroup;
 			children = (
-				9670F77104AFB9E71A1697D3 /* CapsLockExpanderTests.swift */,
 				2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */,
 				7601890E70E015F8A5E6D228 /* DictationTranscriptTests.swift */,
 				74DC182BC552BECB0F002C3A /* MemoryStoreTests.swift */,
@@ -305,8 +298,6 @@
 		DA4F69A0E956F66D401ED650 /* Hotkey */ = {
 			isa = PBXGroup;
 			children = (
-				F7793AC6B118226F1A05A1D1 /* CapsLockExpander.swift */,
-				F10FB8767CF445E085901B0B /* CapsLockStateMachine.swift */,
 				DEF1B27E1BCFE63B6303A1B2 /* GlobalShortcut.swift */,
 				BFF3D92D1C90BF3C4E392242 /* HotkeyManager.swift */,
 				E28D7947C057879856EAC552 /* SelectionRewriteController.swift */,
@@ -457,8 +448,6 @@
 				8949A13DA0AC2F5CEE29FB9D /* AudioSampleRecorder.swift in Sources */,
 				A053CB2DCF183D2940C5570D /* AutocompleteCoordinator.swift in Sources */,
 				6CCBC9B8CF67E3B9EDA71E0A /* AutocompleteView.swift in Sources */,
-				275F20EE811E32EF5D55D614 /* CapsLockExpander.swift in Sources */,
-				E768550CFFF37A3D6ABBA138 /* CapsLockStateMachine.swift in Sources */,
 				D0C8B0F7835A9E7DB2947D85 /* CleanupComparisonView.swift in Sources */,
 				99D0F7A5C6700742105C214A /* CleanupProviderChoice.swift in Sources */,
 				76FEB5C8378BF563A256C16C /* ComparisonRunner.swift in Sources */,
@@ -514,7 +503,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				665A5EA60EEDD064030C62C9 /* CapsLockExpanderTests.swift in Sources */,
 				DD21F942C165F6D6F702DA16 /* CompletionSuggestionTests.swift in Sources */,
 				DF66AC38A76AF60A54BB1C79 /* DictationTranscriptTests.swift in Sources */,
 				11A4FD16B710D6F9C7702B5B /* MemoryStoreTests.swift in Sources */,
