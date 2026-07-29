@@ -238,6 +238,7 @@ final class AutocompleteCoordinator: ObservableObject {
             DebugLog.log("screen context: \(surrounding?.count ?? 0) chars")
         }
         let memoryDigest = memoryEnabled ? memory.digest() : nil
+        let styleProfile = StyleProfileStore.shared.isEmpty ? nil : StyleProfileStore.shared.text
 
         DebugLog.log("request provider=\(provider.rawValue) contextLen=\(context.count)")
         do {
@@ -246,6 +247,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 context: context,
                 surrounding: surrounding,
                 memory: memoryDigest,
+                styleProfile: styleProfile,
                 ollamaModel: ollamaModel
             )
             guard

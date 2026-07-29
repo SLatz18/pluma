@@ -9,9 +9,11 @@
 /* Begin PBXBuildFile section */
 		06BB7E1516247937F80A4495 /* OllamaEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17048874BC6393F1BC959476 /* OllamaEngine.swift */; };
 		11A4FD16B710D6F9C7702B5B /* MemoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DC182BC552BECB0F002C3A /* MemoryStoreTests.swift */; };
+		12E5D4B2D56470DC7CBB026B /* StyleProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2BB33840ADD98B14288917A /* StyleProfileStore.swift */; };
 		1690C030D0276933A8D48859 /* AccessibilityPrompt.m in Sources */ = {isa = PBXBuildFile; fileRef = C1DDBFE966E597DAD153C0CD /* AccessibilityPrompt.m */; };
 		177D9B33C7968722A6F75213 /* AppleIntelligenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2988AE8305A3F736D136B9D5 /* AppleIntelligenceEngine.swift */; };
 		1E7DC9CAB1288EE107DCEE73 /* RewriteServiceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D746E21454C431022C5C8F9 /* RewriteServiceProvider.swift */; };
+		207B3667A9A2682E137003FA /* StyleProfileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51773EB1D1BAE94ABBFE1589 /* StyleProfileStoreTests.swift */; };
 		20CBE8C882A6B588B00BB38F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3269C366CBF5C6B50F183168 /* SettingsView.swift */; };
 		23F9B6986EB46E74BD9F9B04 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 236F5EE924A508B0459934FD /* Assets.xcassets */; };
 		253095C9CFA6FF89EED75204 /* AXTextInsertion.swift in Sources */ = {isa = PBXBuildFile; fileRef = D134AA659ADA703F9F6D7BA1 /* AXTextInsertion.swift */; };
@@ -70,6 +72,7 @@
 		2EB7984E93B6B798BE99F3E9 /* ProviderMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderMenu.swift; sourceTree = "<group>"; };
 		3269C366CBF5C6B50F183168 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4A15D6D629C11040F896E833 /* AccessibilityPrompt.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AccessibilityPrompt.h; sourceTree = "<group>"; };
+		51773EB1D1BAE94ABBFE1589 /* StyleProfileStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleProfileStoreTests.swift; sourceTree = "<group>"; };
 		58E6C20DF432D64F2F13667E /* MemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryStore.swift; sourceTree = "<group>"; };
 		5AB40D680100BFA48F17735C /* PromptComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposer.swift; sourceTree = "<group>"; };
 		604D0B397733765D80DD509B /* RewriteRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteRunner.swift; sourceTree = "<group>"; };
@@ -81,6 +84,7 @@
 		982A458659DDEE62AFE4AC0A /* RewritePlaygroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewritePlaygroundView.swift; sourceTree = "<group>"; };
 		9AC0CC83363DAFFB195B1A31 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		9EE8EB042F0BD8A68637063C /* RewriteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteApp.swift; sourceTree = "<group>"; };
+		A2BB33840ADD98B14288917A /* StyleProfileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleProfileStore.swift; sourceTree = "<group>"; };
 		A82390548DA0CB0B4477CC1B /* SuggestionOverlayController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionOverlayController.swift; sourceTree = "<group>"; };
 		A8B64358056D8C5B7E2A799F /* RewriteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteViewModel.swift; sourceTree = "<group>"; };
 		AFD2F1DA028BC5A836492E10 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -122,6 +126,7 @@
 				2EA39AFE4676E4E7BAC045A3 /* CompletionSuggestionTests.swift */,
 				74DC182BC552BECB0F002C3A /* MemoryStoreTests.swift */,
 				843C34D84CE63E8F8E340478 /* PromptComposerTests.swift */,
+				51773EB1D1BAE94ABBFE1589 /* StyleProfileStoreTests.swift */,
 			);
 			path = RewriteTests;
 			sourceTree = "<group>";
@@ -157,6 +162,7 @@
 				E1C5CEBE845C202418328C02 /* FocusedFieldTracker.swift */,
 				58E6C20DF432D64F2F13667E /* MemoryStore.swift */,
 				F4D3C5328BE1725F2ECCE100 /* ScreenContextProvider.swift */,
+				A2BB33840ADD98B14288917A /* StyleProfileStore.swift */,
 				A82390548DA0CB0B4477CC1B /* SuggestionOverlayController.swift */,
 			);
 			path = Autocomplete;
@@ -364,6 +370,7 @@
 				ECB19901D69E9BB1B0B95935 /* SelectionRewriteController.swift in Sources */,
 				20CBE8C882A6B588B00BB38F /* SettingsView.swift in Sources */,
 				4B9724C4F8AC0A0A67CCD770 /* ShortcutSettingsCard.swift in Sources */,
+				12E5D4B2D56470DC7CBB026B /* StyleProfileStore.swift in Sources */,
 				8E286D9E3E60B396BBF50FD4 /* SuggestionOverlayController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -375,6 +382,7 @@
 				DD21F942C165F6D6F702DA16 /* CompletionSuggestionTests.swift in Sources */,
 				11A4FD16B710D6F9C7702B5B /* MemoryStoreTests.swift in Sources */,
 				69F62166610236DFADE61CB7 /* PromptComposerTests.swift in Sources */,
+				207B3667A9A2682E137003FA /* StyleProfileStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

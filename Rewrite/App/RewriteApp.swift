@@ -29,6 +29,7 @@ struct RewriteApp: App {
                 .environmentObject(model)
                 .environmentObject(autocomplete)
                 .environmentObject(MemoryStore.shared)
+                .environmentObject(StyleProfileStore.shared)
         }
     }
 }

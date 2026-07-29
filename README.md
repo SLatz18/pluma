@@ -117,3 +117,9 @@ accept — never raw keystrokes and never screen contents — into a local JSON
 file (`~/Library/Application Support/Rewrite/writing-memory.json`, capped at
 300 entries). Recent phrases are fed back to the model so suggestions drift
 toward your vocabulary. Clear it any time from the autocomplete card.
+
+Style profile (optional) imports a writing-style guide — for example a
+SKILL.md another AI wrote about your voice — from Settings → Advanced. YAML
+frontmatter is stripped on import, the text is stored locally
+(`~/Library/Application Support/Rewrite/style-profile.md`, capped at 3,000
+characters), and it guides completions until cleared.

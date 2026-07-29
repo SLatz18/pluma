@@ -36,6 +36,21 @@ enum PromptComposer {
     without a space only when the context ends mid-word.
     """
 
+    static func completionInstructions(styleProfile: String? = nil) -> String {
+        guard let styleProfile, !styleProfile.isEmpty else {
+            return completionSystemInstructions
+        }
+        return completionSystemInstructions + """
+
+
+        The writer's style profile follows. Honor its guidance about voice, \
+        tone, and phrasing when continuing their text:
+        <style-profile>
+        \(styleProfile)
+        </style-profile>
+        """
+    }
+
     static func completionUserPrompt(
         context: String,
         surrounding: String? = nil,

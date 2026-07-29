@@ -53,7 +53,8 @@ struct OllamaEngine: Sendable {
         _ context: String,
         model: String,
         surrounding: String? = nil,
-        memory: String? = nil
+        memory: String? = nil,
+        styleProfile: String? = nil
     ) async throws -> String {
         guard !model.isEmpty else {
             throw RewriteEngineError.noOllamaModels
@@ -67,7 +68,10 @@ struct OllamaEngine: Sendable {
             ChatRequest(
                 model: model,
                 messages: [
-                    .init(role: "system", content: PromptComposer.completionSystemInstructions),
+                    .init(
+                        role: "system",
+                        content: PromptComposer.completionInstructions(styleProfile: styleProfile)
+                    ),
                     .init(
                         role: "user",
                         content: PromptComposer.completionUserPrompt(

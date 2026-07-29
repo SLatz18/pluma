@@ -65,7 +65,8 @@ enum AppleIntelligenceEngine {
     static func complete(
         _ context: String,
         surrounding: String? = nil,
-        memory: String? = nil
+        memory: String? = nil,
+        styleProfile: String? = nil
     ) async throws -> String {
         guard model.isAvailable else {
             throw RewriteEngineError.modelUnavailable(status().detail)
@@ -73,7 +74,7 @@ enum AppleIntelligenceEngine {
 
         let session = LanguageModelSession(
             model: model,
-            instructions: PromptComposer.completionSystemInstructions
+            instructions: PromptComposer.completionInstructions(styleProfile: styleProfile)
         )
         let response = try await session.respond(
             to: PromptComposer.completionUserPrompt(
