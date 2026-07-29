@@ -36,12 +36,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             HUDWindowController.shared.showHint(HotkeyStatus.unavailable.detail)
         }
 
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(applicationDidBecomeActive(_:)),
-            name: NSApplication.didBecomeActiveNotification,
-            object: nil
-        )
         updateActivationPolicy()
     }
 
@@ -73,7 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ClipboardHotkeyManager.shared.stop()
     }
 
-    @objc private func applicationDidBecomeActive(_ notification: Notification) {
+    func applicationDidBecomeActive(_ notification: Notification) {
         ClipboardHotkeyManager.shared.refresh()
     }
 }
