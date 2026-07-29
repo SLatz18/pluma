@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var model: RewriteViewModel
+    @EnvironmentObject private var capsLock: CapsLockExpander
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
 
@@ -15,6 +16,27 @@ struct SettingsView: View {
                         Text(launchAtLoginError)
                             .font(.caption)
                             .foregroundStyle(.red)
+                    }
+                }
+
+                Section("Caps Lock shortcuts") {
+                    Toggle("Use Caps Lock for shortcuts", isOn: capsLockBinding)
+
+                    Text("Hold ⇪E to rewrite the selection; hold ⇪Space to dictate. While on, Caps Lock's own toggle is suspended — the same trade Hyperkey makes.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    LabeledContent("Status") {
+                        if capsLock.isActive {
+                            Label("Active", systemImage: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else if capsLock.hyperAppRunning {
+                            Label("Paused — Hyperkey is running", systemImage: "pause.circle")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Label("Off", systemImage: "circle")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -80,6 +102,16 @@ struct SettingsView: View {
                 } catch {
                     launchAtLoginError = "Couldn't update login items: \(error.localizedDescription)"
                 }
+            }
+        )
+    }
+
+    private var capsLockBinding: Binding<Bool> {
+        Binding(
+            get: { Preferences.capsLockExpanderEnabled() },
+            set: { newValue in
+                UserDefaults.standard.set(newValue, forKey: Preferences.capsLockExpanderEnabledKey)
+                capsLock.reevaluate()
             }
         )
     }
