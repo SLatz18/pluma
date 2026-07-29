@@ -1,0 +1,54 @@
+name: Bug report
+description: Something pluma does wrong on your Mac
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Skip anything you cannot share; never paste
+        private writing, API keys, or full diagnostics logs with field text.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Expected vs actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "26.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Rewrite / recipes
+        - Autocomplete
+        - Dictation
+        - Hotkeys / Hyperkey
+        - Permissions / Accessibility
+        - Build / CI
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Extra context
+      description: App versions, target apps (TextEdit, Slack, Chrome…), provider (Apple Intelligence / Ollama / OpenAI).
