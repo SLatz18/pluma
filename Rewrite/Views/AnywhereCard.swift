@@ -4,6 +4,7 @@ import SwiftUI
 /// in trigger → action form.
 struct AnywhereCard: View {
     @EnvironmentObject private var controller: SelectionRewriteController
+    @EnvironmentObject private var model: RewriteViewModel
 
     @State private var isRecording = false
     @State private var keyMonitor: Any?
@@ -14,7 +15,7 @@ struct AnywhereCard: View {
                 DSIconTile(systemImage: "keyboard", tint: DS.Feature.shortcut.color)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    DSEyebrow(trigger: "In any app")
+                    DSEyebrow(trigger: "In any app", action: model.selectedIntent.title)
 
                     Text("Rewrite the selection")
                         .font(DS.cardTitle)
@@ -22,7 +23,7 @@ struct AnywhereCard: View {
                     Text(
                         isRecording
                             ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
-                            : "Select text anywhere, press the shortcut, get a cleaner version back."
+                            : "Runs the \(model.selectedIntent.title) recipe — the one picked above — on text selected in any app."
                     )
                         .font(DS.meta)
                         .foregroundStyle(.secondary)
