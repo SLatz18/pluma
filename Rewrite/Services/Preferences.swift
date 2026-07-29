@@ -39,6 +39,26 @@ enum Preferences {
         return intent
     }
 
+    static let chainKey = "rewrite.chain"
+
+    // The pipeline is stored as JSON [rawValue] so step order survives. A
+    // missing chain seeds itself from the old single-intent preference, so an
+    // upgrade keeps the user's selection as a one-step pipeline.
+    static func chain(from defaults: UserDefaults = .standard) -> [RewriteIntent] {
+        if let data = defaults.data(forKey: chainKey),
+           let rawValues = try? JSONDecoder().decode([String].self, from: data) {
+            return rawValues.compactMap { RewriteIntent(rawValue: $0) }
+        }
+        let seeded = [intent(from: defaults)]
+        saveChain(seeded, to: defaults)
+        return seeded
+    }
+
+    static func saveChain(_ chain: [RewriteIntent], to defaults: UserDefaults = .standard) {
+        guard let data = try? JSONEncoder().encode(chain.map(\.rawValue)) else { return }
+        defaults.set(data, forKey: chainKey)
+    }
+
     static func ollamaModel(from defaults: UserDefaults = .standard) -> String {
         defaults.string(forKey: ollamaModelKey) ?? ""
     }

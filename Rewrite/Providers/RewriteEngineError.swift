@@ -6,6 +6,7 @@ enum RewriteEngineError: LocalizedError {
     case invalidResponse
     case serviceTimedOut
     case emptySelection
+    case emptyChain
 
     var errorDescription: String? {
         switch self {
@@ -19,6 +20,8 @@ enum RewriteEngineError: LocalizedError {
             "The rewrite took too long. Please try again."
         case .emptySelection:
             "Select some editable text first."
+        case .emptyChain:
+            "Pick at least one recipe on the Rewrite page."
         }
     }
 }

@@ -2,10 +2,13 @@ import SwiftUI
 
 struct RewriteActionCard: View {
     let intent: RewriteIntent
-    let isSelected: Bool
+    /// 1-based position in the pipeline, nil when the recipe isn't a step.
+    let stepNumber: Int?
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var isInChain: Bool { stepNumber != nil }
 
     var body: some View {
         Button(action: action) {
@@ -27,29 +30,43 @@ struct RewriteActionCard: View {
 
                 Spacer(minLength: 8)
 
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isSelected ? intent.feature.color : Color.secondary.opacity(0.35))
-                    .contentTransition(.symbolEffect(.replace))
+                Group {
+                    if let stepNumber {
+                        Image(systemName: "\(stepNumber).circle.fill")
+                    } else {
+                        Image(systemName: "plus.circle")
+                    }
+                }
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(isInChain ? intent.feature.color : Color.secondary.opacity(0.35))
+                .contentTransition(.symbolEffect(.replace))
             }
             .padding(DS.cardPadding)
             .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
             .background(
-                isSelected ? intent.feature.color.opacity(0.08) : DS.cardBackground,
+                isInChain ? intent.feature.color.opacity(0.08) : DS.cardBackground,
                 in: RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
             )
             .overlay {
                 RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
                     .strokeBorder(
-                        isSelected ? intent.feature.color.opacity(0.55) : DS.hairline,
-                        lineWidth: isSelected ? 1.5 : 1
+                        isInChain ? intent.feature.color.opacity(0.55) : DS.hairline,
+                        lineWidth: isInChain ? 1.5 : 1
                     )
             }
-            .animation(reduceMotion ? nil : .spring(duration: 0.35), value: isSelected)
+            .animation(reduceMotion ? nil : .spring(duration: 0.35), value: stepNumber)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(intent.title): \(intent.shortDescription)")
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(isInChain ? .isSelected : [])
+    }
+
+    private var accessibilityLabel: String {
+        if let stepNumber {
+            "\(intent.title): step \(stepNumber) in your pipeline. Tap to remove."
+        } else {
+            "\(intent.title): \(intent.shortDescription). Tap to add to your pipeline."
+        }
     }
 }
 

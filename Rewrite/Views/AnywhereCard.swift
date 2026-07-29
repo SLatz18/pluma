@@ -15,7 +15,7 @@ struct AnywhereCard: View {
                 DSIconTile(systemImage: "keyboard", tint: DS.Feature.shortcut.color)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    DSEyebrow(trigger: "In any app", action: model.selectedIntent.title)
+                    DSEyebrow(trigger: "In any app", action: model.chainDisplay)
 
                     Text("Rewrite the selection")
                         .font(DS.cardTitle)
@@ -23,7 +23,9 @@ struct AnywhereCard: View {
                     Text(
                         isRecording
                             ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
-                            : "Runs the \(model.selectedIntent.title) recipe — the one picked above — on text selected in any app."
+                            : model.chain.isEmpty
+                                ? "Pick a recipe above to give the shortcut a pipeline."
+                                : "Runs your pipeline — built above — on text selected in any app."
                     )
                         .font(DS.meta)
                         .foregroundStyle(.secondary)
