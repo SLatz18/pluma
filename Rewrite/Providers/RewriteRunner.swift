@@ -33,17 +33,14 @@ enum RewriteRunner {
     // caller can fall back to the raw transcript: losing the user's words to a
     // model failure is never acceptable.
     static func cleanUpDictation(
-        provider: RewriteProviderChoice,
-        transcript: String,
-        ollamaModel: String
+        provider: CleanupProviderChoice,
+        openAIModel: OpenAIChatModel,
+        transcript: String
     ) async -> String? {
         guard DictationTranscript.isWorthCleaningUp(transcript) else { return nil }
         do {
-            let output = try await rewrite(
-                provider: provider,
-                directive: PromptComposer.dictationDirective,
-                text: transcript,
-                ollamaModel: ollamaModel
+            let output = try await runCleanup(
+                provider: provider, openAIModel: openAIModel, transcript: transcript
             )
             let cleaned = output.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !cleaned.isEmpty else { return nil }
@@ -52,6 +49,95 @@ enum RewriteRunner {
             DebugLog.log("dictation cleanup failed: \(error.localizedDescription)")
             return nil
         }
+    }
+
+    static func runCleanup(
+        provider: CleanupProviderChoice,
+        openAIModel: OpenAIChatModel,
+        transcript: String
+    ) async throws -> String {
+        switch provider {
+        case .appleOnDevice:
+            try await AppleIntelligenceEngine.rewrite(
+                transcript, directive: PromptComposer.dictationDirective
+            )
+        case .openAI:
+            try await OpenAIChatEngine.rewrite(
+                transcript,
+                directive: PromptComposer.dictationDirective,
+                model: openAIModel
+            )
+        }
+    }
+
+    struct CleanupAttempt: Identifiable, Sendable {
+        let provider: CleanupProviderChoice
+        let label: String
+        let output: String?
+        let failure: String?
+        let seconds: Double
+
+        var id: String { label }
+    }
+
+    // Runs every candidate over the same transcript concurrently, so the outputs
+    // are comparable and the timings reflect what the user would actually wait.
+    static func compareCleanup(
+        transcript: String,
+        openAIModel: OpenAIChatModel
+    ) async -> [CleanupAttempt] {
+        let candidates: [(CleanupProviderChoice, String)] = [
+            (.appleOnDevice, CleanupProviderChoice.appleOnDevice.title),
+            (.openAI, openAIModel.title)
+        ]
+
+        return await withTaskGroup(of: (Int, CleanupAttempt).self) { group in
+            for (index, candidate) in candidates.enumerated() {
+                group.addTask {
+                    let started = ContinuousClock.Instant.now
+                    do {
+                        let output = try await runCleanup(
+                            provider: candidate.0,
+                            openAIModel: openAIModel,
+                            transcript: transcript
+                        )
+                        return (
+                            index,
+                            CleanupAttempt(
+                                provider: candidate.0,
+                                label: candidate.1,
+                                output: output.trimmingCharacters(in: .whitespacesAndNewlines),
+                                failure: nil,
+                                seconds: elapsed(since: started)
+                            )
+                        )
+                    } catch {
+                        return (
+                            index,
+                            CleanupAttempt(
+                                provider: candidate.0,
+                                label: candidate.1,
+                                output: nil,
+                                failure: error.localizedDescription,
+                                seconds: elapsed(since: started)
+                            )
+                        )
+                    }
+                }
+            }
+
+            var results: [(Int, CleanupAttempt)] = []
+            for await result in group {
+                results.append(result)
+            }
+            return results.sorted { $0.0 < $1.0 }.map(\.1)
+        }
+    }
+
+    private static func elapsed(since start: ContinuousClock.Instant) -> Double {
+        let duration = ContinuousClock.Instant.now - start
+        return Double(duration.components.seconds)
+            + Double(duration.components.attoseconds) / 1e18
     }
 
     static func complete(

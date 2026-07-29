@@ -1,5 +1,10 @@
 import AVFoundation
-import Speech
+
+// AVAudioPCMBuffer predates Sendable and isn't marked, but each buffer here is
+// freshly converted, handed off once, and never touched again by the producer.
+struct CapturedAudio: @unchecked Sendable {
+    let buffer: AVAudioPCMBuffer
+}
 
 enum AudioCaptureError: LocalizedError {
     case noInputDevice
@@ -23,7 +28,7 @@ final class AudioCaptureSession: NSObject, @unchecked Sendable {
     private let targetFormat: AVAudioFormat
 
     // Everything below is touched only on captureQueue.
-    private var continuation: AsyncStream<AnalyzerInput>.Continuation?
+    private var continuation: AsyncStream<CapturedAudio>.Continuation?
     private var converter: AVAudioConverter?
     private var converterSourceFormat: AVAudioFormat?
 
@@ -32,7 +37,7 @@ final class AudioCaptureSession: NSObject, @unchecked Sendable {
         super.init()
     }
 
-    func start() throws -> AsyncStream<AnalyzerInput> {
+    func start() throws -> AsyncStream<CapturedAudio> {
         guard let device = AVCaptureDevice.default(for: .audio) else {
             throw AudioCaptureError.noInputDevice
         }
@@ -54,7 +59,7 @@ final class AudioCaptureSession: NSObject, @unchecked Sendable {
         session.addOutput(output)
         session.commitConfiguration()
 
-        let (stream, continuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        let (stream, continuation) = AsyncStream.makeStream(of: CapturedAudio.self)
         captureQueue.sync {
             self.continuation = continuation
             self.converter = nil
@@ -98,7 +103,7 @@ extension AudioCaptureSession: AVCaptureAudioDataOutputSampleBufferDelegate {
         guard let source = Self.pcmBuffer(from: sampleBuffer) else { return }
 
         guard let converted = convert(source) else { return }
-        continuation.yield(AnalyzerInput(buffer: converted))
+        continuation.yield(CapturedAudio(buffer: converted))
     }
 
     private func convert(_ source: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {

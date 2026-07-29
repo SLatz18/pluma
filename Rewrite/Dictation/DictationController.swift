@@ -40,10 +40,35 @@ final class DictationController: ObservableObject {
         }
     }
 
+    @Published var provider: DictationProviderChoice {
+        didSet {
+            guard provider != oldValue else { return }
+            defaults.set(provider.rawValue, forKey: Preferences.dictationProviderKey)
+            swapEngine()
+        }
+    }
+
+    @Published var cleanupProvider: CleanupProviderChoice {
+        didSet {
+            defaults.set(cleanupProvider.rawValue, forKey: Preferences.cleanupProviderKey)
+        }
+    }
+
+    @Published var openAIModel: OpenAIChatModel {
+        didSet {
+            defaults.set(openAIModel.rawValue, forKey: Preferences.openAICleanupModelKey)
+        }
+    }
+
+    // Kept in memory only, and only for this session: enough to re-run a
+    // comparison over something actually said, without ever writing speech to
+    // disk.
+    @Published private(set) var recentTranscripts: [String] = []
+
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay = SuggestionOverlayController()
-    private let engine: SpeechTranscriptionEngine
+    private var engine: any DictationTranscribing
     private let mic = MicrophonePermission.shared
 
     // When a field won't tell us what precedes the caret, the one thing we do
@@ -73,12 +98,16 @@ final class DictationController: ObservableObject {
     // short enough that returning to an app later isn't treated as continuing.
     private static let insertionRecency: Duration = .seconds(120)
 
-    init(defaults: UserDefaults = .standard, engine: SpeechTranscriptionEngine? = nil) {
+    init(defaults: UserDefaults = .standard, engine: (any DictationTranscribing)? = nil) {
         self.defaults = defaults
-        self.engine = engine ?? SpeechTranscriptionEngine()
+        let selected = Preferences.dictationProvider(from: defaults)
+        self.engine = engine ?? Self.makeEngine(for: selected)
+        provider = selected
         shortcut = Preferences.dictationShortcut(from: defaults)
         isEnabled = Preferences.dictationEnabled(from: defaults)
         cleanupEnabled = Preferences.dictationCleanupEnabled(from: defaults)
+        cleanupProvider = Preferences.cleanupProvider(from: defaults)
+        openAIModel = Preferences.openAICleanupModel(from: defaults)
         isMicPermitted = mic.isGranted
 
         mic.onChange = { [weak self] granted in
@@ -88,16 +117,7 @@ final class DictationController: ObservableObject {
             }
         }
 
-        self.engine.onAvailabilityChange = { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.updateActivity()
-            }
-        }
-        self.engine.onVolatileText = { [weak self] text in
-            Task { @MainActor [weak self] in
-                self?.updateLive(text: text)
-            }
-        }
+        observeEngine()
 
         hotkey.onPress = { [weak self] slot in
             guard slot == .dictation else { return }
@@ -118,6 +138,39 @@ final class DictationController: ObservableObject {
         }
         updateActivity()
         mic.startMonitoring()
+    }
+
+    private static func makeEngine(
+        for provider: DictationProviderChoice
+    ) -> any DictationTranscribing {
+        switch provider {
+        case .appleOnDevice: SpeechTranscriptionEngine()
+        case .openAI: OpenAITranscriptionEngine()
+        }
+    }
+
+    private func observeEngine() {
+        engine.onAvailabilityChange = { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.updateActivity()
+            }
+        }
+        engine.onVolatileText = { [weak self] text in
+            Task { @MainActor [weak self] in
+                self?.updateLive(text: text)
+            }
+        }
+    }
+
+    private func swapEngine() {
+        let outgoing = engine
+        Task { await outgoing.cancel() }
+        engine = Self.makeEngine(for: provider)
+        observeEngine()
+        updateActivity()
+        if isEnabled {
+            Task { await prepare() }
+        }
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
@@ -226,13 +279,15 @@ final class DictationController: ObservableObject {
             return
         }
 
+        remember(transcript: transcript)
+
         var output = transcript
         if cleanupEnabled {
             showHUD(message: "Tidying…", systemImage: "sparkles")
             if let cleaned = await RewriteRunner.cleanUpDictation(
-                provider: Preferences.provider(from: defaults),
-                transcript: transcript,
-                ollamaModel: Preferences.ollamaModel(from: defaults)
+                provider: cleanupProvider,
+                openAIModel: openAIModel,
+                transcript: transcript
             ) {
                 output = cleaned
             }
@@ -254,6 +309,15 @@ final class DictationController: ObservableObject {
             overlay.hide()
         } else {
             flash(systemImage: "exclamationmark.triangle", message: "This field rejected the text")
+        }
+    }
+
+    private func remember(transcript: String) {
+        guard DictationTranscript.isWorthCleaningUp(transcript) else { return }
+        recentTranscripts.removeAll { $0 == transcript }
+        recentTranscripts.insert(transcript, at: 0)
+        if recentTranscripts.count > 10 {
+            recentTranscripts.removeLast(recentTranscripts.count - 10)
         }
     }
 

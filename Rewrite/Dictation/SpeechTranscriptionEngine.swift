@@ -17,22 +17,15 @@ enum SpeechTranscriptionError: LocalizedError {
 }
 
 @MainActor
-final class SpeechTranscriptionEngine {
-    enum Availability: Equatable {
-        case checking
-        case preparing
-        case ready
-        case unsupported(String)
-    }
-
-    private(set) var availability: Availability = .checking {
+final class SpeechTranscriptionEngine: DictationTranscribing {
+    private(set) var availability: TranscriptionAvailability = .checking {
         didSet {
             guard availability != oldValue else { return }
             onAvailabilityChange?(availability)
         }
     }
 
-    var onAvailabilityChange: ((Availability) -> Void)?
+    var onAvailabilityChange: ((TranscriptionAvailability) -> Void)?
     var onVolatileText: ((String) -> Void)?
 
     private let requestedLocale: Locale
@@ -126,7 +119,7 @@ final class SpeechTranscriptionEngine {
             DebugLog.log("dictation bias terms: \(terms.count)")
         }
 
-        try await analyzer.start(inputSequence: stream)
+        try await analyzer.start(inputSequence: stream.map { AnalyzerInput(buffer: $0.buffer) })
 
         resultsTask = Task { [weak self] in
             do {
