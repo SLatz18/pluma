@@ -6,6 +6,8 @@ struct DictationSettingsCard: View {
 
     @State private var isRecording = false
     @State private var keyMonitor: Any?
+    @State private var apiKeyDraft = ""
+    @State private var isComparing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -61,7 +63,7 @@ struct DictationSettingsCard: View {
                 Text(
                     isRecording
                         ? "Press and hold the new shortcut. Esc cancels."
-                        : "Hold to talk. Caps Lock counts as ⌃⌥⇧⌘, so Caps Lock R works."
+                        : "Hold to talk. Hyperkey maps Caps Lock to ⌃⌥⌘, so Caps Lock R works."
                 )
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -95,6 +97,90 @@ struct DictationSettingsCard: View {
                 }
             }
 
+            Divider()
+
+            HStack(spacing: 8) {
+                Text("Transcribe with")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Transcribe with", selection: $controller.provider) {
+                    ForEach(DictationProviderChoice.allCases) { choice in
+                        Text(choice.title).tag(choice)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 160)
+
+                Text(controller.provider.detail)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+                Spacer()
+            }
+
+            HStack(spacing: 8) {
+                Text("Clean up with")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Clean up with", selection: $controller.cleanupProvider) {
+                    ForEach(CleanupProviderChoice.allCases) { choice in
+                        Text(choice.title).tag(choice)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 160)
+                .disabled(!controller.cleanupEnabled)
+
+                if controller.cleanupProvider == .openAI {
+                    Picker("Model", selection: $controller.openAIModel) {
+                        ForEach(OpenAIChatModel.allCases) { model in
+                            Text(model.title).tag(model)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 140)
+                    .disabled(!controller.cleanupEnabled)
+                }
+
+                Spacer()
+
+                Button("Compare…") { isComparing = true }
+                    .controlSize(.small)
+                    .disabled(!OpenAIKey.isPresent)
+            }
+
+            if usesOpenAI {
+                HStack(spacing: 8) {
+                    Image(systemName: OpenAIKey.isPresent ? "key.fill" : "key")
+                        .foregroundStyle(OpenAIKey.isPresent ? .green : .orange)
+                    if let summary = OpenAIKey.redactedSummary() {
+                        Text("API key stored (\(summary))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Remove") {
+                            OpenAIKey.clear()
+                            apiKeyDraft = ""
+                            Task { await controller.prepare() }
+                        }
+                        .controlSize(.small)
+                    } else {
+                        SecureField("OpenAI API key", text: $apiKeyDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth: 280)
+                        Button("Save") {
+                            OpenAIKey.save(apiKeyDraft)
+                            apiKeyDraft = ""
+                            Task { await controller.prepare() }
+                        }
+                        .controlSize(.small)
+                        .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                }
+            }
+
+            Divider()
+
             HStack(spacing: 8) {
                 Text("Match what's on screen")
                     .font(.caption)
@@ -120,7 +206,7 @@ struct DictationSettingsCard: View {
                 Spacer()
             }
 
-            Text("Speech is transcribed by the on-device model; audio never leaves this Mac and is not saved. Cleanup uses your selected writing model. If cleanup fails, the raw transcript is inserted instead.")
+            Text(privacyNote)
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -129,9 +215,32 @@ struct DictationSettingsCard: View {
             Color(nsColor: .controlBackgroundColor),
             in: RoundedRectangle(cornerRadius: 16, style: .continuous)
         )
+        .sheet(isPresented: $isComparing) {
+            CleanupComparisonView()
+        }
         .onDisappear {
             stopRecording()
         }
+    }
+
+    private var usesOpenAI: Bool {
+        controller.provider == .openAI || controller.cleanupProvider == .openAI
+    }
+
+    // Stated per selection rather than as a blanket claim, because the honest
+    // answer changes depending on which two providers are chosen.
+    private var privacyNote: String {
+        let audio = controller.provider == .openAI
+            ? "Microphone audio is sent to OpenAI."
+            : "Speech is transcribed on this Mac; audio never leaves it."
+        let text = controller.cleanupEnabled
+            ? (
+                controller.cleanupProvider == .openAI
+                    ? " The transcript is sent to OpenAI for cleanup."
+                    : " Cleanup runs on this Mac."
+            )
+            : " Cleanup is off, so the raw transcript is inserted."
+        return audio + text + " If cleanup fails, the raw transcript is inserted instead."
     }
 
     private var statusColor: Color {

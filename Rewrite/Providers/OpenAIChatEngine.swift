@@ -1,0 +1,99 @@
+import Foundation
+
+enum OpenAIChatEngine {
+    private static let endpoint = URL(string: "https://api.openai.com/v1/responses")!
+
+    static func status() -> ProviderStatus {
+        guard OpenAIKey.isPresent else {
+            return ProviderStatus(
+                state: .unavailable,
+                title: "No API key",
+                detail: "Add an OpenAI API key to use GPT for cleanup.",
+                symbolName: "key"
+            )
+        }
+        return ProviderStatus(
+            state: .ready,
+            title: "OpenAI ready",
+            detail: "Text is sent to OpenAI.",
+            symbolName: "cloud"
+        )
+    }
+
+    static func rewrite(
+        _ text: String,
+        directive: String,
+        model: OpenAIChatModel,
+        session: URLSession = .shared
+    ) async throws -> String {
+        guard let key = OpenAIKey.current else {
+            throw RewriteEngineError.modelUnavailable("Add an OpenAI API key in settings")
+        }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(
+            withJSONObject: payload(text: text, directive: directive, model: model)
+        )
+
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            throw RewriteEngineError.modelUnavailable("OpenAI returned HTTP \(http.statusCode)")
+        }
+
+        let decoded = try JSONDecoder().decode(ResponsesReply.self, from: data)
+        let output = decoded.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !output.isEmpty else { throw RewriteEngineError.invalidResponse }
+        return output
+    }
+
+    // Reasoning effort is none deliberately: this is a mechanical edit in the
+    // middle of a keystroke, and a model that deliberates first is a model the
+    // user waits on.
+    static func payload(
+        text: String, directive: String, model: OpenAIChatModel
+    ) -> [String: Any] {
+        [
+            "model": model.rawValue,
+            "instructions": PromptComposer.systemInstructions,
+            "input": PromptComposer.userPrompt(directive: directive, text: text),
+            "reasoning": ["effort": "none"],
+            "store": false
+        ]
+    }
+
+    // The Responses API nests output text a few levels down, and the shape
+    // carries reasoning items we don't ask for but should tolerate.
+    private struct ResponsesReply: Decodable {
+        struct Output: Decodable {
+            struct Content: Decodable {
+                let type: String
+                let text: String?
+            }
+
+            let type: String
+            let content: [Content]?
+        }
+
+        let outputText: String?
+        let output: [Output]?
+
+        enum CodingKeys: String, CodingKey {
+            case outputText = "output_text"
+            case output
+        }
+
+        var text: String {
+            if let outputText, !outputText.isEmpty { return outputText }
+            guard let output else { return "" }
+            return output
+                .filter { $0.type == "message" }
+                .flatMap { $0.content ?? [] }
+                .filter { $0.type == "output_text" }
+                .compactMap(\.text)
+                .joined()
+        }
+    }
+}

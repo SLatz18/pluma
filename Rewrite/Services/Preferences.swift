@@ -14,6 +14,9 @@ enum Preferences {
     static let dictationShortcutKeyCodeKey = "rewrite.dictationShortcut.keyCode"
     static let dictationShortcutModifiersKey = "rewrite.dictationShortcut.modifiers"
     static let dictationShortcutDisplayKey = "rewrite.dictationShortcut.display"
+    static let dictationProviderKey = "rewrite.dictationProvider"
+    static let cleanupProviderKey = "rewrite.dictationCleanupProvider"
+    static let openAICleanupModelKey = "rewrite.openAICleanupModel"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -56,6 +59,40 @@ enum Preferences {
     static func dictationCleanupEnabled(from defaults: UserDefaults = .standard) -> Bool {
         guard defaults.object(forKey: dictationCleanupEnabledKey) != nil else { return true }
         return defaults.bool(forKey: dictationCleanupEnabledKey)
+    }
+
+    static func dictationProvider(
+        from defaults: UserDefaults = .standard
+    ) -> DictationProviderChoice {
+        guard
+            let rawValue = defaults.string(forKey: dictationProviderKey),
+            let provider = DictationProviderChoice(rawValue: rawValue)
+        else {
+            return .defaultProvider
+        }
+        return provider
+    }
+
+    static func cleanupProvider(
+        from defaults: UserDefaults = .standard
+    ) -> CleanupProviderChoice {
+        guard
+            let rawValue = defaults.string(forKey: cleanupProviderKey),
+            let provider = CleanupProviderChoice(rawValue: rawValue)
+        else {
+            return .defaultProvider
+        }
+        return provider
+    }
+
+    static func openAICleanupModel(from defaults: UserDefaults = .standard) -> OpenAIChatModel {
+        guard
+            let rawValue = defaults.string(forKey: openAICleanupModelKey),
+            let model = OpenAIChatModel(rawValue: rawValue)
+        else {
+            return .defaultModel
+        }
+        return model
     }
 
     static func dictationShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
