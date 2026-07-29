@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for wanting to improve Rewrite. The project is early (`0.1.x`) and
+Thanks for wanting to improve pluma. The project is early (`0.1.x`) and
 welcomes focused pull requests more than drive-by refactors.
 
 ## Before you start
@@ -15,15 +15,15 @@ welcomes focused pull requests more than drive-by refactors.
 ```sh
 brew install xcodegen
 ./scripts/bootstrap.sh
-open Rewrite.xcodeproj
+open Pluma.xcodeproj
 ```
 
 Build and test:
 
 ```sh
 xcodebuild \
-  -project Rewrite.xcodeproj \
-  -scheme Rewrite \
+  -project Pluma.xcodeproj \
+  -scheme Pluma \
   -configuration Debug \
   -derivedDataPath DerivedData \
   test
@@ -35,7 +35,7 @@ After adding or removing source files, regenerate the project:
 xcodegen generate
 ```
 
-`Rewrite.xcodeproj` is generated — edit `project.yml` or the source tree, not
+`Pluma.xcodeproj` is generated — edit `project.yml` or the source tree, not
 the pbxproj by hand.
 
 ## House rules
@@ -51,6 +51,8 @@ the pbxproj by hand.
   SwiftUI — do not reintroduce a SwiftUI hosting graph there.
 - **No secrets.** Never commit API keys, certificates, or personal writing
   samples. Tests should use fictional fixtures.
+- **Brand.** Everyday name is **pluma**; formal/long name is **plumafina**.
+  Keep both lowercase in wordmarks.
 
 ## Good first contributions
 

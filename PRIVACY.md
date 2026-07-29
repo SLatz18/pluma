@@ -1,18 +1,18 @@
 # Privacy
 
-Rewrite is designed so most writing stays on your Mac. There is no account
-system, no analytics SDK, and no Rewrite backend.
+pluma (full name: plumafina) is designed so most writing stays on your Mac.
+There is no account system, no analytics SDK, and no pluma backend.
 
 ## Default path (on-device)
 
 - **Apple Intelligence** rewrites, completions, and dictation cleanup use
-  Apple’s on-device Foundation Models. Rewrite does not send that text to the
+  Apple’s on-device Foundation Models. pluma does not send that text to the
   app developer.
 - **Ollama** (optional) sends text only to `http://127.0.0.1:11434` on this
   Mac. Ollama is a separate process you control; if you enable any Ollama cloud
-  features yourself, that is outside Rewrite.
+  features yourself, that is outside pluma.
 - **Apple Speech** dictation (default) transcribes on-device. Audio is not
-  written to disk and is not transmitted by Rewrite.
+  written to disk and is not transmitted by pluma.
 
 ## Optional OpenAI path
 
@@ -25,7 +25,7 @@ those providers and save an API key. In that mode:
 
 The Dictation page states which path is active before you talk.
 
-## What Rewrite reads
+## What pluma reads
 
 | Capability | What it reads | Stored? |
 |---|---|---|

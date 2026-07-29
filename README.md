@@ -1,11 +1,13 @@
-# Rewrite for Mac
+# pluma
 
-**Native macOS writing assistance — on-device by default, cross-app by design.**
+**pluma** is a native macOS writing layer — on-device by default, cross-app by design.
 
 Select text anywhere and rewrite it. Get ghost-text completions as you type.
 Hold a shortcut and dictate at the caret. Built in Swift 6 for macOS 26 with
 Apple Intelligence first, optional local Ollama, and an optional OpenAI path
 for dictation only.
+
+Full name: **plumafina** (fine pen). Everyday name: **pluma**.
 
 [Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE)
 
@@ -15,7 +17,7 @@ for dictation only.
 ## Why this exists
 
 Most writing tools either live inside one editor or ship your prose to a
-cloud. Rewrite is an experiment in the other direction: a small resident Mac
+cloud. pluma is an experiment in the other direction: a small resident Mac
 app that meets you in whatever field you are already in, keeps the default
 path on-device, and makes every permission and network hop explicit.
 
@@ -45,7 +47,7 @@ in-app with **Change…**.
 | Ollama at `127.0.0.1` | No (loopback only) |
 | Apple Speech dictation | No |
 | OpenAI dictation / cleanup (opt-in) | **Yes — only when you choose it** |
-| Analytics / accounts / Rewrite servers | None |
+| Analytics / accounts / pluma servers | None |
 
 Full detail: [PRIVACY.md](PRIVACY.md).
 
@@ -62,15 +64,15 @@ Full detail: [PRIVACY.md](PRIVACY.md).
 ```sh
 brew install xcodegen
 ./scripts/bootstrap.sh
-open Rewrite.xcodeproj
+open Pluma.xcodeproj
 ```
 
 Or from Terminal:
 
 ```sh
 xcodebuild \
-  -project Rewrite.xcodeproj \
-  -scheme Rewrite \
+  -project Pluma.xcodeproj \
+  -scheme Pluma \
   -configuration Debug \
   -derivedDataPath DerivedData \
   build
@@ -79,7 +81,7 @@ xcodebuild \
 Install a debug build without needing admin rights:
 
 ```sh
-ditto DerivedData/Build/Products/Debug/Rewrite.app ~/Applications/Rewrite.app
+ditto DerivedData/Build/Products/Debug/Pluma.app ~/Applications/Pluma.app
 ```
 
 Signing uses a stable **Local Self-Signed** identity so Accessibility grants
@@ -90,12 +92,12 @@ should use Developer ID + hardened runtime + notarization — see
 
 ## Use it
 
-1. Build and open Rewrite; grant Accessibility when asked.
+1. Build and open pluma; grant Accessibility when asked.
 2. Pick a recipe pipeline on the Rewrite page; try it in the playground.
 3. Select text in another app → **Caps Lock E** (or your shortcut).
 4. Enable Autocomplete / Dictation from their sidebar pages as needed.
 
-**Edit with Rewrite** remains available as a macOS Service (right-click →
+**Edit with pluma** remains available as a macOS Service (right-click →
 Services) for apps where Accessibility insertion misbehaves.
 
 ## Architecture
@@ -119,4 +121,4 @@ especially the privacy house rules.
 
 ## License
 
-[MIT](LICENSE) © 2026 Scott Latz
+[MIT](LICENSE) © 2026 Scott Latz · **plumafina**

@@ -1,6 +1,6 @@
 # Security Policy
 
-Rewrite is a high-privilege macOS app: it can use Accessibility, optional
+pluma is a high-privilege macOS app: it can use Accessibility, optional
 Screen Recording, and the microphone. Treat trust issues seriously.
 
 ## Supported versions
