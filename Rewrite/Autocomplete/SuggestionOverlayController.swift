@@ -19,7 +19,6 @@ private final class PillView: NSVisualEffectView {
         layer?.cornerRadius = 7
         layer?.cornerCurve = .continuous
         layer?.borderWidth = 1
-        layer?.borderColor = NSColor.labelColor.withAlphaComponent(0.1).cgColor
 
         label.font = .systemFont(ofSize: 13)
         label.textColor = .secondaryLabelColor
@@ -31,7 +30,7 @@ private final class PillView: NSVisualEffectView {
         hintLabel.textColor = .tertiaryLabelColor
         hintBezel.wantsLayer = true
         hintBezel.layer?.cornerRadius = 3
-        hintBezel.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.08).cgColor
+        applyDynamicColors()
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         hintBezel.addSubview(hintLabel)
         NSLayoutConstraint.activate([
@@ -63,6 +62,20 @@ private final class PillView: NSVisualEffectView {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    // CGColors are resolved snapshots: without this, a dark↔light switch while
+    // the pill is up leaves the border and bezel painted for the old mode.
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        applyDynamicColors()
+    }
+
+    private func applyDynamicColors() {
+        effectiveAppearance.performAsCurrentDrawingAppearance {
+            layer?.borderColor = NSColor.labelColor.withAlphaComponent(0.1).cgColor
+            hintBezel.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.08).cgColor
+        }
     }
 
     func showSuggestion(_ text: String) {
@@ -149,8 +162,15 @@ final class SuggestionOverlayController {
     private var panel: NSPanel?
     private var pill: PillView?
     private var currentOwner: Owner?
+    // Bumped by every show and every hide so a fade-out's deferred orderOut
+    // can never kill a presentation that arrived after the hide started.
+    private var hideGeneration = 0
 
     var isVisible: Bool { panel?.isVisible ?? false }
+
+    private var reduceMotion: Bool {
+        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
 
     // NSEvent.mouseLocation is Cocoa bottom-left-origin; AX/overlay coordinates
     // are top-left-origin on the primary display.
@@ -206,20 +226,52 @@ final class SuggestionOverlayController {
     // Deferred one run loop turn so window mutations never land inside an
     // in-flight display cycle.
     private func present(at point: CGPoint) {
+        hideGeneration += 1
         DispatchQueue.main.async { [weak self] in
             guard let self, let panel, let pill else { return }
             pill.layoutSubtreeIfNeeded()
             let fitting = pill.fittingSize
             panel.setContentSize(fitting)
-            panel.setFrameOrigin(cocoaOrigin(forTopLeftPoint: point, panelHeight: fitting.height))
+            let target = clampedOrigin(forTopLeftPoint: point, panelSize: fitting)
+
+            // Caret-tracking updates stay instant so the pill never lags a
+            // keystroke; only a fresh appearance earns the fade-and-rise.
+            guard !panel.isVisible, !reduceMotion else {
+                panel.alphaValue = 1
+                panel.setFrameOrigin(target)
+                panel.orderFrontRegardless()
+                return
+            }
+            panel.alphaValue = 0
+            panel.setFrameOrigin(CGPoint(x: target.x, y: target.y - 5))
             panel.orderFrontRegardless()
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.16
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().alphaValue = 1
+                panel.animator().setFrameOrigin(target)
+            }
         }
     }
 
     func hide() {
         currentOwner = nil
-        DispatchQueue.main.async { [weak panel] in
-            panel?.orderOut(nil)
+        hideGeneration += 1
+        let generation = hideGeneration
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let panel, panel.isVisible else { return }
+            guard !reduceMotion else {
+                panel.orderOut(nil)
+                return
+            }
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.12
+                panel.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                guard let self, self.hideGeneration == generation else { return }
+                self.panel?.orderOut(nil)
+                self.panel?.alphaValue = 1
+            })
         }
     }
 
@@ -229,12 +281,19 @@ final class SuggestionOverlayController {
     }
 
     // AX coordinates are top-left-origin relative to the primary display;
-    // Cocoa window origins are bottom-left-origin on that same display.
-    private func cocoaOrigin(forTopLeftPoint point: CGPoint, panelHeight: CGFloat) -> CGPoint {
+    // Cocoa window origins are bottom-left-origin on that same display. The
+    // pill is kept fully inside the target screen's visible frame so a caret
+    // at the screen edge never pushes it offscreen.
+    private func clampedOrigin(forTopLeftPoint point: CGPoint, panelSize: NSSize) -> CGPoint {
         guard let primary = NSScreen.screens.first else { return point }
+        let cocoaPoint = CGPoint(x: point.x, y: primary.frame.height - point.y)
+        let origin = CGPoint(x: cocoaPoint.x, y: cocoaPoint.y - panelSize.height)
+
+        let screen = NSScreen.screens.first { NSPointInRect(cocoaPoint, $0.frame) } ?? primary
+        let visible = screen.visibleFrame.insetBy(dx: 6, dy: 6)
         return CGPoint(
-            x: point.x,
-            y: primary.frame.height - point.y - panelHeight
+            x: max(visible.minX, min(origin.x, max(visible.minX, visible.maxX - panelSize.width))),
+            y: max(visible.minY, min(origin.y, max(visible.minY, visible.maxY - panelSize.height)))
         )
     }
 }
