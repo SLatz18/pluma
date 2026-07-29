@@ -60,11 +60,6 @@ final class DictationController: ObservableObject {
         }
     }
 
-    // Kept in memory only, and only for this session: enough to re-run a
-    // comparison over something actually said, without ever writing speech to
-    // disk.
-    @Published private(set) var recentTranscripts: [String] = []
-
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay = SuggestionOverlayController()
@@ -279,8 +274,6 @@ final class DictationController: ObservableObject {
             return
         }
 
-        remember(transcript: transcript)
-
         var output = transcript
         if cleanupEnabled {
             showHUD(message: "Tidying…", systemImage: "sparkles")
@@ -309,15 +302,6 @@ final class DictationController: ObservableObject {
             overlay.hide()
         } else {
             flash(systemImage: "exclamationmark.triangle", message: "This field rejected the text")
-        }
-    }
-
-    private func remember(transcript: String) {
-        guard DictationTranscript.isWorthCleaningUp(transcript) else { return }
-        recentTranscripts.removeAll { $0 == transcript }
-        recentTranscripts.insert(transcript, at: 0)
-        if recentTranscripts.count > 10 {
-            recentTranscripts.removeLast(recentTranscripts.count - 10)
         }
     }
 

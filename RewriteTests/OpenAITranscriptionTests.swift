@@ -78,7 +78,7 @@ final class OpenAITranscriptionTests: XCTestCase {
     }
 
     func testMultipartBodyNamesTheFileModelAndEachKeyword() throws {
-        let body = OpenAITranscriptionEngine.multipartBody(
+        let body = OpenAIFileTranscriber.multipartBody(
             boundary: "abc",
             wav: Data([0x00]),
             keywords: ["Zuora", "REVPRO"]

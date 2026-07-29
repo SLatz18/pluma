@@ -3,123 +3,130 @@ import SwiftUI
 struct CleanupComparisonView: View {
     @EnvironmentObject private var controller: DictationController
     @Environment(\.dismiss) private var dismiss
-
-    @State private var transcript = ""
-    @State private var attempts: [RewriteRunner.CleanupAttempt] = []
-    @State private var isRunning = false
+    @StateObject private var runner = ComparisonRunner()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Compare cleanup")
-                    .font(.headline)
-                Text("Runs the same transcript through both models at once, so you are judging the output rather than remembering it.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                header
+                controls
 
-            if !controller.recentTranscripts.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Something you dictated this session")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    ForEach(controller.recentTranscripts, id: \.self) { recent in
-                        Button {
-                            transcript = recent
-                        } label: {
-                            Text(recent)
-                                .font(.caption)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                if !runner.transcripts.isEmpty {
+                    section("Transcription — same recording, both engines") {
+                        ForEach(runner.transcripts) { transcript in
+                            resultBox(
+                                title: transcript.source,
+                                seconds: transcript.seconds,
+                                body: transcript.text,
+                                failure: transcript.failure
+                            )
                         }
-                        .buttonStyle(.link)
+                    }
+                }
+
+                if !runner.cleanups.isEmpty {
+                    section("Cleanup — every transcript through every model") {
+                        ForEach(runner.cleanups) { cleanup in
+                            resultBox(
+                                title: "\(cleanup.transcriber) → \(cleanup.cleaner)",
+                                seconds: cleanup.seconds,
+                                body: cleanup.output,
+                                failure: cleanup.failure
+                            )
+                        }
                     }
                 }
             }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Raw transcript")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: $transcript)
-                    .font(.system(size: 12))
-                    .frame(height: 70)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(Color.primary.opacity(0.12))
-                    }
-            }
-
-            HStack(spacing: 10) {
-                Button(isRunning ? "Running…" : "Run comparison") {
-                    run()
-                }
-                .disabled(isRunning || transcript.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                Text("Comparing Apple on-device against \(controller.openAIModel.title).")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-
-                Spacer()
-
-                Button("Done") { dismiss() }
-            }
-
-            if !attempts.isEmpty {
-                Divider()
-                ForEach(attempts) { attempt in
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Text(attempt.label)
-                                .font(.caption.weight(.semibold))
-                            Text(String(format: "%.2fs", attempt.seconds))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if let output = attempt.output {
-                            Text(output)
-                                .font(.system(size: 12))
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        } else {
-                            Text(attempt.failure ?? "No output")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.orange)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                    .padding(10)
-                    .background(
-                        Color(nsColor: .textBackgroundColor),
-                        in: RoundedRectangle(cornerRadius: 8)
-                    )
-                }
-            }
+            .padding(18)
         }
-        .padding(18)
-        .frame(width: 560)
-        .onAppear {
-            if transcript.isEmpty, let first = controller.recentTranscripts.first {
-                transcript = first
-            }
+        .frame(width: 620, height: 620)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("Compare transcription and cleanup")
+                .font(.headline)
+            Text("Records once, transcribes that single recording with both engines, then runs each transcript through both cleanup models. Neither transcriber gets the on-screen terms, so the comparison isn't tilted.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
     }
 
-    private func run() {
-        let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        isRunning = true
-        attempts = []
-        Task {
-            let results = await RewriteRunner.compareCleanup(
-                transcript: text,
-                openAIModel: controller.openAIModel
-            )
-            attempts = results
-            isRunning = false
+    private var controls: some View {
+        HStack(spacing: 10) {
+            Button(runner.isRecording ? "Stop and compare" : "Record a sample") {
+                if runner.isRecording {
+                    Task { await runner.stopAndCompare(openAIModel: controller.openAIModel) }
+                } else {
+                    runner.startRecording()
+                }
+            }
+            .disabled(runner.isBusy || !OpenAIKey.isPresent)
+
+            Text(statusText)
+                .font(.caption)
+                .foregroundStyle(runner.isRecording ? .red : .secondary)
+
+            Spacer()
+
+            Button("Done") { dismiss() }
         }
+    }
+
+    private var statusText: String {
+        switch runner.phase {
+        case .idle:
+            OpenAIKey.isPresent
+                ? "Comparing against \(controller.openAIModel.title)."
+                : "Add an OpenAI API key first."
+        case .recording: "Recording — say a sentence or two, then stop."
+        case .transcribing: "Transcribing with both engines…"
+        case .cleaning: "Cleaning up every transcript…"
+        case .done: "Done."
+        case .failed(let reason): reason
+        }
+    }
+
+    private func section<Content: View>(
+        _ title: String, @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            content()
+        }
+    }
+
+    private func resultBox(
+        title: String, seconds: Double, body: String?, failure: String?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                Text(String(format: "%.2fs", seconds))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let body, !body.isEmpty {
+                Text(body)
+                    .font(.system(size: 12))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text(failure ?? "No output")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(10)
+        .background(
+            Color(nsColor: .textBackgroundColor),
+            in: RoundedRectangle(cornerRadius: 8)
+        )
     }
 }

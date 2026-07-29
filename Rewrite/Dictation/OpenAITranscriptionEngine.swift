@@ -20,7 +20,6 @@ enum OpenAITranscriptionError: LocalizedError {
 @MainActor
 final class OpenAITranscriptionEngine: DictationTranscribing {
     nonisolated static let liveModel = "gpt-live-transcribe"
-    nonisolated static let fileModel = "gpt-transcribe"
 
     private(set) var availability: TranscriptionAvailability = .checking {
         didSet {
@@ -204,30 +203,14 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
     // MARK: - File endpoint fallback
 
     private func transcribeRecording() async -> String? {
-        guard let key = OpenAIKey.current, !recordedSamples.isEmpty else { return nil }
+        guard !recordedSamples.isEmpty else { return nil }
         usedFallback = true
-
-        let boundary = "rewrite-\(UUID().uuidString)"
-        var request = URLRequest(url: URL(string: "https://api.openai.com/v1/audio/transcriptions")!)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
-        request.setValue(
-            "multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type"
-        )
-        request.httpBody = Self.multipartBody(
-            boundary: boundary,
-            wav: PCM16Audio.wav(from: recordedSamples),
-            keywords: keywords
-        )
-
         do {
-            let (data, response) = try await session.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-                DebugLog.log("file transcription failed: HTTP \(http.statusCode)")
-                return nil
-            }
-            let decoded = try JSONDecoder().decode(FileTranscription.self, from: data)
-            return DictationTranscript.assemble(decoded.text)
+            return try await OpenAIFileTranscriber.transcribe(
+                wav: PCM16Audio.wav(from: recordedSamples),
+                keywords: keywords,
+                session: session
+            )
         } catch {
             DebugLog.log("file transcription failed: \(error.localizedDescription)")
             return nil
@@ -291,32 +274,6 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
             ?? Data()
     }
 
-    nonisolated static func multipartBody(boundary: String, wav: Data, keywords: [String]) -> Data {
-        var body = Data()
-
-        func appendField(_ name: String, _ value: String) {
-            body.append(Data("--\(boundary)\r\n".utf8))
-            body.append(Data("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".utf8))
-            body.append(Data("\(value)\r\n".utf8))
-        }
-
-        appendField("model", fileModel)
-        for keyword in keywords {
-            appendField("keywords[]", keyword)
-        }
-
-        body.append(Data("--\(boundary)\r\n".utf8))
-        body.append(
-            Data(
-                "Content-Disposition: form-data; name=\"file\"; filename=\"dictation.wav\"\r\n".utf8
-            )
-        )
-        body.append(Data("Content-Type: audio/wav\r\n\r\n".utf8))
-        body.append(wav)
-        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
-        return body
-    }
-
     nonisolated private static func text(of message: URLSessionWebSocketTask.Message) -> String? {
         switch message {
         case .string(let text): text
@@ -336,7 +293,4 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
         let error: ErrorBody?
     }
 
-    private struct FileTranscription: Decodable {
-        let text: String
-    }
 }
