@@ -37,8 +37,8 @@ with model and style-profile settings under ⌘,.
 - **Autocomplete everywhere**: debounced ghost-text completions at the caret in
   other apps' text fields, powered by the same on-device provider. **Tab**
   accepts the next word, **Shift-Tab** accepts the whole suggestion, **Escape**
-  dismisses. Requires Accessibility access; the app stays alive in the menu
-  bar after its window closes.
+  dismisses. Requires Accessibility access; the app lives in the menu bar with
+  no Dock icon, and the icon only appears while a window is open.
 - **Dictate anywhere**: hold **Caps Lock Space** and talk; let go and your words
   land at the caret in any app. Speech is transcribed by Apple's on-device
   model, then tidied from spoken to written form by your selected writing
