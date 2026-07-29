@@ -46,7 +46,7 @@ struct CleanupComparisonView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text("Compare transcription and cleanup")
                 .font(.headline)
-            Text("Records once, transcribes that single recording with both engines, then runs each transcript through both cleanup models. Neither transcriber gets the on-screen terms, so the comparison isn't tilted.")
+            Text("Records once, transcribes that single recording with both engines, then runs each transcript through both cleanup models. Neither transcriber gets the on-screen terms, and on-device runs never overlap each other, so no result is handicapped by the way it was measured.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
