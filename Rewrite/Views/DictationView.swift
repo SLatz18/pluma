@@ -94,40 +94,48 @@ struct DictationView: View {
     // MARK: Shortcut
 
     private var shortcutCard: some View {
-        HStack(spacing: 14) {
-            Text(isRecording ? "…" : controller.shortcut.display)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 8)
-                .frame(minHeight: 24)
-                .background(
-                    DS.insetBackground,
-                    in: RoundedRectangle(cornerRadius: 6)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 14) {
+                Text(isRecording ? "…" : controller.shortcut.display)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .frame(minHeight: 24)
+                    .background(
+                        DS.insetBackground,
+                        in: RoundedRectangle(cornerRadius: 6)
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(
+                                isRecording ? Color.accentColor : DS.hairline
+                            )
+                    }
+
+                Text(
+                    isRecording
+                        ? "Press and hold the new shortcut. Esc cancels."
+                        : "Hold to talk. Hyperkey maps Caps Lock to ⌃⌥⇧⌘, so Caps Lock R works."
                 )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(
-                            isRecording ? Color.accentColor : DS.hairline
-                        )
+                    .font(DS.meta)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button(isRecording ? "Cancel" : "Change…") {
+                    if isRecording {
+                        stopRecording()
+                    } else {
+                        startRecording()
+                    }
                 }
-
-            Text(
-                isRecording
-                    ? "Press and hold the new shortcut. Esc cancels."
-                    : "Hold to talk. Hyperkey maps Caps Lock to ⌃⌥⇧⌘, so Caps Lock R works."
-            )
-                .font(DS.meta)
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Button(isRecording ? "Cancel" : "Change…") {
-                if isRecording {
-                    stopRecording()
-                } else {
-                    startRecording()
-                }
+                .controlSize(.small)
             }
-            .controlSize(.small)
+
+            if let conflict = controller.shortcutConflict {
+                Label(conflict, systemImage: "exclamationmark.triangle.fill")
+                    .font(DS.meta)
+                    .foregroundStyle(.orange)
+            }
         }
         .dsCard()
     }
@@ -286,7 +294,8 @@ struct DictationView: View {
     }
 
     private var statusColor: Color {
-        switch controller.activity {
+        if controller.isEnabled && !controller.isMicPermitted { return .orange }
+        return switch controller.activity {
         case .off: .gray
         case .needsPermission: .orange
         case .preparing: .orange
@@ -298,7 +307,10 @@ struct DictationView: View {
     }
 
     private var statusText: String {
-        switch controller.activity {
+        if controller.isEnabled && !controller.isMicPermitted {
+            return "Needs microphone access"
+        }
+        return switch controller.activity {
         case .off:
             "Dictation is off"
         case .needsPermission:
