@@ -7,10 +7,8 @@ struct RewriteApp: App {
     @StateObject private var autocomplete: AutocompleteCoordinator
     @StateObject private var selectionRewrite: SelectionRewriteController
     @StateObject private var dictation: DictationController
-    @StateObject private var capsLock: CapsLockExpander
 
     init() {
-        DebugLog.truncate()
         Preferences.migrateShortcutDefaultsIfNeeded()
 
         // One overlay panel for ghost text, rewrite status, and the dictation
@@ -20,8 +18,6 @@ struct RewriteApp: App {
         _autocomplete = StateObject(wrappedValue: AutocompleteCoordinator(overlay: overlay))
         _selectionRewrite = StateObject(wrappedValue: SelectionRewriteController(overlay: overlay))
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
-        _capsLock = StateObject(wrappedValue: CapsLockExpander.shared)
-        CapsLockExpander.shared.startMonitoring()
     }
 
     var body: some Scene {
@@ -47,7 +43,6 @@ struct RewriteApp: App {
             SettingsView()
                 .environmentObject(model)
                 .environmentObject(autocomplete)
-                .environmentObject(capsLock)
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)
         }
