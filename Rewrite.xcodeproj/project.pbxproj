@@ -144,7 +144,7 @@
 		87A2B3C4D5E6F708192A3B4D /* PasteboardAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteboardAccess.swift; sourceTree = "<group>"; };
 		88A2B3C4D5E6F708192A3B4D /* HotkeyDebouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyDebouncer.swift; sourceTree = "<group>"; };
 		89A2B3C4D5E6F708192A3B4D /* InputMonitoringHotkey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputMonitoringHotkey.swift; sourceTree = "<group>"; };
-		8AA2B3C4D5E6F708192A3B4D /* ClipboardHotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
+		8AA2B3C4D5E6F708192A3B4D /* ClipboardHotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHotkeyManager.swift; sourceTree = "<group>"; };
 		8BA2B3C4D5E6F708192A3B4D /* HUDPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HUDPanel.swift; sourceTree = "<group>"; };
 		8CA2B3C4D5E6F708192A3B4D /* HotkeyDebouncerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyDebouncerTests.swift; sourceTree = "<group>"; };
 		8DA2B3C4D5E6F708192A3B4D /* HotkeyStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyStatusTests.swift; sourceTree = "<group>"; };
