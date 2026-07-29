@@ -25,14 +25,21 @@ struct RewritePlaygroundView: View {
                             .controlSize(.small)
                             .frame(width: 82)
                     } else {
-                        Label(model.selectedIntent.title, systemImage: "sparkles")
+                        Label(model.runLabel, systemImage: "sparkles")
                     }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .disabled(model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(
+                    model.chain.isEmpty
+                        || model.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                )
                 .keyboardShortcut(.return, modifiers: [.command])
-                .help("Run the \(model.selectedIntent.title) recipe (⌘↩)")
+                .help(
+                    model.chain.count == 1
+                        ? "Run the \(model.chain[0].title) recipe (⌘↩)"
+                        : "Run your pipeline (⌘↩)"
+                )
             }
 
             HStack(alignment: .top, spacing: 12) {
