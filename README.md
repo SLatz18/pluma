@@ -31,8 +31,8 @@ with model and style-profile settings under ⌘,.
 - A built-in editor for trying each recipe on your own text.
 - Live Apple Intelligence availability state.
 - Optional Ollama discovery at `http://127.0.0.1:11434`.
-- A global **Rewrite selection** hotkey — **Caps Lock E** by default (via
-  Hyperkey), re-recordable in the app to any combo — that rewrites the
+- A global **Rewrite selection** hotkey — **Caps Lock E** by default,
+  re-recordable in the app to any combo — that rewrites the
   current selection in any app via the Accessibility API.
 - **Autocomplete everywhere**: debounced ghost-text completions at the caret in
   other apps' text fields, powered by the same on-device provider. **Tab**
@@ -63,12 +63,15 @@ with model and style-profile settings under ⌘,.
   times out, or returns nothing, the raw transcript is inserted instead —
   dictation never costs you your words. Transcripts under three words skip the
   cleanup round trip.
-- The shortcut is **Caps Lock Space** by default, which works because
-  [Hyperkey](https://hyperkey.app) expands Caps Lock into ⌃⌥⌘ before any app
-  sees the event. Rewrite deliberately does not remap Caps Lock itself: doing
-  so would seize the key system-wide, disable its toggle and LED, and reset on
-  every reboot. Without Hyperkey (or an equivalent), record any ordinary chord
-  instead via **Change…**.
+- The shortcut is **Caps Lock Space** by default. Rewrite expands Caps Lock
+  into the ⌃⌥⌘ chord itself — a built-in event-tap expander, so **no Hyperkey
+  is required**. Holding Caps Lock is Rewrite's modifier; while the expander
+  is on, Caps Lock's own toggle is suspended (macOS reasserts caps state
+  from the physical keyboard, so a synthetic toggle can't stick — the same
+  trade Hyperkey makes). If Hyperkey or Superkey is running, the expander
+  steps aside automatically and lets it own the key. Turn it off any time in
+  Settings → Caps Lock shortcuts, where you can also record an ordinary
+  chord via **Change…**.
 - Speech never leaves the Mac, and audio is not written to disk.
 
 ## Autocomplete notes
@@ -98,8 +101,9 @@ with model and style-profile settings under ⌘,.
 - Apple Intelligence enabled and its on-device model downloaded.
 - For dictation: a supported language for Apple's `SpeechTranscriber`. The model
   downloads itself on first use and adds nothing to the app bundle.
-- Optional: [Hyperkey](https://hyperkey.app) for the default Caps Lock
-  shortcuts (⇪E rewrite, ⇪Space dictation).
+- Nothing else: the Caps Lock shortcuts (⇪E rewrite, ⇪Space dictation) are
+  expanded by the app itself. [Hyperkey](https://hyperkey.app) is fully
+  optional — if it is running, Rewrite's expander pauses and defers to it.
 - Optional: [Ollama](https://ollama.com/) with at least one local model.
 
 ## Build
