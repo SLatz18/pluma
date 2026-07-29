@@ -15,8 +15,8 @@ easy to rename before release.
 - The interface uses native macOS controls, generous spacing, and simple
   trigger-to-action cards inspired by IFTTT applets.
 - Cross-app rewriting uses the macOS Services system.
-- Cross-app autocomplete uses the Accessibility API (Cotypist-style), so the
-  app is no longer sandboxed or Mac App Store compatible.
+- Cross-app autocomplete uses the Accessibility API for ghost-text completions
+  at the caret, so the app is no longer sandboxed or Mac App Store compatible.
 
 ## Current milestone
 
