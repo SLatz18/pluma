@@ -9,36 +9,44 @@ struct AnywhereCard: View {
     @State private var keyMonitor: Any?
 
     var body: some View {
-        HStack(spacing: 14) {
-            DSIconTile(systemImage: "keyboard", tint: DS.Feature.shortcut.color)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 14) {
+                DSIconTile(systemImage: "keyboard", tint: DS.Feature.shortcut.color)
 
-            VStack(alignment: .leading, spacing: 4) {
-                DSEyebrow(trigger: "In any app")
+                VStack(alignment: .leading, spacing: 4) {
+                    DSEyebrow(trigger: "In any app")
 
-                Text("Rewrite the selection")
-                    .font(DS.cardTitle)
+                    Text("Rewrite the selection")
+                        .font(DS.cardTitle)
 
-                Text(
-                    isRecording
-                        ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
-                        : "Select text anywhere, press the shortcut, get a cleaner version back."
-                )
-                    .font(DS.meta)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 12)
-
-            shortcutBadge
-
-            Button(isRecording ? "Cancel" : "Change…") {
-                if isRecording {
-                    stopRecording()
-                } else {
-                    startRecording()
+                    Text(
+                        isRecording
+                            ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
+                            : "Select text anywhere, press the shortcut, get a cleaner version back."
+                    )
+                        .font(DS.meta)
+                        .foregroundStyle(.secondary)
                 }
+
+                Spacer(minLength: 12)
+
+                shortcutBadge
+
+                Button(isRecording ? "Cancel" : "Change…") {
+                    if isRecording {
+                        stopRecording()
+                    } else {
+                        startRecording()
+                    }
+                }
+                .controlSize(.small)
             }
-            .controlSize(.small)
+
+            if let conflict = controller.shortcutConflict {
+                Label(conflict, systemImage: "exclamationmark.triangle.fill")
+                    .font(DS.meta)
+                    .foregroundStyle(.orange)
+            }
         }
         .dsCard()
         .onDisappear {

@@ -18,6 +18,7 @@ final class DictationController: ObservableObject {
     @Published private(set) var activity: DictationActivity = .off
     @Published private(set) var isMicPermitted: Bool
     @Published private(set) var liveText = ""
+    @Published private(set) var shortcutConflict: String?
 
     @Published var isEnabled: Bool {
         didSet {
@@ -183,6 +184,12 @@ final class DictationController: ObservableObject {
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
+        let rewriteShortcut = Preferences.globalShortcut(from: defaults)
+        guard !newShortcut.conflicts(with: rewriteShortcut) else {
+            shortcutConflict = "\(newShortcut.display) is already used by Rewrite Selection."
+            return
+        }
+        shortcutConflict = nil
         shortcut = newShortcut
         Preferences.saveDictationShortcut(newShortcut, to: defaults)
         if isEnabled {
@@ -412,7 +419,9 @@ final class DictationController: ObservableObject {
         case .checking, .preparing:
             activity = .preparing
         case .ready:
-            activity = mic.isGranted ? .idle : .needsPermission
+            // Read the published snapshot, not the singleton, so the status
+            // row and the permission notice can never disagree.
+            activity = isMicPermitted ? .idle : .needsPermission
         }
     }
 

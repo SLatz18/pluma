@@ -2,10 +2,22 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var model: RewriteViewModel
+    @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var launchAtLoginError: String?
 
     var body: some View {
         TabView {
             Form {
+                Section("App") {
+                    Toggle("Launch at login", isOn: launchAtLoginBinding)
+
+                    if let launchAtLoginError {
+                        Text(launchAtLoginError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
+
                 Section("Writing model") {
                     Picker("Default model", selection: providerBinding) {
                         ForEach(RewriteProviderChoice.allCases) { provider in
@@ -55,6 +67,21 @@ struct SettingsView: View {
         .task {
             await model.refreshStatus()
         }
+    }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { launchAtLogin },
+            set: { newValue in
+                do {
+                    try LaunchAtLogin.set(newValue)
+                    launchAtLogin = LaunchAtLogin.isEnabled
+                    launchAtLoginError = nil
+                } catch {
+                    launchAtLoginError = "Couldn't update login items: \(error.localizedDescription)"
+                }
+            }
+        )
     }
 
     private var providerBinding: Binding<RewriteProviderChoice> {

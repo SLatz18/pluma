@@ -20,6 +20,10 @@ easy to rename before release.
 
 ## Current milestone
 
+The app window is organized into three sidebar pages — **Playground** (try
+recipes on your own text), **Autocomplete**, and **Dictation** — with model
+and style-profile settings under ⌘,.
+
 - Four rewrite recipes: Improve, Shorten, Fix Grammar, and Professional.
 - A built-in playground for trying each recipe.
 - Live Apple Intelligence availability state.
@@ -123,8 +127,8 @@ xcodebuild \
 
 The hotkey is registered by the app itself and the rewrite happens through
 the Accessibility API, so the shortcut is configured in the app window —
-**Change…** on the "Rewrite selection" card records any combo, Hyperkey
-chords included. The **Edit with Rewrite** macOS Service remains available
+**Change…** on the Playground page's "Rewrite the selection" card records
+any combo, Hyperkey chords included. The **Edit with Rewrite** macOS Service remains available
 from the right-click Services menu as a fallback for apps where
 Accessibility insertion misbehaves; it no longer has a default shortcut, so
 assign one in Keyboard Settings only if you want it.
@@ -151,7 +155,7 @@ Style memory (optional, off by default) records only the suggestion text you
 accept — never raw keystrokes and never screen contents — into a local JSON
 file (`~/Library/Application Support/Rewrite/writing-memory.json`, capped at
 300 entries). Recent phrases are fed back to the model so suggestions drift
-toward your vocabulary. Clear it any time from the autocomplete card.
+toward your vocabulary. Clear it any time from the Autocomplete page.
 
 Style profile (optional) imports a writing-style guide — for example a
 SKILL.md another AI wrote about your voice — from Settings → Advanced. YAML

@@ -5,6 +5,7 @@ import ApplicationServices
 final class SelectionRewriteController: ObservableObject {
     @Published private(set) var shortcut: GlobalShortcut
     @Published private(set) var isWorking = false
+    @Published private(set) var shortcutConflict: String?
 
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
@@ -23,6 +24,12 @@ final class SelectionRewriteController: ObservableObject {
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
+        let dictationShortcut = Preferences.dictationShortcut(from: defaults)
+        guard !newShortcut.conflicts(with: dictationShortcut) else {
+            shortcutConflict = "\(newShortcut.display) is already used by Dictation."
+            return
+        }
+        shortcutConflict = nil
         shortcut = newShortcut
         Preferences.saveGlobalShortcut(newShortcut, to: defaults)
         hotkey.register(newShortcut)
