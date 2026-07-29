@@ -22,7 +22,7 @@ enum DictationTranscript {
     }
 
     // SpeechTranscriber has no way to turn punctuation off, and it closes every
-    // utterance with a period, so dictating a single name yields "Scott." A
+    // utterance with a period, so dictating a single name yields "Alex." A
     // question or exclamation mark reflects how the speaker actually said it,
     // and an ellipsis is deliberate, so only a lone final period is dropped.
     static func withoutFragmentPeriod(_ text: String) -> String {

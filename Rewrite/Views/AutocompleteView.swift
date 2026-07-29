@@ -61,7 +61,7 @@ struct AutocompleteView: View {
                 .dsCard()
             }
 
-            Text("Uses your selected writing model, on-device only. macOS never shares password fields. Manage memory and import a style profile in Settings → Advanced.")
+            Text("Uses your selected writing model (Apple Intelligence on-device, or Ollama on loopback). macOS never shares password fields. Manage memory and import a style profile in Settings → Advanced.")
                 .font(DS.meta)
                 .foregroundStyle(.tertiary)
         }

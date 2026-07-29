@@ -27,14 +27,14 @@ final class OpenAITranscriptionTests: XCTestCase {
     }
 
     func testSessionUpdateCarriesKeywordsWhenPresent() throws {
-        let data = OpenAITranscriptionEngine.sessionUpdateData(keywords: ["Zuora", "REVPRO"])
+        let data = OpenAITranscriptionEngine.sessionUpdateData(keywords: ["AcmeFlow", "RevTrack"])
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let session = try XCTUnwrap(json["session"] as? [String: Any])
         let audio = try XCTUnwrap(session["audio"] as? [String: Any])
         let input = try XCTUnwrap(audio["input"] as? [String: Any])
         let transcription = try XCTUnwrap(input["transcription"] as? [String: Any])
 
-        XCTAssertEqual(transcription["keywords"] as? [String], ["Zuora", "REVPRO"])
+        XCTAssertEqual(transcription["keywords"] as? [String], ["AcmeFlow", "RevTrack"])
     }
 
     func testAudioIsAppendedAsBase64() throws {
@@ -53,9 +53,9 @@ final class OpenAITranscriptionTests: XCTestCase {
     // break, and these terms come from OCR of arbitrary screen content.
     func testKeywordsAreStrippedOfCharactersTheAPIRejects() {
         let cleaned = PCM16Audio.sanitizedKeywords([
-            "<Invoice>", "line\nbreak", "   ", "Zuora"
+            "<Invoice>", "line\nbreak", "   ", "AcmeFlow"
         ])
-        XCTAssertEqual(cleaned, ["Invoice", "line break", "Zuora"])
+        XCTAssertEqual(cleaned, ["Invoice", "line break", "AcmeFlow"])
     }
 
     func testWavHeaderDescribesTheSamplesItCarries() throws {
@@ -81,7 +81,7 @@ final class OpenAITranscriptionTests: XCTestCase {
         let body = OpenAIFileTranscriber.multipartBody(
             boundary: "abc",
             wav: Data([0x00]),
-            keywords: ["Zuora", "REVPRO"]
+            keywords: ["AcmeFlow", "RevTrack"]
         )
         let text = try XCTUnwrap(String(data: body, encoding: .isoLatin1))
 

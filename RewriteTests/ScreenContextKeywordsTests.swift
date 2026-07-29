@@ -4,12 +4,12 @@ import XCTest
 final class ScreenContextKeywordsTests: XCTestCase {
     func testKeepsProperNounsAndProductNames() {
         let terms = ScreenContextProvider.contextualStrings(
-            from: "Hi Priya, can you review the SpeechAnalyzer rollout for Zillow?"
+            from: "Hi Priya, can you review the SpeechAnalyzer rollout for Northwind?"
         )
 
         XCTAssertTrue(terms.contains("Priya"))
         XCTAssertTrue(terms.contains("SpeechAnalyzer"))
-        XCTAssertTrue(terms.contains("Zillow"))
+        XCTAssertTrue(terms.contains("Northwind"))
     }
 
     func testDropsOrdinaryWordsAndSentenceOpeners() {

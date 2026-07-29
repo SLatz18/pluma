@@ -63,8 +63,8 @@ final class DictationTranscriptTests: XCTestCase {
     }
 
     func testDictatedFragmentLosesItsTrailingPeriod() {
-        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott."), "Scott")
-        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott Latz."), "Scott Latz")
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Alex."), "Alex")
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Alex Rivera."), "Alex Rivera")
     }
 
     func testSentencesKeepTheirPunctuation() {
@@ -77,9 +77,9 @@ final class DictationTranscriptTests: XCTestCase {
     // Intonation produced these, and an ellipsis is deliberate, so a fragment
     // keeps them where it would lose a plain period.
     func testFragmentKeepsDeliberatePunctuation() {
-        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott?"), "Scott?")
-        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott!"), "Scott!")
-        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott..."), "Scott...")
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Alex?"), "Alex?")
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Alex!"), "Alex!")
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Alex..."), "Alex...")
     }
 
     // Paragraph breaks help a dictated document and wreck a dictated message, so

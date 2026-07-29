@@ -3,8 +3,8 @@
 Native macOS writing tool: recipe pipelines (Rewrite page), ghost-text
 autocomplete, push-to-talk dictation, selection-rewrite hotkey. SwiftUI +
 AppKit, Swift 6 strict concurrency, macOS 26 target, xcodegen-generated
-project. Product principles and privacy model: README.md. Product language:
-native controls, generous spacing, trigger → action cards.
+project. Product principles: README.md. Privacy model: PRIVACY.md. Product
+language: native controls, generous spacing, trigger → action cards.
 
 ## Build, test, install
 
@@ -82,3 +82,4 @@ xcodebuild -project Rewrite.xcodeproj -scheme Rewrite -configuration Debug \
   twice in display-cycle layout) — do not reintroduce a SwiftUI graph there.
 - Privacy: transcripts/audio never persist; style memory and style profile
   are the only content stores, both opt-in. Preserve that in copy and code.
+  See PRIVACY.md for the public privacy model (including optional OpenAI).
