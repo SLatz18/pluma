@@ -4,9 +4,9 @@ import SwiftUI
 // and status row comes from here so a feature page and the playground can
 // never drift into different dialects.
 //
-// The grammar is IFTTT-style trigger → action: an uppercase eyebrow names the
-// trigger ("SELECTED TEXT", "AS YOU TYPE"), an arrow, then the outcome. If a
-// new surface can't state its trigger, it doesn't get an eyebrow.
+// The grammar is trigger → action: an uppercase eyebrow names the trigger
+// ("SELECTED TEXT", "AS YOU TYPE"), an arrow, then the outcome. If a new
+// surface can't state its trigger, it doesn't get an eyebrow.
 enum DS {
 
     // MARK: Color
@@ -112,7 +112,7 @@ struct DSIconTile: View {
 
 // MARK: - Eyebrow (trigger → action)
 
-/// The IFTTT grammar rendered as type: TRIGGER  →  outcome, uppercase,
+/// Trigger → action rendered as type: TRIGGER  →  outcome, uppercase,
 /// tracked out, tertiary. `action` stays unstyled-uppercase so the pair reads
 /// as one sentence.
 struct DSEyebrow: View {

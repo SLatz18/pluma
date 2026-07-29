@@ -49,8 +49,8 @@ struct HomeView: View {
         }
     }
 
-    // The IFTTT grammar made real: trigger on the left, ordered steps after,
-    // exactly what the hotkey and the playground will run.
+    // Trigger on the left, ordered steps after — exactly what the hotkey and
+    // the playground will run.
     private var pipelineStrip: some View {
         VStack(alignment: .leading, spacing: 12) {
             DSEyebrow(trigger: "Your pipeline", action: "runs left to right")
