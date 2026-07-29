@@ -12,8 +12,10 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<!-- Lowercase on purpose: the menu bar title comes from CFBundleName, and the
+	     brand is lowercase. PRODUCT_NAME stays Pluma so the bundle is Pluma.app. -->
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>pluma</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -58,7 +60,7 @@
 			<key>NSMessage</key>
 			<string>rewriteSelection</string>
 			<key>NSPortName</key>
-			<string>Pluma</string>
+			<string>pluma</string>
 			<key>NSRequiredContext</key>
 			<dict/>
 			<key>NSRestricted</key>

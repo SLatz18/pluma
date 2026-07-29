@@ -212,11 +212,11 @@ final class DictationController: ObservableObject {
         guard isEnabled, !isSessionActive else { return }
 
         guard AccessibilityPermission.shared.isTrusted else {
-            flash(systemImage: "hand.raised", message: "Rewrite needs Accessibility access")
+            flash(systemImage: "hand.raised", message: "pluma needs Accessibility access")
             return
         }
         guard mic.isGranted else {
-            flash(systemImage: "mic.slash", message: "Rewrite needs microphone access")
+            flash(systemImage: "mic.slash", message: "pluma needs microphone access")
             await requestMicrophonePermission()
             return
         }
