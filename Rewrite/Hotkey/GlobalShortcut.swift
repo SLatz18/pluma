@@ -6,21 +6,23 @@ struct GlobalShortcut: Equatable, Sendable {
     var carbonModifiers: UInt32
     var display: String
 
+    // Both factory chords ride Caps Lock via Hyperkey: Caps Lock is Rewrite's
+    // one modifier, and the letter picks the verb — E for edit, Space for
+    // speech. Hyperkey expands Caps Lock into a modifier chord before any app
+    // sees the event, so this is what those presses arrive as. It ships ⌃⌥⌘
+    // (its hyperFlags default of 0x1C0000) and notably leaves Shift out,
+    // though it is configurable — so both the three- and four-modifier chords
+    // are treated as Caps Lock when deciding how to draw a shortcut.
     static let `default` = GlobalShortcut(
         keyCode: UInt32(kVK_ANSI_E),
-        carbonModifiers: UInt32(cmdKey | shiftKey),
-        display: "⇧⌘E"
+        carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
+        display: "⇪E"
     )
 
-    // Hyperkey expands Caps Lock into a modifier chord before any app sees the
-    // event, so this is what "Caps Lock R" arrives as. It ships ⌃⌥⌘ (its
-    // hyperFlags default of 0x1C0000) and notably leaves Shift out, though it
-    // is configurable — so both the three- and four-modifier chords are
-    // treated as Caps Lock when deciding how to draw a shortcut.
     static let dictationDefault = GlobalShortcut(
-        keyCode: UInt32(kVK_ANSI_R),
+        keyCode: UInt32(kVK_Space),
         carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
-        display: "⇪R"
+        display: "⇪Space"
     )
 
     private static let hyperChords: Set<UInt32> = [
@@ -74,7 +76,8 @@ struct GlobalShortcut: Equatable, Sendable {
         keyCode = UInt32(event.keyCode)
         carbonModifiers = carbon
         // A full hyper chord almost certainly came from Caps Lock via Hyperkey;
-        // showing "⇪R" beats glyphs for modifiers the user never pressed.
-        display = (Self.hyperChords.contains(carbon) ? "⇪" : symbols) + characters
+        // showing "⇪E" beats glyphs for modifiers the user never pressed.
+        let keyName = characters == " " ? "Space" : characters
+        display = (Self.hyperChords.contains(carbon) ? "⇪" : symbols) + keyName
     }
 }
