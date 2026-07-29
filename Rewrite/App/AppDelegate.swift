@@ -10,4 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.servicesProvider = provider
         NSUpdateDynamicServices()
     }
+
+    // Autocomplete keeps working from the menu bar after the window closes.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
 }

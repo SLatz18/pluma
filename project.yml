@@ -11,7 +11,15 @@ settings:
     SWIFT_VERSION: "6.0"
     MACOSX_DEPLOYMENT_TARGET: "26.0"
     CLANG_ENABLE_MODULES: YES
-    ENABLE_HARDENED_RUNTIME: YES
+    # Hardened runtime's library validation blocks dlopen between team-less
+    # (self-signed) binaries, which breaks the test bundle and the debug
+    # dylib. It's meaningless without a Developer ID cert anyway.
+    ENABLE_HARDENED_RUNTIME: NO
+    # A stable local signature keeps Accessibility/TCC grants valid across
+    # rebuilds; ad-hoc signing changes the binary identity every build.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: Local Self-Signed
+    PROVISIONING_PROFILE_SPECIFIER: ""
 
 targets:
   Rewrite:
@@ -22,9 +30,6 @@ targets:
         excludes:
           - Info.plist
           - Rewrite.entitlements
-          - Resources
-    resources:
-      - path: Rewrite/Resources/Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.Rewrite
@@ -32,13 +37,18 @@ targets:
         INFOPLIST_FILE: Rewrite/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: Rewrite/Rewrite.entitlements
-        CODE_SIGN_STYLE: Automatic
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
         PRODUCT_MODULE_NAME: Rewrite
         SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_OBJC_BRIDGING_HEADER: Rewrite/Autocomplete/AccessibilityPrompt-Bridging-Header.h
+      configs:
+        # The launcher + debug-dylib split requires a team-signed certificate;
+        # with a self-signed identity dyld rejects the pair at launch.
+        Debug:
+          ENABLE_DEBUG_DYLIB: NO
     scheme:
       testTargets:
         - RewriteTests

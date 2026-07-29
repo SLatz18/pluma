@@ -32,7 +32,11 @@ struct ContentView: View {
                 RewritePlaygroundView()
                     .environmentObject(model)
 
-                shortcutSetup
+                AutocompleteSettingsCard()
+
+                DictationSettingsCard()
+
+                ShortcutSettingsCard()
             }
             .padding(32)
             .frame(maxWidth: 920)
@@ -63,42 +67,4 @@ struct ContentView: View {
         }
     }
 
-    private var shortcutSetup: some View {
-        HStack(spacing: 14) {
-            HStack(spacing: 3) {
-                ForEach(["⌃", "⌥", "⇧", "⌘", "E"], id: \.self) { key in
-                    Text(key)
-                        .font(.caption.weight(.semibold))
-                        .frame(minWidth: key == "E" ? 22 : 18, minHeight: 22)
-                        .background(
-                            Color(nsColor: .textBackgroundColor),
-                            in: RoundedRectangle(cornerRadius: 5)
-                        )
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 5)
-                                .strokeBorder(Color.primary.opacity(0.12))
-                        }
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Hyperkey ready")
-                    .font(.headline)
-                Text("Assign Hyperkey + E to “Edit with Rewrite” once in Keyboard Settings.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button("Set Shortcut…") {
-                model.openKeyboardSettings()
-            }
-        }
-        .padding(16)
-        .background(
-            Color(nsColor: .controlBackgroundColor),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-    }
 }
