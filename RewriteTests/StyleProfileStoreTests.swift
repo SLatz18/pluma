@@ -18,17 +18,17 @@ final class StyleProfileStoreTests: XCTestCase {
     func testStripFrontmatterRemovesYamlBlock() {
         let skill = """
         ---
-        name: scott-writing-voice
+        name: writing-voice
         description: Voice model
         ---
 
-        # Scott's voice
+        # Writing voice
 
         Dry, precise, no filler.
         """
         XCTAssertEqual(
             StyleProfileStore.stripFrontmatter(skill),
-            "# Scott's voice\n\nDry, precise, no filler."
+            "# Writing voice\n\nDry, precise, no filler."
         )
     }
 

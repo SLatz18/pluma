@@ -29,7 +29,11 @@ targets:
       - path: Rewrite
         excludes:
           - Info.plist
+          - PrivacyInfo.xcprivacy
           - Rewrite.entitlements
+      - path: Rewrite/PrivacyInfo.xcprivacy
+        buildPhase: resources
+        type: file
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.Rewrite

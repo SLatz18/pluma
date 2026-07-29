@@ -1,0 +1,76 @@
+name: Build and test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          for app in \
+            /Applications/Xcode_26.6.app \
+            /Applications/Xcode_26.5.app \
+            /Applications/Xcode_26.4.app \
+            /Applications/Xcode_26.0.app \
+            /Applications/Xcode.app
+          do
+            if [ -d "$app" ]; then
+              sudo xcode-select -s "$app"
+              break
+            fi
+          done
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project and assets
+        run: ./scripts/bootstrap.sh
+
+      - name: Validate property lists
+        run: |
+          plutil -lint Rewrite/Info.plist
+          plutil -lint Rewrite/PrivacyInfo.xcprivacy
+          plutil -lint Rewrite/Rewrite.entitlements
+
+      - name: Confirm privacy manifest is packaged
+        run: |
+          test -f Rewrite/PrivacyInfo.xcprivacy
+
+      - name: Build and test
+        run: |
+          xcodebuild \
+            -project Rewrite.xcodeproj \
+            -scheme Rewrite \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            test
+
+      - name: Build release configuration
+        run: |
+          xcodebuild \
+            -project Rewrite.xcodeproj \
+            -scheme Rewrite \
+            -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Verify packaged privacy manifest
+        run: |
+          resources='DerivedData/Build/Products/Release/Rewrite.app/Contents/Resources'
+          test -f "$resources/PrivacyInfo.xcprivacy"

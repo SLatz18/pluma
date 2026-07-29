@@ -266,7 +266,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 return
             }
 
-            DebugLog.log("suggestion: \(suggestion.remaining)")
+            DebugLog.log("suggestion: \(suggestion.remaining.count) chars")
             activeSuggestion = suggestion
             activeElement = element
             acceptedFromCurrentSuggestion = ""
