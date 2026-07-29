@@ -12,17 +12,21 @@ struct GlobalShortcut: Equatable, Sendable {
         display: "⇧⌘E"
     )
 
-    // Hyperkey expands Caps Lock into all four modifiers before any app sees
-    // the event, so this is what "Caps Lock R" arrives as.
+    // Hyperkey expands Caps Lock into a modifier chord before any app sees the
+    // event, so this is what "Caps Lock R" arrives as. It ships ⌃⌥⌘ (its
+    // hyperFlags default of 0x1C0000) and notably leaves Shift out, though it
+    // is configurable — so both the three- and four-modifier chords are
+    // treated as Caps Lock when deciding how to draw a shortcut.
     static let dictationDefault = GlobalShortcut(
         keyCode: UInt32(kVK_ANSI_R),
-        carbonModifiers: UInt32(controlKey | optionKey | shiftKey | cmdKey),
+        carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
         display: "⇪R"
     )
 
-    static let hyperModifiers = UInt32(controlKey | optionKey | shiftKey | cmdKey)
-
-    var isHyperChord: Bool { carbonModifiers == Self.hyperModifiers }
+    private static let hyperChords: Set<UInt32> = [
+        UInt32(controlKey | optionKey | cmdKey),
+        UInt32(controlKey | optionKey | shiftKey | cmdKey)
+    ]
 
     init(keyCode: UInt32, carbonModifiers: UInt32, display: String) {
         self.keyCode = keyCode
@@ -59,8 +63,8 @@ struct GlobalShortcut: Equatable, Sendable {
 
         keyCode = UInt32(event.keyCode)
         carbonModifiers = carbon
-        // A full four-modifier chord almost certainly came from Caps Lock via
-        // Hyperkey; showing "⇪R" beats four glyphs the user never pressed.
-        display = (carbon == Self.hyperModifiers ? "⇪" : symbols) + characters
+        // A full hyper chord almost certainly came from Caps Lock via Hyperkey;
+        // showing "⇪R" beats glyphs for modifiers the user never pressed.
+        display = (Self.hyperChords.contains(carbon) ? "⇪" : symbols) + characters
     }
 }
