@@ -47,6 +47,17 @@ final class DictationTranscriptTests: XCTestCase {
         XCTAssertEqual(DictationTranscript.insertionText("world", precededBy: nil), "world")
     }
 
+    // When the caret text is unreadable, the only prefix available is the final
+    // character of what we last inserted, which is how sentence joins get their
+    // space back in fields that report no caret at all.
+    func testSentenceEndingPrefixGetsALeadingSpace() {
+        XCTAssertEqual(
+            DictationTranscript.insertionText("Is there a way", precededBy: "."),
+            " Is there a way"
+        )
+        XCTAssertEqual(DictationTranscript.insertionText("Also", precededBy: "?"), " Also")
+    }
+
     func testEmptyTranscriptInsertsNothing() {
         XCTAssertEqual(DictationTranscript.insertionText("   ", precededBy: "hello"), "")
     }

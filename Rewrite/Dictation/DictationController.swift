@@ -46,8 +46,17 @@ final class DictationController: ObservableObject {
     private let engine: SpeechTranscriptionEngine
     private let mic = MicrophonePermission.shared
 
+    // When a field won't tell us what precedes the caret, the one thing we do
+    // know is what we put there ourselves a moment ago.
+    private struct RecentInsertion {
+        let pid: pid_t
+        let lastCharacter: Character
+        let at: ContinuousClock.Instant
+    }
+
     private var savedElement: AXUIElement?
     private var savedPrefix: String?
+    private var recentInsertion: RecentInsertion?
     private var anchor: CGPoint = .zero
     private var pressedAt: ContinuousClock.Instant?
     private var sessionID = 0
@@ -58,6 +67,10 @@ final class DictationController: ObservableObject {
     // A tap that never held long enough to say anything is a mis-press, not a
     // zero-length dictation.
     private static let minimumHold: Duration = .milliseconds(300)
+
+    // Long enough to cover pausing to think between two dictated sentences,
+    // short enough that returning to an app later isn't treated as continuing.
+    private static let insertionRecency: Duration = .seconds(120)
 
     init(defaults: UserDefaults = .standard, engine: SpeechTranscriptionEngine? = nil) {
         self.defaults = defaults
@@ -158,8 +171,8 @@ final class DictationController: ObservableObject {
         stopRequested = false
         pressedAt = .now
         savedElement = element
-        savedPrefix = Self.textBeforeCaret(of: element)
-        anchor = Self.caretAnchor(of: element) ?? SuggestionOverlayController.mouseTopLeftPoint()
+        savedPrefix = Self.textBeforeCaret(of: element) ?? rememberedPrefix(for: element)
+        anchor = Self.anchorPoint(for: element)
         liveText = ""
         activity = .listening
         showHUD()
@@ -236,10 +249,37 @@ final class DictationController: ObservableObject {
 
         if await AXTextInsertion.insert(insertion, into: element) {
             DebugLog.log("dictation inserted \(insertion.count) chars")
+            remember(insertion, in: element)
             overlay.hide()
         } else {
             flash(systemImage: "exclamationmark.triangle", message: "This field rejected the text")
         }
+    }
+
+    private func remember(_ insertion: String, in element: AXUIElement) {
+        guard let last = insertion.last, let pid = Self.pid(of: element) else { return }
+        recentInsertion = RecentInsertion(pid: pid, lastCharacter: last, at: .now)
+    }
+
+    // Matching on the process rather than the element because the fields that
+    // need this are the same ones that hand back a fresh, unequal AXUIElement
+    // for what is visibly the same text box. The cost of being too generous is
+    // an extra space when hopping between two fields in one app within the
+    // window, which is a far milder wrong answer than running words together.
+    private func rememberedPrefix(for element: AXUIElement) -> String? {
+        guard
+            let recent = recentInsertion,
+            Self.pid(of: element) == recent.pid,
+            ContinuousClock.Instant.now - recent.at < Self.insertionRecency
+        else { return nil }
+        DebugLog.log("caret text unavailable; spacing from our last insertion")
+        return String(recent.lastCharacter)
+    }
+
+    private static func pid(of element: AXUIElement) -> pid_t? {
+        var pid: pid_t = 0
+        guard AXUIElementGetPid(element, &pid) == .success else { return nil }
+        return pid
     }
 
     private func cancelSession() async {
@@ -348,11 +388,36 @@ final class DictationController: ObservableObject {
 
         let nsValue = value as NSString
         guard range.location >= 0, range.location <= nsValue.length else { return nil }
-        return String(nsValue.substring(to: range.location).suffix(8))
+        let prefix = String(nsValue.substring(to: range.location).suffix(8))
+        // An empty prefix means either a genuinely empty field or a Chromium
+        // field reporting the caret as 0 regardless of its contents. Those need
+        // opposite spacing, so report unknown and let the caller decide.
+        return prefix.isEmpty ? nil : prefix
     }
 
     private static func caretAnchor(of element: AXUIElement) -> CGPoint? {
         guard let range = caretRange(of: element) else { return nil }
         return FocusedFieldTracker.caretPoint(for: element, location: range.location)
+    }
+
+    // Chromium-based fields expose no caret geometry, but their own frame is
+    // still available, and the bottom edge of a text field sits near the line
+    // being dictated into. The mouse is the last resort because it is the one
+    // anchor with no relationship to where the words will land.
+    private static func anchorPoint(for element: AXUIElement) -> CGPoint {
+        if let caret = caretAnchor(of: element) {
+            return caret
+        }
+        if let frame = FocusedFieldTracker.frame(of: element) {
+            DebugLog.log("no caret geometry; anchoring HUD to field frame \(frame)")
+            let screenHeight = NSScreen.screens.first?.frame.height ?? frame.maxY
+            let below = frame.maxY + 6
+            let point = below + 40 > screenHeight
+                ? CGPoint(x: frame.minX + 4, y: max(frame.minY - 34, 4))
+                : CGPoint(x: frame.minX + 4, y: below)
+            return point
+        }
+        DebugLog.log("no caret or field geometry; anchoring HUD to mouse")
+        return SuggestionOverlayController.mouseTopLeftPoint()
     }
 }
