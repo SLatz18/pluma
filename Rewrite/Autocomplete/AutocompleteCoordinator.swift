@@ -69,7 +69,6 @@ final class AutocompleteCoordinator: ObservableObject {
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
         memoryEntryCount = memory.count
-        DebugLog.truncate()
         DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)")
 
         screenContext.onChange = { [weak self] permitted in
