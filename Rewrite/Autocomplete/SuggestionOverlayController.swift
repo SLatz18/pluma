@@ -3,6 +3,11 @@ import AppKit
 // Pure-AppKit pill: the previous SwiftUI hosting view re-entered
 // setNeedsUpdateConstraints during display-cycle layout and crashed the app
 // (twice), so the overlay avoids a SwiftUI graph entirely.
+//
+// This is the chip the app wears when it is talking about itself — progress,
+// errors, permission nags — and the fallback for the cases where ghost text
+// cannot be drawn honestly. Text the user is about to accept goes to
+// GhostTextView instead.
 private final class PillView: NSVisualEffectView {
     private let iconView = NSImageView()
     private let label = NSTextField(labelWithString: "")
@@ -79,7 +84,7 @@ private final class PillView: NSVisualEffectView {
     }
 
     func showSuggestion(_ text: String) {
-        stopDictationPulse()
+        RecordingPulse.stop(on: iconView)
         iconView.isHidden = true
         hintBezel.isHidden = false
         label.font = .systemFont(ofSize: 13)
@@ -91,7 +96,7 @@ private final class PillView: NSVisualEffectView {
     }
 
     func showStatus(systemImage: String, message: String) {
-        stopDictationPulse()
+        RecordingPulse.stop(on: iconView)
         iconView.isHidden = false
         iconView.contentTintColor = .secondaryLabelColor
         let base = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)
@@ -110,7 +115,7 @@ private final class PillView: NSVisualEffectView {
         iconView.contentTintColor = .systemRed
         let base = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Recording")
         iconView.image = base?.withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
-        startDictationPulse()
+        RecordingPulse.start(on: iconView)
         hintBezel.isHidden = true
         if transcript.isEmpty {
             label.font = .systemFont(ofSize: 12, weight: .medium)
@@ -128,25 +133,6 @@ private final class PillView: NSVisualEffectView {
         label.lineBreakMode = .byTruncatingHead
         label.preferredMaxLayoutWidth = 320
     }
-
-    // A breathing mic stands in for SwiftUI's repeating symbol effect, which
-    // has no AppKit equivalent; it stops the moment any other pill mode shows.
-    private func startDictationPulse() {
-        guard iconView.layer?.animation(forKey: "dictationPulse") == nil else { return }
-        iconView.wantsLayer = true
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 1.0
-        pulse.toValue = 0.35
-        pulse.duration = 0.9
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        iconView.layer?.add(pulse, forKey: "dictationPulse")
-    }
-
-    private func stopDictationPulse() {
-        iconView.layer?.removeAnimation(forKey: "dictationPulse")
-        iconView.layer?.opacity = 1.0
-    }
 }
 
 @MainActor
@@ -159,8 +145,26 @@ final class SuggestionOverlayController {
         case autocomplete, rewrite, dictation
     }
 
+    // Two looks, one panel. The dividing line is whose words these are: ghost
+    // text is text that will land in the user's document, so it is drawn as if
+    // it already had; everything else is the app speaking, and wears the chip.
+    enum Presentation {
+        case ghost(text: String, caret: CaretGeometry, style: GhostStyle, fieldFrame: CGRect?)
+        case suggestionChip(text: String, anchor: CGPoint)
+        case dictationChip(transcript: String, anchor: CGPoint)
+        case status(systemImage: String, message: String, anchor: CGPoint)
+    }
+
+    private enum Placement {
+        case topLeft(CGPoint)
+        case ghost(CaretGeometry)
+    }
+
     private var panel: NSPanel?
     private var pill: PillView?
+    private var ghost: GhostTextView?
+    private var pendingContent: NSView?
+    private var pendingPlacement: Placement?
     private var currentOwner: Owner?
     // Bumped by every show and every hide so a fade-out's deferred orderOut
     // can never kill a presentation that arrived after the hide started.
@@ -172,6 +176,11 @@ final class SuggestionOverlayController {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
 
+    // The last-resort anchor, and deliberately the only place the mouse is
+    // used: it has no relationship to where text will land, so it is reserved
+    // for messages that have no field to point at at all ("Click into a text
+    // field first", "Rewrite needs Accessibility access").
+    //
     // NSEvent.mouseLocation is Cocoa bottom-left-origin; AX/overlay coordinates
     // are top-left-origin on the primary display.
     static func mouseTopLeftPoint() -> CGPoint {
@@ -180,32 +189,43 @@ final class SuggestionOverlayController {
         return CGPoint(x: mouse.x + 8, y: primaryHeight - mouse.y + 12)
     }
 
-    func show(text: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
+    func show(_ presentation: Presentation, from owner: Owner) {
         currentOwner = owner
         ensurePanel()
-        pill?.showSuggestion(text)
-        present(at: point)
-    }
+        guard let pill, let ghost else { return }
 
-    func showStatus(systemImage: String, message: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
-        currentOwner = owner
-        ensurePanel()
-        pill?.showStatus(systemImage: systemImage, message: message)
-        present(at: point)
-    }
+        switch presentation {
+        case let .ghost(text, caret, style, fieldFrame):
+            let font = NSFont.systemFont(
+                ofSize: GhostTextGeometry.fontSize(forCaretHeight: caret.rect.height)
+            )
+            let budget = GhostTextGeometry.widthBudget(
+                caretMaxX: caret.rect.maxX,
+                fieldMaxX: fieldFrame?.maxX,
+                screenMaxX: Self.screenMaxX(forCaretRect: caret.rect)
+            )
+            ghost.show(text: text, style: style, font: font, maxWidth: budget)
+            present(ghost, placement: .ghost(caret))
 
-    func showDictation(transcript: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
-        currentOwner = owner
-        ensurePanel()
-        pill?.showDictation(transcript: transcript)
-        present(at: point)
+        case let .suggestionChip(text, anchor):
+            pill.showSuggestion(text)
+            present(pill, placement: .topLeft(anchor))
+
+        case let .dictationChip(transcript, anchor):
+            pill.showDictation(transcript: transcript)
+            present(pill, placement: .topLeft(anchor))
+
+        case let .status(systemImage, message, anchor):
+            pill.showStatus(systemImage: systemImage, message: message)
+            present(pill, placement: .topLeft(anchor))
+        }
     }
 
     // A status that dismisses itself — for permission nags, mis-presses, and
     // failures. The owner-scoped hide means a flash that fires just before a
     // newer presentation can't hide it.
     func flash(systemImage: String, message: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
-        showStatus(systemImage: systemImage, message: message, atTopLeftPoint: point, from: owner)
+        show(.status(systemImage: systemImage, message: message, anchor: point), from: owner)
         Task { [weak self] in
             try? await Task.sleep(for: .seconds(2.5))
             self?.hide(from: owner)
@@ -215,6 +235,7 @@ final class SuggestionOverlayController {
     private func ensurePanel() {
         guard panel == nil else { return }
         let pill = PillView(frame: .zero)
+        let ghost = GhostTextView(frame: .zero)
         let panel = NSPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -232,20 +253,47 @@ final class SuggestionOverlayController {
         panel.contentView = pill
         self.panel = panel
         self.pill = pill
+        self.ghost = ghost
     }
 
     // Deferred one run loop turn so window mutations never land inside an
-    // in-flight display cycle.
-    private func present(at point: CGPoint) {
+    // in-flight display cycle. What to draw is parked on the controller rather
+    // than captured, both to keep the closure's captures to `self` alone and
+    // because a show that arrives first is meant to lose to a later one.
+    private func present(_ content: NSView, placement: Placement) {
+        pendingContent = content
+        pendingPlacement = placement
         hideGeneration += 1
         DispatchQueue.main.async { [weak self] in
-            guard let self, let panel, let pill else { return }
-            pill.layoutSubtreeIfNeeded()
-            let fitting = pill.fittingSize
+            guard
+                let self, let panel,
+                let content = pendingContent,
+                let placement = pendingPlacement
+            else { return }
+            if panel.contentView !== content {
+                panel.contentView = content
+            }
+            content.layoutSubtreeIfNeeded()
+            let fitting = content.fittingSize
             panel.setContentSize(fitting)
-            let target = clampedOrigin(forTopLeftPoint: point, panelSize: fitting)
+            // A second pass: the baseline offset below is only meaningful once
+            // the label has been laid out at its final width.
+            content.layoutSubtreeIfNeeded()
 
-            // Caret-tracking updates stay instant so the pill never lags a
+            let target: CGPoint
+            switch placement {
+            case let .topLeft(point):
+                target = clampedOrigin(forTopLeftPoint: point, panelSize: fitting)
+            case let .ghost(caret):
+                let offset = (content as? GhostTextView)?.baselineOffsetFromTop ?? 0
+                let topLeft = CGPoint(
+                    x: caret.rect.maxX + GhostTextGeometry.caretGap,
+                    y: GhostTextGeometry.baselineY(forCaretRect: caret.rect) - offset
+                )
+                target = ghostOrigin(forTopLeftPoint: topLeft, panelSize: fitting)
+            }
+
+            // Caret-tracking updates stay instant so the text never lags a
             // keystroke; only a fresh appearance earns the fade-and-rise.
             guard !panel.isVisible, !reduceMotion else {
                 panel.alphaValue = 1
@@ -306,5 +354,31 @@ final class SuggestionOverlayController {
             x: max(visible.minX, min(origin.x, max(visible.minX, visible.maxX - panelSize.width))),
             y: max(visible.minY, min(origin.y, max(visible.minY, visible.maxY - panelSize.height)))
         )
+    }
+
+    // Ghost text is clamped vertically but never horizontally: sliding it left
+    // to keep it onscreen would park it in the middle of the user's sentence.
+    // Overrun is prevented earlier instead, by the width budget the text was
+    // truncated to.
+    private func ghostOrigin(forTopLeftPoint point: CGPoint, panelSize: NSSize) -> CGPoint {
+        guard let primary = NSScreen.screens.first else { return point }
+        let cocoaPoint = CGPoint(x: point.x, y: primary.frame.height - point.y)
+        let origin = CGPoint(x: cocoaPoint.x, y: cocoaPoint.y - panelSize.height)
+
+        let screen = NSScreen.screens.first { NSPointInRect(cocoaPoint, $0.frame) } ?? primary
+        let visible = screen.visibleFrame
+        return CGPoint(
+            x: origin.x,
+            y: max(visible.minY, min(origin.y, max(visible.minY, visible.maxY - panelSize.height)))
+        )
+    }
+
+    // The right edge of the display the caret is on, in AX coordinates. Only y
+    // differs between the two systems, so x carries over untouched.
+    private static func screenMaxX(forCaretRect rect: CGRect) -> CGFloat {
+        guard let primary = NSScreen.screens.first else { return rect.maxX }
+        let cocoaPoint = CGPoint(x: rect.midX, y: primary.frame.height - rect.midY)
+        let screen = NSScreen.screens.first { NSPointInRect(cocoaPoint, $0.frame) } ?? primary
+        return screen.visibleFrame.maxX
     }
 }

@@ -5,12 +5,16 @@ struct FocusedFieldSnapshot {
     let element: AXUIElement
     let text: String
     let caretLocation: Int
-    let caretScreenPoint: CGPoint?
+    let caret: CaretGeometry?
 
     var textBeforeCaret: String {
         let nsText = text as NSString
         guard caretLocation <= nsText.length else { return text }
         return nsText.substring(to: caretLocation)
+    }
+
+    var ghostEligibility: GhostTextEligibility {
+        .of(text: text, caretLocation: caretLocation)
     }
 }
 
@@ -264,7 +268,7 @@ final class FocusedFieldTracker {
             element: element,
             text: text,
             caretLocation: selection.location,
-            caretScreenPoint: Self.caretPoint(for: element, location: selection.location)
+            caret: Self.caretGeometry(for: element, location: selection.location)
         )
     }
 
@@ -290,41 +294,42 @@ final class FocusedFieldTracker {
         return nsText.substring(to: selection.location)
     }
 
-    // Caret geometry from Chromium fields is unreliable: end-of-text carets
-    // report a degenerate rect at the screen's bottom-left corner. Validate
-    // against the field's own frame; anything implausible returns nil so the
-    // overlay falls back to the mouse anchor.
-    static func caretPoint(for element: AXUIElement, location: Int) -> CGPoint? {
-        var caretRange = CFRange(location: location, length: 0)
-        guard
-            let rangeValue = AXValueCreate(.cfRange, &caretRange)
-        else { return nil }
-
-        var boundsValue: CFTypeRef?
-        guard
-            AXUIElementCopyParameterizedAttributeValue(
-                element,
-                kAXBoundsForRangeParameterizedAttribute as CFString,
-                rangeValue,
-                &boundsValue
-            ) == .success,
-            let boundsValue,
-            CFGetTypeID(boundsValue) == AXValueGetTypeID()
-        else { return nil }
-
-        var rect = CGRect.zero
-        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else { return nil }
-        guard rect.height > 0 else { return nil }
-
-        if let fieldFrame = frame(of: element), !fieldFrame.insetBy(dx: -8, dy: -8).contains(rect.origin) {
-            DebugLog.log("caret rect \(rect) outside field frame \(fieldFrame); using fallback")
-            return nil
+    // Caret geometry from Chromium fields is unreliable — end-of-text carets
+    // report a degenerate rect at the screen's bottom-left corner — so this
+    // runs a ladder of probes rather than a single query. See CaretResolver.
+    static func caretGeometry(for element: AXUIElement, location: Int) -> CaretGeometry? {
+        let caret = CaretResolver.resolve(location: location, using: AXCaretProbe(element: element))
+        if caret == nil {
+            DebugLog.log("no caret geometry at \(location); falling back to the field")
         }
-
-        return CGPoint(x: rect.maxX + 4, y: rect.minY)
+        return caret
     }
 
-    static func frame(of element: AXUIElement) -> CGRect? {
+    // Where to put a chip when no probe could find the caret. Chromium-based
+    // fields expose no caret geometry, but their own frame is still available,
+    // and the bottom edge of a text field sits near the line being typed into.
+    static func fieldEdgeAnchor(for element: AXUIElement) -> CGPoint? {
+        guard let frame = frame(of: element), isPlausibleField(frame) else { return nil }
+        DebugLog.log("anchoring inside field \(frame)")
+        // A tall field is a terminal or a text area, where the line being typed
+        // is the last one, so sit just inside the bottom edge. A short field is
+        // a one-liner, so sit just above it and clear of the text.
+        // Deliberately no clamping to the primary screen: a field can live on a
+        // display above or left of it, at negative coordinates.
+        let y = frame.height >= 60 ? frame.maxY - 34 : frame.minY - 30
+        return CGPoint(x: frame.minX + 8, y: y)
+    }
+
+    // Chromium apps put keyboard focus on a hidden proxy input a few points
+    // across rather than on the visible text box, so a frame that small is a
+    // decoy and drawing next to it is worse than not drawing at all.
+    private static func isPlausibleField(_ frame: CGRect) -> Bool {
+        frame.width >= 60 && frame.height >= 14
+    }
+
+    // Nonisolated because AXCaretProbe reads it from outside the main actor;
+    // it is a pure Accessibility round trip and touches no tracker state.
+    nonisolated static func frame(of element: AXUIElement) -> CGRect? {
         var positionValue: CFTypeRef?
         var sizeValue: CFTypeRef?
         guard

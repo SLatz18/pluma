@@ -49,9 +49,10 @@ with model and style-profile settings under ⌘,.
 - Push-to-talk only: recording runs while the shortcut is held, so the
   microphone is never left open. A tap shorter than 300 ms is treated as a
   mis-press.
-- A floating HUD near the caret shows the live transcript as you speak. Nothing
-  is inserted until you release the key, so partial guesses never reach your
-  document.
+- The live transcript appears as grey text at the caret, led by a small pulsing
+  red dot, sized to match the text around it — as if the words were already
+  where they are about to land. Nothing is inserted until you release the key,
+  so partial guesses never reach your document.
 - **Context-aware transcription**: with screen context enabled, Rewrite OCRs
   the frontmost window and feeds the names and unusual terms it finds to the
   speech model as recognition bias, so people and products visible on screen
@@ -75,6 +76,15 @@ with model and style-profile settings under ⌘,.
 
 - Completion works from any caret position with no selection, using the text
   before the caret as context (minimum 16 characters).
+- Suggestions are drawn as grey text immediately right of the cursor, at a size
+  taken from the field's own line height, so they read as part of the sentence
+  rather than as a floating panel. When ghost text would cover something — a
+  caret in the middle of a line, or a right-to-left line — the suggestion moves
+  to a small chip just below the line instead.
+- Caret position is found through several Accessibility probes in turn, because
+  Chromium and Electron fields report nothing usable for a cursor sitting at the
+  end of the text. Rewrite falls back to the character before the cursor, then
+  to the line it is on, then to the edge of the field.
 - Suggestions insert via the Accessibility API, so they work in most native
   apps (AppKit, most Electron and browser fields) but not everywhere — apps
   that don't expose text via Accessibility (some custom editors) won't get
