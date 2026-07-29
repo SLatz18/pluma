@@ -15,7 +15,7 @@ struct OllamaEngine: Sendable {
         return payload.models.map(\.name).sorted()
     }
 
-    func rewrite(_ text: String, intent: RewriteIntent, model: String) async throws -> String {
+    func rewrite(_ text: String, directive: String, model: String) async throws -> String {
         guard !model.isEmpty else {
             throw RewriteEngineError.noOllamaModels
         }
@@ -31,7 +31,7 @@ struct OllamaEngine: Sendable {
                     .init(role: "system", content: PromptComposer.systemInstructions),
                     .init(
                         role: "user",
-                        content: PromptComposer.userPrompt(intent: intent, text: text)
+                        content: PromptComposer.userPrompt(directive: directive, text: text)
                     )
                 ],
                 stream: false

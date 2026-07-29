@@ -19,4 +19,28 @@ final class PromptComposerTests: XCTestCase {
     func testAppleIntelligenceIsTheDefaultProvider() {
         XCTAssertEqual(RewriteProviderChoice.defaultProvider, .appleIntelligence)
     }
+
+    func testDictationCleanupUsesItsOwnDirective() {
+        let prompt = PromptComposer.userPrompt(
+            directive: PromptComposer.dictationDirective,
+            text: "um so i think we should uh ship it"
+        )
+
+        XCTAssertTrue(prompt.contains(PromptComposer.dictationDirective))
+        XCTAssertTrue(prompt.contains("<source>\num so i think we should uh ship it\n</source>"))
+    }
+
+    // Dictation is content, not instruction: the transcript must never be
+    // treated as a request to answer.
+    func testDictationDirectiveForbidsRespondingToTheTranscript() {
+        XCTAssertTrue(PromptComposer.dictationDirective.contains("Never answer"))
+        XCTAssertTrue(PromptComposer.dictationDirective.contains("do not rephrase"))
+    }
+
+    func testIntentPromptStillMatchesDirectiveOverload() {
+        XCTAssertEqual(
+            PromptComposer.userPrompt(intent: .shorten, text: "Words"),
+            PromptComposer.userPrompt(directive: RewriteIntent.shorten.directive, text: "Words")
+        )
+    }
 }

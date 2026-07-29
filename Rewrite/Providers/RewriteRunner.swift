@@ -7,11 +7,68 @@ enum RewriteRunner {
         text: String,
         ollamaModel: String
     ) async throws -> String {
+        try await rewrite(
+            provider: provider,
+            directive: intent.directive,
+            text: text,
+            ollamaModel: ollamaModel
+        )
+    }
+
+    static func rewrite(
+        provider: RewriteProviderChoice,
+        directive: String,
+        text: String,
+        ollamaModel: String
+    ) async throws -> String {
         switch provider {
         case .appleIntelligence:
-            try await AppleIntelligenceEngine.rewrite(text, intent: intent)
+            try await AppleIntelligenceEngine.rewrite(text, directive: directive)
         case .ollama:
-            try await OllamaEngine().rewrite(text, intent: intent, model: ollamaModel)
+            try await OllamaEngine().rewrite(text, directive: directive, model: ollamaModel)
+        }
+    }
+
+    // Tidies a raw dictation transcript. Returns nil rather than throwing so a
+    // caller can fall back to the raw transcript: losing the user's words to a
+    // model failure is never acceptable.
+    static func cleanUpDictation(
+        provider: CleanupProviderChoice,
+        openAIModel: OpenAIChatModel,
+        ollamaModel: String,
+        transcript: String
+    ) async -> String? {
+        guard DictationTranscript.isWorthCleaningUp(transcript) else { return nil }
+        do {
+            let output = try await runCleanup(
+                provider: provider,
+                openAIModel: openAIModel,
+                ollamaModel: ollamaModel,
+                transcript: transcript
+            )
+            let cleaned = output.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty else { return nil }
+            return cleaned
+        } catch {
+            DebugLog.log("dictation cleanup failed: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    static func runCleanup(
+        provider: CleanupProviderChoice,
+        openAIModel: OpenAIChatModel,
+        ollamaModel: String,
+        transcript: String
+    ) async throws -> String {
+        let directive = PromptComposer.dictationDirective(for: transcript)
+        return switch provider {
+        case .appleOnDevice:
+            try await AppleIntelligenceEngine.rewrite(transcript, directive: directive)
+        case .ollama:
+            try await OllamaEngine().rewrite(transcript, directive: directive, model: ollamaModel)
+        case .openAI:
+            try await OpenAIChatEngine.rewrite(transcript, directive: directive, model: openAIModel)
         }
     }
 

@@ -10,6 +10,14 @@ enum Preferences {
     static let shortcutKeyCodeKey = "rewrite.shortcut.keyCode"
     static let shortcutModifiersKey = "rewrite.shortcut.modifiers"
     static let shortcutDisplayKey = "rewrite.shortcut.display"
+    static let dictationEnabledKey = "rewrite.dictationEnabled"
+    static let dictationCleanupEnabledKey = "rewrite.dictationCleanupEnabled"
+    static let dictationShortcutKeyCodeKey = "rewrite.dictationShortcut.keyCode"
+    static let dictationShortcutModifiersKey = "rewrite.dictationShortcut.modifiers"
+    static let dictationShortcutDisplayKey = "rewrite.dictationShortcut.display"
+    static let dictationProviderKey = "rewrite.dictationProvider"
+    static let cleanupProviderKey = "rewrite.dictationCleanupProvider"
+    static let openAICleanupModelKey = "rewrite.openAICleanupModel"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -45,6 +53,73 @@ enum Preferences {
 
     static func memoryEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: memoryEnabledKey)
+    }
+
+    static func dictationEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: dictationEnabledKey)
+    }
+
+    // Cleanup is on unless the user turned it off, so register a default rather
+    // than relying on bool(forKey:) returning false for an absent key.
+    static func dictationCleanupEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        guard defaults.object(forKey: dictationCleanupEnabledKey) != nil else { return true }
+        return defaults.bool(forKey: dictationCleanupEnabledKey)
+    }
+
+    static func dictationProvider(
+        from defaults: UserDefaults = .standard
+    ) -> DictationProviderChoice {
+        guard
+            let rawValue = defaults.string(forKey: dictationProviderKey),
+            let provider = DictationProviderChoice(rawValue: rawValue)
+        else {
+            return .defaultProvider
+        }
+        return provider
+    }
+
+    static func cleanupProvider(
+        from defaults: UserDefaults = .standard
+    ) -> CleanupProviderChoice {
+        guard
+            let rawValue = defaults.string(forKey: cleanupProviderKey),
+            let provider = CleanupProviderChoice(rawValue: rawValue)
+        else {
+            return .defaultProvider
+        }
+        return provider
+    }
+
+    static func openAICleanupModel(from defaults: UserDefaults = .standard) -> OpenAIChatModel {
+        guard
+            let rawValue = defaults.string(forKey: openAICleanupModelKey),
+            let model = OpenAIChatModel(rawValue: rawValue)
+        else {
+            return .defaultModel
+        }
+        return model
+    }
+
+    static func dictationShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
+        guard
+            defaults.object(forKey: dictationShortcutKeyCodeKey) != nil,
+            let display = defaults.string(forKey: dictationShortcutDisplayKey)
+        else {
+            return .dictationDefault
+        }
+        return GlobalShortcut(
+            keyCode: UInt32(defaults.integer(forKey: dictationShortcutKeyCodeKey)),
+            carbonModifiers: UInt32(defaults.integer(forKey: dictationShortcutModifiersKey)),
+            display: display
+        )
+    }
+
+    static func saveDictationShortcut(
+        _ shortcut: GlobalShortcut, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(Int(shortcut.keyCode), forKey: dictationShortcutKeyCodeKey)
+        defaults.set(Int(shortcut.carbonModifiers), forKey: dictationShortcutModifiersKey)
+        defaults.set(shortcut.display, forKey: dictationShortcutDisplayKey)
     }
 
     static func globalShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
