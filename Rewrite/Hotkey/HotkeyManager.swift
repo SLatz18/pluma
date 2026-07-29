@@ -24,7 +24,7 @@ final class HotkeyManager {
     func register(_ shortcut: GlobalShortcut, in slot: Slot) {
         unregisterHotKey(slot)
 
-        var hotKeyID = EventHotKeyID(signature: Self.signature, id: slot.rawValue)
+        let hotKeyID = EventHotKeyID(signature: Self.signature, id: slot.rawValue)
         var ref: EventHotKeyRef?
         let status = RegisterEventHotKey(
             shortcut.keyCode,
