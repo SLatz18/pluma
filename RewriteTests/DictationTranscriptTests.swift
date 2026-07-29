@@ -62,6 +62,26 @@ final class DictationTranscriptTests: XCTestCase {
         XCTAssertEqual(DictationTranscript.insertionText("   ", precededBy: "hello"), "")
     }
 
+    func testDictatedFragmentLosesItsTrailingPeriod() {
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott."), "Scott")
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott Latz."), "Scott Latz")
+    }
+
+    func testSentencesKeepTheirPunctuation() {
+        XCTAssertEqual(
+            DictationTranscript.withoutFragmentPeriod("Let us ship it today."),
+            "Let us ship it today."
+        )
+    }
+
+    // Intonation produced these, and an ellipsis is deliberate, so a fragment
+    // keeps them where it would lose a plain period.
+    func testFragmentKeepsDeliberatePunctuation() {
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott?"), "Scott?")
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott!"), "Scott!")
+        XCTAssertEqual(DictationTranscript.withoutFragmentPeriod("Scott..."), "Scott...")
+    }
+
     func testShortTranscriptsSkipCleanup() {
         XCTAssertFalse(DictationTranscript.isWorthCleaningUp("yes"))
         XCTAssertFalse(DictationTranscript.isWorthCleaningUp("sounds good"))

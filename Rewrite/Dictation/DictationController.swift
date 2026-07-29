@@ -238,7 +238,7 @@ final class DictationController: ObservableObject {
             }
         }
 
-        await insert(output)
+        await insert(DictationTranscript.withoutFragmentPeriod(output))
     }
 
     private func insert(_ text: String) async {
