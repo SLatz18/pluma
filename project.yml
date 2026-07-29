@@ -1,4 +1,4 @@
-name: Rewrite
+name: Pluma
 
 options:
   bundleIdPrefix: com.scottlatz
@@ -22,28 +22,32 @@ settings:
     PROVISIONING_PROFILE_SPECIFIER: ""
 
 targets:
-  Rewrite:
+  Pluma:
     type: application
     platform: macOS
     sources:
-      - path: Rewrite
+      - path: Pluma
         excludes:
           - Info.plist
-          - Rewrite.entitlements
+          - PrivacyInfo.xcprivacy
+          - Pluma.entitlements
+      - path: Pluma/PrivacyInfo.xcprivacy
+        buildPhase: resources
+        type: file
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.Rewrite
-        PRODUCT_NAME: Rewrite
-        INFOPLIST_FILE: Rewrite/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.Pluma
+        PRODUCT_NAME: Pluma
+        INFOPLIST_FILE: Pluma/Info.plist
         GENERATE_INFOPLIST_FILE: NO
-        CODE_SIGN_ENTITLEMENTS: Rewrite/Rewrite.entitlements
+        CODE_SIGN_ENTITLEMENTS: Pluma/Pluma.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CURRENT_PROJECT_VERSION: 1
         MARKETING_VERSION: 0.1.0
-        PRODUCT_MODULE_NAME: Rewrite
+        PRODUCT_MODULE_NAME: Pluma
         SWIFT_STRICT_CONCURRENCY: complete
-        SWIFT_OBJC_BRIDGING_HEADER: Rewrite/Autocomplete/AccessibilityPrompt-Bridging-Header.h
+        SWIFT_OBJC_BRIDGING_HEADER: Pluma/Autocomplete/AccessibilityPrompt-Bridging-Header.h
       configs:
         # The launcher + debug-dylib split requires a team-signed certificate;
         # with a self-signed identity dyld rejects the pair at launch.
@@ -51,16 +55,16 @@ targets:
           ENABLE_DEBUG_DYLIB: NO
     scheme:
       testTargets:
-        - RewriteTests
+        - PlumaTests
 
-  RewriteTests:
+  PlumaTests:
     type: bundle.unit-test
     platform: macOS
     sources:
-      - path: RewriteTests
+      - path: PlumaTests
     dependencies:
-      - target: Rewrite
+      - target: Pluma
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.RewriteTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.PlumaTests
         GENERATE_INFOPLIST_FILE: YES

@@ -8,7 +8,7 @@ let projectURL = scriptURL
     .deletingLastPathComponent()
     .deletingLastPathComponent()
 let outputURL = projectURL
-    .appending(path: "Rewrite/Resources/Assets.xcassets/AppIcon.appiconset")
+    .appending(path: "Pluma/Resources/Assets.xcassets/AppIcon.appiconset")
 
 let outputs: [(String, Int)] = [
     ("icon_16x16.png", 16),

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>pluma</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<!-- Lowercase on purpose: the menu bar title comes from CFBundleName, and the
+	     brand is lowercase. PRODUCT_NAME stays Pluma so the bundle is Pluma.app. -->
+	<key>CFBundleName</key>
+	<string>pluma</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.productivity</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>LSUIElement</key>
+	<true/>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Scott Latz. plumafina. MIT License.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>pluma can connect to Ollama on this Mac when you choose Ollama as the writing model.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>pluma listens while you hold the dictation shortcut. By default speech is transcribed on this Mac; if you choose OpenAI for dictation, microphone audio is sent to OpenAI.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>pluma can transcribe dictation with Apple’s on-device speech model. Audio stays on this Mac when that path is selected.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>pluma can capture the frontmost window only when screen context is enabled, to read visible names and terms with on-device OCR. Frames are not stored or uploaded.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Edit with pluma</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>rewriteSelection</string>
+			<key>NSPortName</key>
+			<string>pluma</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSRestricted</key>
+			<false/>
+			<key>NSReturnTypes</key>
+			<array>
+				<string>public.utf8-plain-text</string>
+			</array>
+			<key>NSSendTypes</key>
+			<array>
+				<string>public.utf8-plain-text</string>
+			</array>
+			<key>NSServiceDescription</key>
+			<string>Rewrite the selected text with your chosen local writing action.</string>
+			<key>NSTimeout</key>
+			<string>60000</string>
+			<key>NSUserData</key>
+			<string>selectedAction</string>
+		</dict>
+	</array>
+</dict>
+</plist>
