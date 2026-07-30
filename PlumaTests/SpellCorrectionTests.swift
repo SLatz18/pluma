@@ -62,6 +62,70 @@ final class SpellCorrectionTests: XCTestCase {
         )
     }
 
+    // Dictionary = finished words only (space/punct after). Apple Intelligence =
+    // mid-word too. Same misspelling, two caret positions.
+    func testSpaceVersusMidWordCandidateMatrix() {
+        let cases: [(stem: String, mid: String, finished: String)] = [
+            ("teh", "teh", "teh "),
+            ("recieve", "Please review recieve", "Please review recieve "),
+            ("adminipera", "Please review adminipera", "Please review adminipera "),
+            ("administraton", "The administraton", "The administraton "),
+            ("seperate", "seperate", "seperate."),
+        ]
+
+        for testCase in cases {
+            // No trailing boundary: dictionary path must stay quiet.
+            XCTAssertNil(
+                SpellCorrection.candidateWordRange(
+                    inPrefix: testCase.mid,
+                    allowMidWord: false,
+                    isMisspelled: { _ in true }
+                ),
+                "dictionary must ignore mid-word \(testCase.mid.debugDescription)"
+            )
+
+            // Mid-word AI path sees the stem.
+            XCTAssertEqual(
+                SpellCorrection.candidateWordRange(
+                    inPrefix: testCase.mid,
+                    allowMidWord: true,
+                    isMisspelled: { _ in true }
+                )?.word,
+                testCase.stem,
+                "AI mid-word \(testCase.mid.debugDescription)"
+            )
+
+            // After space/punct, both engines can see the same stem.
+            XCTAssertEqual(
+                SpellCorrection.candidateWordRange(
+                    inPrefix: testCase.finished,
+                    allowMidWord: false,
+                    isMisspelled: { _ in true }
+                )?.word,
+                testCase.stem,
+                "dictionary finished \(testCase.finished.debugDescription)"
+            )
+            XCTAssertEqual(
+                SpellCorrection.candidateWordRange(
+                    inPrefix: testCase.finished,
+                    allowMidWord: true,
+                    isMisspelled: { _ in true }
+                )?.word,
+                testCase.stem,
+                "AI finished \(testCase.finished.debugDescription)"
+            )
+        }
+    }
+
+    func testTrailingWordRangeMatchesFinishedWordWhenBoundaryPresent() {
+        for prefix in ["teh ", "teh.", "adminipera ", "recieve... "] {
+            let finished = SpellCorrection.finishedWordRange(inPrefix: prefix)
+            let trailing = SpellCorrection.trailingWordRange(inPrefix: prefix)
+            XCTAssertEqual(finished?.word, trailing?.word, prefix)
+            XCTAssertEqual(finished?.range, trailing?.range, prefix)
+        }
+    }
+
     func testLongMisspellingRangeInsideASentence() {
         let prefix = "The administraton of the fund "
         let result = SpellCorrection.finishedWordRange(inPrefix: prefix)
