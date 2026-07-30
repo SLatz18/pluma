@@ -35,111 +35,197 @@ enum RecordingPulse {
 //
 // Pure AppKit for the same reason PillView is: a SwiftUI hosting view re-enters
 // layout during the display cycle here and crashes.
+//
+// The text is laid out and drawn through this view's own layout manager rather
+// than handed to an NSTextField. A field cannot say where its glyphs will land —
+// its alignment rect is inset from its frame and its cell insets the text again,
+// which put the first glyph several points right of the caret. Asking the font
+// for a baseline instead was no better: the answer disagreed with where drawing
+// actually placed it, by five points. Measuring and drawing from one layout
+// manager is what makes them agree, and agreement is the whole feature — a
+// mid-word completion has to sit flush against the half-typed word.
 final class GhostTextView: NSView {
     private let dot = NSImageView()
-    private let label = NSTextField(labelWithString: "")
-    private let hint = NSTextField(labelWithString: "⇥")
-    private let stack = NSStackView()
+
+    private let storage = NSTextStorage()
+    private let textLayout = NSLayoutManager()
+    private let container = NSTextContainer()
+
+    private var hint = NSAttributedString()
+    private var font: NSFont = .systemFont(ofSize: 13)
+    private var style: GhostStyle = .suggestion
+
+    // Between the text and the ⇥ hint, or between the recording dot and the
+    // transcript. Never before the text in the suggestion look: that space is the
+    // sentence's to give.
+    private static let companionGap: CGFloat = 5
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
 
-        label.maximumNumberOfLines = 1
-        label.textColor = .secondaryLabelColor
-
-        // Faint enough to read as a keyboard hint rather than part of the
-        // sentence, but it replaces the old bezelled chip entirely.
-        hint.textColor = .quaternaryLabelColor
+        // The default 5 pt of line-fragment padding is exactly the kind of hidden
+        // inset this view exists to avoid.
+        container.lineFragmentPadding = 0
+        container.maximumNumberOfLines = 1
+        textLayout.addTextContainer(container)
+        storage.addLayoutManager(textLayout)
 
         dot.contentTintColor = .systemRed
         dot.imageScaling = .scaleNone
-
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 5
-        stack.addArrangedSubview(dot)
-        stack.addArrangedSubview(label)
-        stack.addArrangedSubview(hint)
-
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: topAnchor),
-            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            // The label must stay the tallest thing in the row: that is what
-            // makes its top edge the view's top edge, which is the assumption
-            // baselineOffsetFromTop rests on.
-            dot.heightAnchor.constraint(lessThanOrEqualTo: label.heightAnchor),
-            hint.heightAnchor.constraint(lessThanOrEqualTo: label.heightAnchor)
-        ])
+        dot.isHidden = true
+        addSubview(dot)
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
+    // Drawing in top-left origin coordinates keeps the arithmetic here in the
+    // same orientation as the caret rects it has to match.
+    override var isFlipped: Bool { true }
+
     // Distance from this view's top edge to the text baseline, so the panel can
-    // be placed such that the ghost text sits on the caret line's baseline
-    // rather than merely near it. The label spans the full height (see the
-    // constraints above), so its own offset is the view's. Read only after a
-    // layout pass.
+    // be placed such that the ghost text sits on the caret line's own baseline.
+    // Comes from the same layout manager that draws, so it cannot drift from it.
     var baselineOffsetFromTop: CGFloat {
-        label.firstBaselineOffsetFromTop
+        guard storage.length > 0 else { return font.ascender }
+        textLayout.ensureLayout(for: container)
+        let fragment = textLayout.lineFragmentRect(forGlyphAt: 0, effectiveRange: nil)
+        return fragment.minY + textLayout.location(forGlyphAt: 0).y
     }
 
-    // Distance from this view's leading edge to where the label's glyphs
-    // actually begin. NSTextField's cell insets its text by a couple of points,
-    // which nobody notices inside a chip and which reads as a gap when the text
-    // is supposed to continue the writer's sentence from the caret.
-    //
-    // Only meaningful for the suggestion look. Dictation leads with the pulsing
-    // dot, and that dot is what should sit at the caret.
-    // Where the label's glyphs begin, relative to this view's leading edge.
-    // NSTextField's alignment rect is inset from its frame, and Auto Layout pins
-    // the alignment rect — so pinning the stack flush to this view still leaves
-    // the text drawing a couple of points outside it. Measured rather than
-    // assumed, because the inset is AppKit's to change.
-    //
-    // Zero for dictation: that look leads with the pulsing dot, and the dot is
-    // what belongs at the caret.
+    // The height of one laid-out line, so the caller can tell how much of the
+    // field's line box is padding rather than glyph.
+    var lineHeight: CGFloat {
+        guard storage.length > 0 else {
+            return NSLayoutManager().defaultLineHeight(for: font)
+        }
+        textLayout.ensureLayout(for: container)
+        return textLayout.lineFragmentRect(forGlyphAt: 0, effectiveRange: nil).height
+    }
+
+    // Where the glyphs begin, relative to the leading edge. Zero for the
+    // suggestion look — that is the point of drawing this by hand. Dictation
+    // leads with the pulsing dot, and the dot is what belongs at the caret.
     var textInsetFromLeading: CGFloat {
-        guard dot.isHidden, let cell = label.cell else { return 0 }
-        let titleX = cell.titleRect(forBounds: label.bounds).minX
-        return label.convert(CGPoint(x: titleX, y: 0), to: self).x
+        style == .dictation ? dotSide + Self.companionGap : 0
     }
 
     // `maxWidth` is the room between the caret and the right edge of the field.
     // The text truncates into it; the view is never moved to make it fit.
     func show(text: String, style: GhostStyle, font: NSFont, maxWidth: CGFloat) {
-        label.font = font
+        self.style = style
+        self.font = font
+        self.maxWidth = maxWidth
 
+        let paragraph = NSMutableParagraphStyle()
         switch style {
         case .suggestion:
             RecordingPulse.stop(on: dot)
             dot.isHidden = true
-            hint.isHidden = false
-            hint.font = .systemFont(ofSize: max(9, font.pointSize - 2), weight: .medium)
-            label.lineBreakMode = .byTruncatingTail
+            paragraph.lineBreakMode = .byTruncatingTail
+            hint = NSAttributedString(
+                string: "⇥",
+                attributes: [
+                    .font: NSFont.systemFont(ofSize: max(9, font.pointSize - 2), weight: .medium),
+                    .foregroundColor: NSColor.quaternaryLabelColor
+                ]
+            )
         case .dictation:
             dot.isHidden = false
-            hint.isHidden = true
-            let dotSize = max(5, (font.pointSize * 0.45).rounded())
             dot.image = NSImage(
                 systemSymbolName: "circle.fill", accessibilityDescription: "Recording"
-            )?.withSymbolConfiguration(.init(pointSize: dotSize, weight: .bold))
+            )?.withSymbolConfiguration(.init(pointSize: dotSide, weight: .bold))
             RecordingPulse.start(on: dot)
             // Volatile results are revised as more audio arrives, so keep the
             // tail — the newest words — visible rather than the beginning.
-            label.lineBreakMode = .byTruncatingHead
+            paragraph.lineBreakMode = .byTruncatingHead
+            hint = NSAttributedString()
         }
 
-        // The budget covers the whole view, so the dot or the hint has to come
-        // out of it before the label gets its share.
-        let companion: NSView = style == .suggestion ? hint : dot
-        let reserved = companion.fittingSize.width + stack.spacing
-        label.preferredMaxLayoutWidth = max(40, maxWidth - reserved)
-        label.stringValue = text
+        container.size = NSSize(width: textBudget, height: .greatestFiniteMagnitude)
+        storage.setAttributedString(
+            NSAttributedString(
+                string: text,
+                attributes: [
+                    .font: font,
+                    .foregroundColor: NSColor.secondaryLabelColor,
+                    .paragraphStyle: paragraph
+                ]
+            )
+        )
+        textLayout.ensureLayout(for: container)
+
+        invalidateIntrinsicContentSize()
+        needsLayout = true
+        needsDisplay = true
+    }
+
+    private var maxWidth: CGFloat = 200
+
+    private var dotSide: CGFloat {
+        max(5, (font.pointSize * 0.45).rounded())
+    }
+
+    private var companionWidth: CGFloat {
+        switch style {
+        case .suggestion: hint.size().width + Self.companionGap
+        case .dictation: dotSide + Self.companionGap
+        }
+    }
+
+    // The budget covers the whole view, so the dot or the hint comes out of it
+    // before the text gets its share.
+    private var textBudget: CGFloat {
+        max(40, maxWidth - companionWidth)
+    }
+
+    override var intrinsicContentSize: NSSize {
+        guard storage.length > 0 else { return NSSize(width: companionWidth, height: lineHeight) }
+        textLayout.ensureLayout(for: container)
+        let used = textLayout.usedRect(for: container)
+        return NSSize(
+            width: (used.width + companionWidth).rounded(.up),
+            height: max(used.height, dotSide).rounded(.up)
+        )
+    }
+
+    // The panel sizes itself from this. Without Auto Layout constraints to solve,
+    // the inherited implementation has nothing to go on and answers zero, which
+    // shows up as ghost text that is present in the log and invisible on screen.
+    override var fittingSize: NSSize { intrinsicContentSize }
+
+    override func layout() {
+        super.layout()
+        dot.frame = NSRect(
+            x: 0,
+            y: (baselineOffsetFromTop - dotSide / 2 - dotSide / 4).rounded(),
+            width: dotSide,
+            height: dotSide
+        )
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard storage.length > 0 else { return }
+        let range = textLayout.glyphRange(for: container)
+        // The line fragment's own origin is already accounted for by drawGlyphs,
+        // so the text lands with its first glyph at exactly this point.
+        textLayout.drawGlyphs(forGlyphRange: range, at: NSPoint(x: textInsetFromLeading, y: 0))
+
+        guard style == .suggestion, hint.length > 0 else { return }
+        let hintSize = hint.size()
+        let hintFont = hint.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+        // Sits on the text's baseline rather than centred, so it reads as part of
+        // the same line.
+        let hintTop = baselineOffsetFromTop - (hintFont?.ascender ?? hintSize.height)
+        hint.draw(
+            with: NSRect(
+                x: bounds.width - hintSize.width,
+                y: hintTop,
+                width: hintSize.width,
+                height: hintSize.height
+            ),
+            options: [.usesLineFragmentOrigin]
+        )
     }
 }

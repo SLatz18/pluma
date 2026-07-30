@@ -66,9 +66,29 @@ enum GhostTextGeometry {
 
     // Ghost text has to sit on the same baseline as the line it continues, and
     // AX gives us the line box rather than the baseline. A fifth of the line
-    // height is a good stand-in for the descender space below it.
+    // height is a stand-in for the descender space below it, used only when the
+    // font is unknown — it is visibly a guess when ghost text abuts real words.
     static func baselineY(forCaretRect rect: CGRect) -> CGFloat {
         rect.maxY - rect.height * 0.2
+    }
+
+    // With the font known, the baseline is arithmetic rather than estimate: it
+    // sits `baselineOffset` below the top of the text's own line box, and any
+    // height the field's line box has beyond that is padding split evenly above
+    // and below.
+    static func baselineY(
+        forCaretRect rect: CGRect,
+        lineHeight: CGFloat?,
+        baselineOffset: CGFloat?
+    ) -> CGFloat {
+        guard
+            let lineHeight, let baselineOffset,
+            lineHeight > 0, baselineOffset > 0,
+            lineHeight <= rect.height + 4
+        else { return baselineY(forCaretRect: rect) }
+
+        let halfLeading = max(0, (rect.height - lineHeight) / 2)
+        return rect.minY + halfLeading + baselineOffset
     }
 
     static let trailingGap: CGFloat = 6

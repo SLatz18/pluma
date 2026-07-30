@@ -265,10 +265,22 @@ final class AutocompleteCoordinator: ObservableObject {
                 return
             }
 
-            let suggestion = CompletionSuggestion(rawOutput: raw, context: context)
+            let scope = CompletionSuggestion.scope(
+                forContext: context, endsMidWord: endsMidWord(context)
+            )
+            var output = raw
+            if scope == .word {
+                let partial = trailingWord(context)
+                output = CompletionSuggestion.wordCompletion(
+                    forPartial: partial,
+                    modelSuggestion: raw,
+                    candidates: spellCompletions(for: partial)
+                )
+            }
+            let suggestion = CompletionSuggestion(rawOutput: output, context: context, scope: scope)
             DebugLog.log(
                 "raw \(raw.debugDescription) tail \(context.suffix(40).debugDescription) "
-                    + "-> \(suggestion.remaining.debugDescription)",
+                    + "scope \(scope) -> \(suggestion.remaining.debugDescription)",
                 at: .verbose
             )
             guard !suggestion.isEmpty else {
@@ -338,8 +350,7 @@ final class AutocompleteCoordinator: ObservableObject {
         else { return "" }
 
         if last.isLetter {
-            let trailing = String(prefix.reversed().prefix(while: \.isLetter).reversed())
-            return isCompleteWord(trailing) ? " " : ""
+            return endsMidWord(prefix) ? "" : " "
         }
         if ".!?…".contains(last) {
             return " "
@@ -347,17 +358,44 @@ final class AutocompleteCoordinator: ObservableObject {
         return ""
     }
 
+    // Whether the writer is partway through a word. The spell checker is the
+    // only thing on hand that can tell "execu" from "digging" — both are just
+    // letters up against the caret.
+    private func endsMidWord(_ prefix: String) -> Bool {
+        guard let last = prefix.last, last.isLetter else { return false }
+        let trailing = String(prefix.reversed().prefix(while: \.isLetter).reversed())
+        return !isCompleteWord(trailing)
+    }
+
+    // The checker's own language, never nil. Automatic detection matches partial
+    // English words against other languages — "documenta", "investiga" and
+    // "recei" all pass as real words — which made every half-typed word look
+    // finished.
     private func isCompleteWord(_ word: String) -> Bool {
         guard !word.isEmpty else { return false }
         let misspelled = NSSpellChecker.shared.checkSpelling(
             of: word,
             startingAt: 0,
-            language: nil,
+            language: NSSpellChecker.shared.language(),
             wrap: false,
             inSpellDocumentWithTag: 0,
             wordCount: nil
         )
         return misspelled.location == NSNotFound
+    }
+
+    private func trailingWord(_ prefix: String) -> String {
+        String(prefix.reversed().prefix(while: \.isLetter).reversed())
+    }
+
+    private func spellCompletions(for partial: String) -> [String] {
+        guard !partial.isEmpty else { return [] }
+        return NSSpellChecker.shared.completions(
+            forPartialWordRange: NSRange(location: 0, length: (partial as NSString).length),
+            in: partial,
+            language: NSSpellChecker.shared.language(),
+            inSpellDocumentWithTag: 0
+        ) ?? []
     }
 
     private func currentCaret(for element: AXUIElement) -> CaretGeometry? {
