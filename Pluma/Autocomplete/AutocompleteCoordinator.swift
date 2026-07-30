@@ -56,6 +56,16 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var spellCorrectionEnabled: Bool {
+        didSet {
+            guard spellCorrectionEnabled != oldValue else { return }
+            Preferences.setSpellCorrectionEnabled(spellCorrectionEnabled, to: defaults)
+            if !spellCorrectionEnabled, activeCorrection != nil {
+                dismissSuggestion()
+            }
+        }
+    }
+
     @Published private(set) var isScreenContextPermitted: Bool
     @Published private(set) var memoryEntryCount: Int
 
@@ -70,6 +80,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private var completionInFlight = false
     private var latestSnapshot: FocusedFieldSnapshot?
     private var activeSuggestion: CompletionSuggestion?
+    private var activeCorrection: SpellCorrectionOffer?
     private var activeElement: AXUIElement?
     private var lastSnapshotPrefix: String?
     private var ghostEligibility = GhostTextEligibility.unknown
@@ -88,6 +99,7 @@ final class AutocompleteCoordinator: ObservableObject {
         screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
         memoryEnabled = Preferences.memoryEnabled(from: defaults)
         inlineSuggestions = Preferences.inlineSuggestions(from: defaults)
+        spellCorrectionEnabled = Preferences.spellCorrectionEnabled(from: defaults)
         tuning = Preferences.completionTuning(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
@@ -173,7 +185,7 @@ final class AutocompleteCoordinator: ObservableObject {
             activity = .off
         } else if !permission.isTrusted {
             activity = .needsPermission
-        } else if activeSuggestion != nil {
+        } else if activeSuggestion != nil || activeCorrection != nil {
             activity = .suggesting
         } else {
             activity = .watching
@@ -208,9 +220,25 @@ final class AutocompleteCoordinator: ObservableObject {
             return
         }
 
+        if let correction = activeCorrection {
+            // Still the same finished misspelling — keep the chip. Any other
+            // edit clears it so a fresh correction or model pass can run.
+            if spellCorrectionEnabled,
+               let fresh = spellCorrectionOffer(for: prefix),
+               fresh == correction {
+                lastSnapshotPrefix = prefix
+                return
+            }
+            dismissSuggestion()
+        }
+
         guard prefix != lastSnapshotPrefix else { return }
         lastSnapshotPrefix = prefix
         DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)", at: .verbose)
+
+        if presentSpellCorrectionIfNeeded(for: snapshot) {
+            return
+        }
 
         // Once the model is working, ordinary continued typing should not kill
         // it. The result is rebased against those extra characters below.
@@ -221,6 +249,39 @@ final class AutocompleteCoordinator: ObservableObject {
         }
 
         scheduleCompletion(for: snapshot)
+    }
+
+    // Finished misspellings beat continuation suggestions: the writer already
+    // put the wrong word down, and fixing it is more urgent than guessing what
+    // comes next. Corrections always wear the chip — ghost text appends, and a
+    // replace-in-place must not pose as grey continuation.
+    private func presentSpellCorrectionIfNeeded(for snapshot: FocusedFieldSnapshot) -> Bool {
+        guard spellCorrectionEnabled else { return false }
+        guard let offer = spellCorrectionOffer(for: snapshot.textBeforeCaret) else {
+            return false
+        }
+
+        debounceTask?.cancel()
+        // Drop any in-flight model answer: a correction is more urgent than a
+        // continuation that was already asked for under the misspelling.
+        requestSequence += 1
+        activeSuggestion = nil
+        activeCorrection = offer
+        activeElement = snapshot.element
+        acceptedFromCurrentSuggestion = ""
+        activeSuggestionTopLeftY = nil
+        showCorrectionOverlay(offer, at: snapshot.caret)
+        updateActivity()
+        DebugLog.log("spell correction: \(offer.misspelled) -> \(offer.replacement)")
+        return true
+    }
+
+    private func spellCorrectionOffer(for prefix: String) -> SpellCorrectionOffer? {
+        SpellCorrection.offer(
+            prefix: prefix,
+            isMisspelled: { [self] word in !isCompleteWord(word) },
+            guessesFor: { [self] word in spellGuesses(for: word) }
+        )
     }
 
     private func scheduleCompletion(for snapshot: FocusedFieldSnapshot) {
@@ -248,6 +309,7 @@ final class AutocompleteCoordinator: ObservableObject {
             guard
                 !Task.isCancelled,
                 activeSuggestion == nil,
+                activeCorrection == nil,
                 let latestSnapshot,
                 latestSnapshot.textBeforeCaret != prefix
             else { return }
@@ -363,6 +425,10 @@ final class AutocompleteCoordinator: ObservableObject {
             }
             guard !suggestion.isEmpty else {
                 DebugLog.log("response empty")
+                return
+            }
+            guard activeCorrection == nil else {
+                DebugLog.log("response discarded: spell correction showing")
                 return
             }
 
@@ -621,6 +687,17 @@ final class AutocompleteCoordinator: ObservableObject {
         ) ?? []
     }
 
+    private func spellGuesses(for word: String) -> [String] {
+        guard !word.isEmpty else { return [] }
+        let range = NSRange(location: 0, length: (word as NSString).length)
+        return NSSpellChecker.shared.guesses(
+            forWordRange: range,
+            in: word,
+            language: NSSpellChecker.shared.language(),
+            inSpellDocumentWithTag: 0
+        ) ?? []
+    }
+
     private func currentCaret(for element: AXUIElement) -> CaretGeometry? {
         var rangeValue: CFTypeRef?
         guard
@@ -636,8 +713,28 @@ final class AutocompleteCoordinator: ObservableObject {
         return FocusedFieldTracker.caretGeometry(for: element, location: selection.location)
     }
 
+    private func showCorrectionOverlay(
+        _ offer: SpellCorrectionOffer,
+        at knownCaret: CaretGeometry? = nil
+    ) {
+        guard let element = activeElement else { return }
+        let caret = knownCaret ?? currentCaret(for: element)
+        let proposedAnchor = caret.map { CGPoint(x: $0.rect.minX, y: $0.rect.maxY + 4) }
+            ?? FocusedFieldTracker.fieldEdgeAnchor(for: element)
+        guard let proposedAnchor else {
+            DebugLog.log("no caret and no usable field frame; correction not shown")
+            return
+        }
+        activeSuggestionTopLeftY = proposedAnchor.y
+        overlay.show(
+            .suggestion(text: offer.replacement, anchor: proposedAnchor),
+            from: .autocomplete
+        )
+    }
+
     private func dismissSuggestion() {
         activeSuggestion = nil
+        activeCorrection = nil
         activeElement = nil
         activeSuggestionTopLeftY = nil
         overlay.hide(from: .autocomplete)
@@ -645,6 +742,11 @@ final class AutocompleteCoordinator: ObservableObject {
     }
 
     private func acceptSuggestion(wholeSuggestion: Bool) async {
+        if let correction = activeCorrection {
+            await acceptCorrection(correction)
+            return
+        }
+
         guard
             var suggestion = activeSuggestion,
             let element = activeElement
@@ -693,6 +795,23 @@ final class AutocompleteCoordinator: ObservableObject {
             activeSuggestionTopLeftY = topLeftYBeforeAcceptance
             showOverlay(for: suggestion, preserveVertical: true)
         }
+    }
+
+    private func acceptCorrection(_ offer: SpellCorrectionOffer) async {
+        guard let element = activeElement else { return }
+        isAcceptingSuggestion = true
+        defer { isAcceptingSuggestion = false }
+
+        let range = CFRange(location: offer.wordLocation, length: offer.wordLength)
+        guard await AXTextInsertion.replace(range: range, with: offer.replacement, in: element) else {
+            dismissSuggestion()
+            return
+        }
+
+        if let refreshed = FocusedFieldTracker.readPrefix(of: element) {
+            lastSnapshotPrefix = refreshed
+        }
+        dismissSuggestion()
     }
 
     // Tabbing through a whole suggestion means the writer wants more; fetch
@@ -810,7 +929,7 @@ final class AutocompleteCoordinator: ObservableObject {
     ) -> Bool {
         noteKeystroke()
 
-        guard isEnabled, activeSuggestion != nil else {
+        guard isEnabled, activeSuggestion != nil || activeCorrection != nil else {
             return false
         }
 

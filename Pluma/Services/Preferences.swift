@@ -22,6 +22,7 @@ enum Preferences {
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
+    static let spellCorrectionEnabledKey = "pluma.spellCorrectionEnabled"
     static let completionPhraseWordsKey = "pluma.completion.phraseWords"
     static let completionBriefWordsKey = "pluma.completion.briefWords"
     static let completionDebounceKey = "pluma.completion.debounceMilliseconds"
@@ -99,6 +100,19 @@ enum Preferences {
 
     static func setInlineSuggestions(_ inline: Bool, to defaults: UserDefaults = .standard) {
         defaults.set(inline, forKey: inlineSuggestionsKey)
+    }
+
+    // On by default: local NSSpellChecker only, and the chip already looks like
+    // the system spelling popup. Unset keys read as on so existing installs
+    // pick the feature up without a migration.
+    static func spellCorrectionEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: spellCorrectionEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: spellCorrectionEnabledKey)
+    }
+
+    static func setSpellCorrectionEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: spellCorrectionEnabledKey)
     }
 
     // Each knob falls back to the shipped value on its own, so a partially

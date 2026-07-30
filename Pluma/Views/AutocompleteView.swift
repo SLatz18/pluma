@@ -18,6 +18,13 @@ struct AutocompleteView: View {
                         isOn: $coordinator.inlineSuggestions,
                         disabled: !coordinator.isPermissionGranted
                     )
+                    rowDivider
+                    DSToggleRow(
+                        title: "Correct misspellings",
+                        detail: "When you finish a misspelled word, offer a fix on the chip before suggesting what comes next. Tab replaces the word. Uses the Mac’s spelling dictionary — nothing leaves the device.",
+                        isOn: $coordinator.spellCorrectionEnabled,
+                        disabled: !coordinator.isPermissionGranted
+                    )
                 }
                 .dsCard()
             }
