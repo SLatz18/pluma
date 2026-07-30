@@ -127,4 +127,71 @@ final class GhostTextEligibilityTests: XCTestCase {
     func testEmptyFieldCountsAsEndOfText() {
         XCTAssertTrue(GhostTextEligibility.of(text: "", caretLocation: 0).allows(precise))
     }
+
+    // The coverage fix: a caret at the end of a line partway through a document
+    // has nothing to its right either, and that is the whole requirement. Editors
+    // that keep a trailing newline — most of them — used to fall back to the chip
+    // on every suggestion because of this.
+    func testCaretAtEndOfALineMidDocumentAllowsGhostText() {
+        let eligibility = GhostTextEligibility.of(text: "first line\nsecond", caretLocation: 10)
+        XCTAssertTrue(eligibility.allows(precise))
+    }
+
+    func testTrailingNewlineStillCountsAsEndOfLine() {
+        let eligibility = GhostTextEligibility.of(text: "hello there\n", caretLocation: 11)
+        XCTAssertTrue(eligibility.allows(precise))
+    }
+
+    func testCarriageReturnAndParagraphSeparatorsCountToo() {
+        for separator in ["\r", "\u{2028}", "\u{2029}"] {
+            let eligibility = GhostTextEligibility.of(
+                text: "hello there\(separator)more", caretLocation: 11
+            )
+            XCTAssertTrue(eligibility.allows(precise), separator.debugDescription)
+        }
+    }
+
+    // Still refused mid-line: ghost text there would cover the writer's own
+    // words.
+    func testCaretBeforeOrdinaryTextIsStillRefused() {
+        let eligibility = GhostTextEligibility.of(text: "hello there", caretLocation: 5)
+        XCTAssertFalse(eligibility.allows(precise))
+    }
+
+    // MARK: Font size
+
+    // The case seen in TextEdit: a 14 pt line box holding Helvetica 12. The
+    // ratio infers 11, so trusting it renders ghost text a point small.
+    func testReportedSizeBeatsTheCaretHeightEstimate() {
+        XCTAssertEqual(GhostTextGeometry.fontSize(forCaretHeight: 14), 11)
+        XCTAssertEqual(
+            GhostTextGeometry.fontSize(forCaretHeight: 14, reportedSize: 12), 12
+        )
+    }
+
+    func testCaretHeightIsUsedWhenNoSizeIsReported() {
+        XCTAssertEqual(
+            GhostTextGeometry.fontSize(forCaretHeight: 20, reportedSize: nil),
+            GhostTextGeometry.fontSize(forCaretHeight: 20)
+        )
+    }
+
+    // A field that reports nonsense falls back rather than rendering it.
+    func testImplausibleReportedSizesAreIgnored() {
+        for size in [CGFloat(0), -12, 1_000, .nan] {
+            XCTAssertEqual(
+                GhostTextGeometry.fontSize(forCaretHeight: 20, reportedSize: size),
+                GhostTextGeometry.fontSize(forCaretHeight: 20),
+                "size \(size)"
+            )
+        }
+    }
+
+    // Fractional sizes carry through: rounding them is what the caret-height
+    // estimate does wrong.
+    func testFractionalReportedSizeIsPreserved() {
+        XCTAssertEqual(
+            GhostTextGeometry.fontSize(forCaretHeight: 16, reportedSize: 13.5), 13.5
+        )
+    }
 }

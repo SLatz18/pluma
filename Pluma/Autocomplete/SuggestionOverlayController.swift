@@ -202,9 +202,7 @@ final class SuggestionOverlayController {
 
         switch presentation {
         case let .ghost(text, caret, style, fieldFrame):
-            let font = NSFont.systemFont(
-                ofSize: GhostTextGeometry.fontSize(forCaretHeight: caret.rect.height)
-            )
+            let font = Self.ghostFont(for: caret)
             let budget = GhostTextGeometry.widthBudget(
                 caretMaxX: caret.rect.maxX,
                 fieldMaxX: fieldFrame?.maxX,
@@ -212,7 +210,8 @@ final class SuggestionOverlayController {
             )
             DebugLog.log(
                 "ghost \(style) at \(FocusedFieldTracker.describe(caret.rect)) "
-                    + "via \(caret.source.title), font \(Int(font.pointSize))pt, "
+                    + "via \(caret.source.title), font \(font.fontName) "
+                    + "\(Int(font.pointSize))pt (\(caret.font == nil ? "inferred" : "reported")), "
                     + "budget \(Int(budget))pt",
                 at: .verbose
             )
@@ -297,9 +296,11 @@ final class SuggestionOverlayController {
             case let .topLeft(point):
                 target = clampedOrigin(forTopLeftPoint: point, panelSize: fitting)
             case let .ghost(caret):
-                let offset = (content as? GhostTextView)?.baselineOffsetFromTop ?? 0
+                let ghost = content as? GhostTextView
+                let offset = ghost?.baselineOffsetFromTop ?? 0
                 let topLeft = CGPoint(
-                    x: caret.rect.maxX + GhostTextGeometry.caretGap,
+                    x: caret.rect.maxX + GhostTextGeometry.caretGap
+                        - (ghost?.textInsetFromLeading ?? 0),
                     y: GhostTextGeometry.baselineY(forCaretRect: caret.rect) - offset
                 )
                 target = ghostOrigin(forTopLeftPoint: topLeft, panelSize: fitting)
@@ -384,6 +385,21 @@ final class SuggestionOverlayController {
             x: origin.x,
             y: max(visible.minY, min(origin.y, max(visible.minY, visible.maxY - panelSize.height)))
         )
+    }
+
+    // Match the field's own typeface and size when Accessibility named them, so
+    // the ghost text continues the sentence in the same hand it is written in.
+    // Falling back to the system font at an inferred size is a visible tell:
+    // Helvetica at 12 pt against San Francisco at 11 pt reads as a different
+    // piece of text sitting nearby, which is exactly the illusion to avoid.
+    private static func ghostFont(for caret: CaretGeometry) -> NSFont {
+        let size = GhostTextGeometry.fontSize(
+            forCaretHeight: caret.rect.height, reportedSize: caret.font?.size
+        )
+        if let name = caret.font?.name, let matched = NSFont(name: name, size: size) {
+            return matched
+        }
+        return .systemFont(ofSize: size)
     }
 
     // The right edge of the display the caret is on, in AX coordinates. Only y

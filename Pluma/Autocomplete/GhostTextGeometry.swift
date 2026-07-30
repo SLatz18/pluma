@@ -8,24 +8,36 @@ import Foundation
 // Read from the field's text once per snapshot rather than per repaint, since
 // it costs an Accessibility round trip.
 struct GhostTextEligibility: Equatable {
-    let caretAtEndOfText: Bool
+    let caretAtEndOfLine: Bool
     let isRightToLeft: Bool
 
-    static let unknown = GhostTextEligibility(caretAtEndOfText: false, isRightToLeft: false)
+    static let unknown = GhostTextEligibility(caretAtEndOfLine: false, isRightToLeft: false)
 
+    // End of *line*, not end of text. Nothing to the right on this line is the
+    // whole requirement, and insisting on the last character of the document
+    // refused ghost text in most real editors: anything with a trailing newline,
+    // or a caret partway down a note, fell back to the chip.
     static func of(text: String, caretLocation: Int) -> GhostTextEligibility {
-        GhostTextEligibility(
-            caretAtEndOfText: caretLocation >= (text as NSString).length,
+        let nsText = text as NSString
+        let atEndOfLine: Bool
+        if caretLocation >= nsText.length {
+            atEndOfLine = true
+        } else {
+            let next = nsText.character(at: caretLocation)
+            atEndOfLine = next == 0x0A || next == 0x0D || next == 0x2028 || next == 0x2029
+        }
+        return GhostTextEligibility(
+            caretAtEndOfLine: atEndOfLine,
             isRightToLeft: GhostTextGeometry.isRightToLeft(text)
         )
     }
 
-    // A line-level caret rect is already the end of its line — that is all
-    // end-of-text was ever standing in for — so it qualifies on its own. The
-    // direction check never yields, because drawing on the wrong side of an
-    // RTL line is wrong however the geometry was found.
+    // A line-level caret rect is already the end of its line — that is all this
+    // check was ever standing in for — so it qualifies on its own. The direction
+    // check never yields, because drawing on the wrong side of an RTL line is
+    // wrong however the geometry was found.
     func allows(_ caret: CaretGeometry) -> Bool {
-        !isRightToLeft && (caretAtEndOfText || !caret.isPrecise)
+        !isRightToLeft && (caretAtEndOfLine || !caret.isPrecise)
     }
 }
 
@@ -42,6 +54,16 @@ enum GhostTextGeometry {
         return min(48, max(9, (height / 1.25).rounded()))
     }
 
+    // The field's own reported size wins whenever there is one. The ratio above
+    // is only an inference from the line box and rounds to a whole point, so it
+    // misses by one or two — invisible for a floating panel, obvious for text
+    // pretending to already be in the sentence.
+    static func fontSize(forCaretHeight height: CGFloat, reportedSize: CGFloat?) -> CGFloat {
+        guard let reportedSize, reportedSize.isFinite, reportedSize >= 6, reportedSize <= 200
+        else { return fontSize(forCaretHeight: height) }
+        return reportedSize
+    }
+
     // Ghost text has to sit on the same baseline as the line it continues, and
     // AX gives us the line box rather than the baseline. A fifth of the line
     // height is a good stand-in for the descender space below it.
@@ -50,7 +72,12 @@ enum GhostTextGeometry {
     }
 
     static let trailingGap: CGFloat = 6
-    static let caretGap: CGFloat = 2
+
+    // Zero on purpose. The word boundary is already carried by the suggestion
+    // text itself — a leading space when the writer finished a word, nothing at
+    // all mid-word — so any gap added here is a second space the sentence never
+    // asked for.
+    static let caretGap: CGFloat = 0
     private static let minimumWidth: CGFloat = 60
 
     // How much room is left between the caret and the right edge of the field

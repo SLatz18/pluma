@@ -100,6 +100,128 @@ final class CompletionSuggestionTests: XCTestCase {
         XCTAssertFalse(CompletionSuggestion.looksLikeRefusal("the report by Friday"))
     }
 
+    // MARK: Prompt leakage
+
+    // Seen live in TextEdit: the model finished the prompt instead of the
+    // sentence and offered "</context>" as the completion.
+    func testPromptMarkersProduceEmptySuggestion() {
+        let leaks = [
+            "</context>",
+            " </context>",
+            "the logs</context>",
+            "</surrounding>",
+            "</style-profile>",
+            "<context>"
+        ]
+        for leak in leaks {
+            XCTAssertTrue(CompletionSuggestion(rawOutput: leak).isEmpty, leak)
+        }
+    }
+
+    // Ordinary angle brackets in prose are not prompt markup.
+    func testAngleBracketsInNormalTextAreKept() {
+        XCTAssertFalse(CompletionSuggestion(rawOutput: " if x < y then stop").isEmpty)
+        XCTAssertFalse(CompletionSuggestion(rawOutput: " the <b>bold</b> part").isEmpty)
+    }
+
+    // MARK: Echoed context
+
+    // The failure seen in TextEdit: the model restates the last word of the
+    // line before continuing it.
+    func testRepeatedTrailingWordIsStripped() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: " section is the most engaging part",
+            context: "I read it this morning and I think the middle section"
+        )
+        XCTAssertEqual(suggestion.remaining, " is the most engaging part")
+    }
+
+    // The worse failure: the whole line handed straight back. Nothing survives
+    // stripping, so there is no suggestion to show.
+    func testVerbatimEchoOfTheWholeLineProducesNothing() {
+        let line = "I wanted to follow up on the pricing question you raised in the meeting"
+        XCTAssertTrue(CompletionSuggestion(rawOutput: line, context: line).isEmpty)
+    }
+
+    // The variant that slipped past the first fix: the line is restated and the
+    // full stop the writer had not typed yet is added, so the echo no longer
+    // ends on whitespace.
+    func testEchoThatAddsTrailingPunctuationIsStillCaught() {
+        let typed = "I wanted to follow up on the pricing question you raised in the meeting"
+        XCTAssertTrue(
+            CompletionSuggestion(rawOutput: " \(typed).", context: typed).isEmpty
+        )
+    }
+
+    // Punctuation mid-echo counts as a word boundary too, and what survives
+    // attaches tight to the writer's last word rather than gaining a space.
+    func testEchoEndingAtPunctuationIsStripped() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "the meeting. Let me know",
+            context: "I raised it in the meeting"
+        )
+        XCTAssertEqual(suggestion.remaining, ". Let me know")
+    }
+
+    func testMultipleRepeatedWordsAreStripped() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "the middle section needs work",
+            context: "I think the middle section"
+        )
+        XCTAssertEqual(suggestion.remaining, " needs work")
+    }
+
+    func testEchoMatchIsCaseInsensitive() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "Section is fine",
+            context: "I think the middle section"
+        )
+        XCTAssertEqual(suggestion.remaining, " is fine")
+    }
+
+    // A genuine continuation must survive untouched, including the leading
+    // space that marks the word boundary.
+    func testGenuineContinuationIsUntouched() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: " the logs to figure out what went wrong",
+            context: "I spent an hour digging through"
+        )
+        XCTAssertEqual(suggestion.remaining, " the logs to figure out what went wrong")
+    }
+
+    // Only whole words count as an echo. "mid" is a prefix of "midpoint", but
+    // cutting it would leave the writer with "the midpoint" spelled "the point".
+    func testPartialWordOverlapIsNotTreatedAsAnEcho() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "midpoint of the range",
+            context: "the value sits near the mid"
+        )
+        XCTAssertEqual(suggestion.remaining, "midpoint of the range")
+    }
+
+    // A mid-word continuation has no leading space and must not gain one, or
+    // insertion breaks the word it was completing.
+    func testMidWordContinuationKeepsNoLeadingSpace() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "point of the range",
+            context: "the value sits near the mid"
+        )
+        XCTAssertEqual(suggestion.remaining, "point of the range")
+    }
+
+    func testSingleRepeatedLetterIsLeftAlone() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "A is the cheaper option",
+            context: "between the two I would pick A"
+        )
+        XCTAssertEqual(suggestion.remaining, "A is the cheaper option")
+    }
+
+    func testEmptyContextLeavesTheSuggestionAlone() {
+        let suggestion = CompletionSuggestion(rawOutput: " and then some", context: "")
+        XCTAssertEqual(suggestion.remaining, " and then some")
+    }
+
     func testCompletionPromptDelimitsContext() {
         let prompt = PromptComposer.completionUserPrompt(context: "Some context")
         XCTAssertTrue(prompt.contains("<context>\nSome context\n</context>"))
