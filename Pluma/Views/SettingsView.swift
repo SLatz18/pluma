@@ -30,6 +30,7 @@ struct SettingsView: View {
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
     @EnvironmentObject private var dictation: DictationController
     @EnvironmentObject private var memory: MemoryStore
+    @EnvironmentObject private var spellMemory: SpellMemoryStore
     @EnvironmentObject private var styleProfile: StyleProfileStore
     @EnvironmentObject private var developer: DeveloperMode
 
@@ -43,6 +44,7 @@ struct SettingsView: View {
 
     private enum ClearTarget: String, Identifiable {
         case memory
+        case spellMemory
         case profile
 
         var id: String { rawValue }
@@ -82,7 +84,7 @@ struct SettingsView: View {
             StyleProfileEditorSheet(store: styleProfile)
         }
         .confirmationDialog(
-            clearTarget == .memory ? "Clear all remembered phrases?" : "Clear the style profile?",
+            clearDialogTitle,
             isPresented: Binding(
                 get: { clearTarget != nil },
                 set: { if !$0 { clearTarget = nil } }
@@ -91,9 +93,16 @@ struct SettingsView: View {
         ) {
             Button("Clear", role: .destructive) {
                 switch clearTarget {
-                case .memory: memory.clear()
-                case .profile: styleProfile.clear()
-                case nil: break
+                case .memory:
+                    memory.clear()
+                    autocomplete.clearMemory()
+                case .spellMemory:
+                    spellMemory.clear()
+                    autocomplete.clearSpellMemory()
+                case .profile:
+                    styleProfile.clear()
+                case nil:
+                    break
                 }
                 clearTarget = nil
             }
@@ -102,6 +111,15 @@ struct SettingsView: View {
             }
         } message: {
             Text("This removes the selected local writing data from this Mac and cannot be undone.")
+        }
+    }
+
+    private var clearDialogTitle: String {
+        switch clearTarget {
+        case .memory: "Clear all remembered phrases?"
+        case .spellMemory: "Clear remembered spelling corrections?"
+        case .profile: "Clear the style profile?"
+        case nil: "Clear local data?"
         }
     }
 
@@ -308,6 +326,12 @@ struct SettingsView: View {
                     )
                     Divider().padding(.vertical, DS.Spacing.medium)
                     dataRow(
+                        title: "Spelling memory",
+                        value: "\(spellMemory.count) of \(SpellMemoryStore.maxEntries) corrections",
+                        clear: spellMemory.count > 0 ? { clearTarget = .spellMemory } : nil
+                    )
+                    Divider().padding(.vertical, DS.Spacing.medium)
+                    dataRow(
                         title: "Style profile",
                         value: styleProfile.isEmpty
                             ? "Not stored"
@@ -327,6 +351,9 @@ struct SettingsView: View {
                 HStack {
                     Button("Reveal style memory in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting([memory.url])
+                    }
+                    Button("Reveal spelling memory") {
+                        NSWorkspace.shared.activateFileViewerSelecting([spellMemory.url])
                     }
                     Spacer()
                     Button("Open Diagnostics Log") {

@@ -49,6 +49,7 @@ struct PlumaApp: App {
                 .environmentObject(dictation)
                 .environmentObject(developer)
                 .environmentObject(MemoryStore.shared)
+                .environmentObject(SpellMemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)
         }
     }
