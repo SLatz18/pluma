@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import Foundation
 
@@ -18,14 +19,31 @@ enum CaretSource: String, Equatable {
     }
 }
 
-// Where the text cursor is, and how tall the line it sits on is. The height is
-// what makes ghost text blend in: it is the field's line height, which is the
-// only clue Accessibility gives us about the size of the text being typed.
+// The typeface the field is drawing, when Accessibility will name it. Ghost text
+// that sits directly against the writer's own words has to match it: deriving a
+// size from the caret's height lands a point or two off and always in the system
+// font, which reads as a different kind of text rather than a continuation.
+struct FieldFont: Equatable, Sendable {
+    let name: String
+    let size: CGFloat
+}
+
+// Where the text cursor is, how tall the line it sits on is, and — when the app
+// will say — what font that line is set in. The height is the fallback clue:
+// it is the field's line height, which is all Accessibility offers when the
+// attributed text is unavailable.
 //
 // Coordinates are AX's: top-left origin, relative to the primary display.
 struct CaretGeometry: Equatable {
     let rect: CGRect
     let source: CaretSource
+    let font: FieldFont?
+
+    init(rect: CGRect, source: CaretSource, font: FieldFont? = nil) {
+        self.rect = rect
+        self.source = source
+        self.font = font
+    }
 
     // The line-level fallback gets the line right but guesses the column.
     var isPrecise: Bool { source != .lineBounds }
@@ -38,6 +56,14 @@ protocol CaretProbing {
     func insertionPointLineNumber() -> Int?
     func rangeForLine(_ line: Int) -> CFRange?
     var elementFrame: CGRect? { get }
+    func fieldFont(at location: Int) -> FieldFont?
+}
+
+// Most fields cannot answer this — Chromium and Electron in particular — and
+// ghost text falls back to the caret-height estimate when they don't, so the
+// requirement carries a default rather than forcing every probe to refuse it.
+extension CaretProbing {
+    func fieldFont(at location: Int) -> FieldFont? { nil }
 }
 
 enum CaretResolver {
@@ -45,6 +71,7 @@ enum CaretResolver {
     // some real app fails the one before it.
     static func resolve(location: Int, using probe: some CaretProbing) -> CaretGeometry? {
         let field = probe.elementFrame
+        let font = probe.fieldFont(at: location)
 
         // 1. The caret itself: a zero-length range at the insertion point.
         //    Native AppKit and WebKit fields answer this correctly.
@@ -52,7 +79,7 @@ enum CaretResolver {
             let rect = probe.boundsForRange(CFRange(location: location, length: 0)),
             isPlausible(rect, in: field)
         {
-            return CaretGeometry(rect: rect, source: .exactCaret)
+            return CaretGeometry(rect: rect, source: .exactCaret, font: font)
         }
 
         // 2. The character before the caret. Chromium and Electron hand back a
@@ -66,7 +93,8 @@ enum CaretResolver {
         {
             return CaretGeometry(
                 rect: CGRect(x: rect.maxX, y: rect.minY, width: 1, height: rect.height),
-                source: .characterBefore
+                source: .characterBefore,
+                font: font
             )
         }
 
@@ -81,7 +109,8 @@ enum CaretResolver {
         {
             return CaretGeometry(
                 rect: CGRect(x: rect.maxX, y: rect.minY, width: 1, height: rect.height),
-                source: .lineBounds
+                source: .lineBounds,
+                font: font
             )
         }
 
@@ -103,6 +132,13 @@ enum CaretResolver {
 // callers should resolve once per update rather than per draw.
 struct AXCaretProbe: CaretProbing {
     let element: AXUIElement
+
+    // Spelled out rather than taken from kAXFontTextAttribute and friends: those
+    // are declared as mutable `Unmanaged<CFString>` globals, which Swift 6 will
+    // not let a nonisolated context touch. The names themselves are stable API.
+    private static let axFontAttribute = NSAttributedString.Key("AXFont")
+    private static let axFontName = "AXFontName"
+    private static let axFontSize = "AXFontSize"
 
     var elementFrame: CGRect? { FocusedFieldTracker.frame(of: element) }
 
@@ -135,6 +171,48 @@ struct AXCaretProbe: CaretProbing {
             ) == .success
         else { return nil }
         return value as? Int
+    }
+
+    // The attributed text around the caret carries the font the field is really
+    // drawing. Read the character *before* the caret, because at the end of the
+    // text there is nothing at the caret itself to carry attributes.
+    func fieldFont(at location: Int) -> FieldFont? {
+        var range = CFRange(location: max(0, location - 1), length: 1)
+        guard let rangeValue = AXValueCreate(.cfRange, &range) else { return nil }
+
+        var value: CFTypeRef?
+        guard
+            AXUIElementCopyParameterizedAttributeValue(
+                element,
+                kAXAttributedStringForRangeParameterizedAttribute as CFString,
+                rangeValue,
+                &value
+            ) == .success,
+            let attributed = value as? NSAttributedString,
+            attributed.length > 0
+        else { return nil }
+
+        let attributes = attributed.attributes(at: 0, effectiveRange: nil)
+
+        // AppKit text views hand back a real NSFont. Everything else that
+        // answers at all uses the Accessibility text attribute, whose value is a
+        // dictionary of name and size rather than a font object.
+        if let font = attributes[.font] as? NSFont {
+            return FieldFont(name: font.fontName, size: font.pointSize)
+        }
+        if
+            let descriptor = attributes[Self.axFontAttribute] as? [String: Any],
+            let name = descriptor[Self.axFontName] as? String,
+            let size = descriptor[Self.axFontSize] as? NSNumber
+        {
+            return FieldFont(name: name, size: CGFloat(size.doubleValue))
+        }
+
+        DebugLog.log(
+            "no font in AX text attributes: \(attributes.keys.map(\.rawValue).sorted())",
+            at: .verbose
+        )
+        return nil
     }
 
     func rangeForLine(_ line: Int) -> CFRange? {

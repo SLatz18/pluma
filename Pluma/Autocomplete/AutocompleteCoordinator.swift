@@ -265,7 +265,12 @@ final class AutocompleteCoordinator: ObservableObject {
                 return
             }
 
-            let suggestion = CompletionSuggestion(rawOutput: raw)
+            let suggestion = CompletionSuggestion(rawOutput: raw, context: context)
+            DebugLog.log(
+                "raw \(raw.debugDescription) tail \(context.suffix(40).debugDescription) "
+                    + "-> \(suggestion.remaining.debugDescription)",
+                at: .verbose
+            )
             guard !suggestion.isEmpty else {
                 DebugLog.log("response empty")
                 return

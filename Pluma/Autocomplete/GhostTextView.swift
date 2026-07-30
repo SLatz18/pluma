@@ -89,6 +89,27 @@ final class GhostTextView: NSView {
         label.firstBaselineOffsetFromTop
     }
 
+    // Distance from this view's leading edge to where the label's glyphs
+    // actually begin. NSTextField's cell insets its text by a couple of points,
+    // which nobody notices inside a chip and which reads as a gap when the text
+    // is supposed to continue the writer's sentence from the caret.
+    //
+    // Only meaningful for the suggestion look. Dictation leads with the pulsing
+    // dot, and that dot is what should sit at the caret.
+    // Where the label's glyphs begin, relative to this view's leading edge.
+    // NSTextField's alignment rect is inset from its frame, and Auto Layout pins
+    // the alignment rect — so pinning the stack flush to this view still leaves
+    // the text drawing a couple of points outside it. Measured rather than
+    // assumed, because the inset is AppKit's to change.
+    //
+    // Zero for dictation: that look leads with the pulsing dot, and the dot is
+    // what belongs at the caret.
+    var textInsetFromLeading: CGFloat {
+        guard dot.isHidden, let cell = label.cell else { return 0 }
+        let titleX = cell.titleRect(forBounds: label.bounds).minX
+        return label.convert(CGPoint(x: titleX, y: 0), to: self).x
+    }
+
     // `maxWidth` is the room between the caret and the right edge of the field.
     // The text truncates into it; the view is never moved to make it fit.
     func show(text: String, style: GhostStyle, font: NSFont, maxWidth: CGFloat) {
