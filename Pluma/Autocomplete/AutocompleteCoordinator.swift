@@ -53,6 +53,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private var activeSuggestion: CompletionSuggestion?
     private var activeElement: AXUIElement?
     private var lastSnapshotPrefix: String?
+    private var ghostEligibility = GhostTextEligibility.unknown
     private var acceptedFromCurrentSuggestion = ""
     private var requestSequence = 0
     private var eventTap: CFMachPort?
@@ -70,7 +71,7 @@ final class AutocompleteCoordinator: ObservableObject {
         isScreenContextPermitted = screenContext.isPermitted
         memoryEntryCount = memory.count
         DebugLog.truncate()
-        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)")
+        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)", at: .quiet)
 
         screenContext.onChange = { [weak self] permitted in
             Task { @MainActor [weak self] in
@@ -127,7 +128,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
     private func startIfPossible() {
         guard permission.isTrusted else {
-            DebugLog.log("start blocked: not trusted")
+            DebugLog.log("start blocked: not trusted", at: .quiet)
             updateActivity()
             return
         }
@@ -167,6 +168,10 @@ final class AutocompleteCoordinator: ObservableObject {
         }
 
         let prefix = snapshot.textBeforeCaret
+        // Decided here rather than at draw time: the field's whole text is in
+        // hand now, and re-reading it on every repaint would cost an AX round
+        // trip per keystroke.
+        ghostEligibility = snapshot.ghostEligibility
 
         if activeSuggestion != nil {
             handleTypedProgress(prefix: prefix)
@@ -176,21 +181,21 @@ final class AutocompleteCoordinator: ObservableObject {
 
         guard prefix != lastSnapshotPrefix else { return }
         lastSnapshotPrefix = prefix
-        DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)")
+        DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)", at: .verbose)
 
         debounceTask?.cancel()
         guard CompletionSuggestion.shouldTrigger(for: prefix) else {
-            DebugLog.log("below trigger threshold")
+            DebugLog.log("below trigger threshold", at: .verbose)
             updateActivity()
             return
         }
 
         let element = snapshot.element
-        let caretPoint = snapshot.caretScreenPoint
+        let caret = snapshot.caret
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: Self.debounceInterval)
             guard !Task.isCancelled else { return }
-            await self?.requestCompletion(prefix: prefix, element: element, caretPoint: caretPoint)
+            await self?.requestCompletion(prefix: prefix, element: element, caret: caret)
         }
     }
 
@@ -224,7 +229,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private func requestCompletion(
         prefix: String,
         element: AXUIElement,
-        caretPoint: CGPoint?
+        caret: CaretGeometry?
     ) async {
         requestSequence += 1
         let sequence = requestSequence
@@ -270,32 +275,48 @@ final class AutocompleteCoordinator: ObservableObject {
             activeSuggestion = suggestion
             activeElement = element
             acceptedFromCurrentSuggestion = ""
-            showOverlay(for: suggestion, at: caretPoint)
+            showOverlay(for: suggestion, at: caret)
             updateActivity()
         } catch {
             // Completion failures stay silent: autocomplete must never interrupt typing.
-            DebugLog.log("request failed: \(error.localizedDescription)")
+            DebugLog.log("request failed: \(error.localizedDescription)", at: .quiet)
         }
     }
 
-    private func showOverlay(for suggestion: CompletionSuggestion, at point: CGPoint? = nil) {
+    private func showOverlay(for suggestion: CompletionSuggestion, at knownCaret: CaretGeometry? = nil) {
         guard !suggestion.isEmpty else {
             dismissSuggestion()
             return
         }
+        guard let element = activeElement else { return }
 
         let display = boundaryPrefix(
             prefix: lastSnapshotPrefix ?? "", accepted: suggestion.remaining
         ) + suggestion.remaining
 
-        if let point {
-            overlay.show(text: display, atTopLeftPoint: point, from: .autocomplete)
-        } else if let element = activeElement, let point = currentCaretPoint(for: element) {
-            overlay.show(text: display, atTopLeftPoint: point, from: .autocomplete)
-        } else {
-            DebugLog.log("caret bounds unavailable; overlay at mouse")
-            overlay.show(text: display, atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint(), from: .autocomplete)
+        let caret = knownCaret ?? currentCaret(for: element)
+        if let caret, ghostEligibility.allows(caret) {
+            overlay.show(
+                .ghost(
+                    text: display,
+                    caret: caret,
+                    style: .suggestion,
+                    fieldFrame: FocusedFieldTracker.frame(of: element)
+                ),
+                from: .autocomplete
+            )
+            return
         }
+
+        // Mid-line and right-to-left carets fall back to the chip, sitting just
+        // below the line so it never covers what the user already wrote.
+        let anchor = caret.map { CGPoint(x: $0.rect.minX, y: $0.rect.maxY + 4) }
+            ?? FocusedFieldTracker.fieldEdgeAnchor(for: element)
+        guard let anchor else {
+            DebugLog.log("no caret and no usable field frame; suggestion not shown")
+            return
+        }
+        overlay.show(.suggestionChip(text: display, anchor: anchor), from: .autocomplete)
     }
 
     // Returns " " when the accepted text needs a separating space from the
@@ -334,7 +355,7 @@ final class AutocompleteCoordinator: ObservableObject {
         return misspelled.location == NSNotFound
     }
 
-    private func currentCaretPoint(for element: AXUIElement) -> CGPoint? {
+    private func currentCaret(for element: AXUIElement) -> CaretGeometry? {
         var rangeValue: CFTypeRef?
         guard
             AXUIElementCopyAttributeValue(
@@ -346,7 +367,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
         var selection = CFRange()
         guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &selection) else { return nil }
-        return FocusedFieldTracker.caretPoint(for: element, location: selection.location)
+        return FocusedFieldTracker.caretGeometry(for: element, location: selection.location)
     }
 
     private func dismissSuggestion() {
@@ -412,7 +433,7 @@ final class AutocompleteCoordinator: ObservableObject {
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(450))
             guard !Task.isCancelled else { return }
-            await self?.requestCompletion(prefix: prefix, element: element, caretPoint: nil)
+            await self?.requestCompletion(prefix: prefix, element: element, caret: nil)
         }
     }
 

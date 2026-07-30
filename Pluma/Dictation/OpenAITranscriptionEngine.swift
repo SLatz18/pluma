@@ -170,7 +170,7 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
         case "conversation.item.input_audio_transcription.completed":
             finalTranscript = event.transcript
         case "error":
-            DebugLog.log("realtime error: \(event.error?.message ?? "unknown")")
+            DebugLog.log("realtime error: \(event.error?.message ?? "unknown")", at: .quiet)
             socketFailed = true
         default:
             break
@@ -180,7 +180,7 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
     private func markSocketFailed(_ error: Error) {
         guard !socketFailed else { return }
         socketFailed = true
-        DebugLog.log("realtime socket failed: \(error.localizedDescription)")
+        DebugLog.log("realtime socket failed: \(error.localizedDescription)", at: .quiet)
     }
 
     // Polled rather than continuation-based on purpose: the socket can finish,
@@ -212,7 +212,7 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
                 session: session
             )
         } catch {
-            DebugLog.log("file transcription failed: \(error.localizedDescription)")
+            DebugLog.log("file transcription failed: \(error.localizedDescription)", at: .quiet)
             return nil
         }
     }

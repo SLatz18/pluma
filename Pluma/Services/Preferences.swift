@@ -19,6 +19,8 @@ enum Preferences {
     static let dictationProviderKey = "pluma.dictationProvider"
     static let cleanupProviderKey = "pluma.dictationCleanupProvider"
     static let openAICleanupModelKey = "pluma.openAICleanupModel"
+    static let developerModeEnabledKey = "pluma.developerModeEnabled"
+    static let logLevelKey = "pluma.logLevel"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -79,6 +81,31 @@ enum Preferences {
     static func dictationEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: dictationEnabledKey)
     }
+
+    // Developer mode is off until the cheat code unlocks it, so a missing key
+    // reading false is exactly right.
+    static func developerModeEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: developerModeEnabledKey)
+    }
+
+    static func setDeveloperModeEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: developerModeEnabledKey)
+    }
+
+    static func logLevel(from defaults: UserDefaults = .standard) -> DebugLog.Level {
+        guard
+            defaults.object(forKey: logLevelKey) != nil,
+            let level = DebugLog.Level(rawValue: defaults.integer(forKey: logLevelKey))
+        else {
+            return .normal
+        }
+        return level
+    }
+
+    static func setLogLevel(_ level: DebugLog.Level, to defaults: UserDefaults = .standard) {
+        defaults.set(level.rawValue, forKey: logLevelKey)
+    }
+
 
     // Cleanup is on unless the user turned it off, so register a default rather
     // than relying on bool(forKey:) returning false for an absent key.

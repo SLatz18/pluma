@@ -98,7 +98,7 @@ enum RewriteRunner {
             guard !cleaned.isEmpty else { return nil }
             return cleaned
         } catch {
-            DebugLog.log("dictation cleanup failed: \(error.localizedDescription)")
+            DebugLog.log("dictation cleanup failed: \(error.localizedDescription)", at: .quiet)
             return nil
         }
     }
