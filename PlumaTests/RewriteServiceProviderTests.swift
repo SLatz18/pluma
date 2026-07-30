@@ -110,6 +110,69 @@ final class RewriteServiceProviderTests: XCTestCase {
         XCTAssertEqual(pasteboard.string(forType: .string), "Keep this too")
     }
 
+    // #1: a Service entry pins its action through NSUserData, so "Shorten" in
+    // the Services menu shortens regardless of what the app has selected.
+    func testUserDataPinsTheIntentInsteadOfTheSavedChain() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        Preferences.saveChain([.professional], to: defaults)
+
+        let provider = RewriteServiceProvider(
+            defaults: defaults,
+            timeout: 1,
+            rewriteOperation: { _, intent, text, _ in "\(intent.rawValue): \(text)" }
+        )
+        let pasteboard = makePasteboard(containing: "Original text")
+        var serviceError: NSString?
+
+        provider.rewriteSelection(
+            pasteboard,
+            userData: RewriteIntent.shorten.rawValue,
+            error: &serviceError
+        )
+
+        XCTAssertNil(serviceError)
+        XCTAssertEqual(pasteboard.string(forType: .string), "shorten: Original text")
+    }
+
+    func testSelectedActionSentinelFallsBackToTheSavedChain() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        Preferences.saveChain([.professional], to: defaults)
+
+        XCTAssertEqual(
+            RewriteServiceProvider.chain(forUserData: "selectedAction", defaults: defaults),
+            [.professional]
+        )
+        XCTAssertEqual(
+            RewriteServiceProvider.chain(forUserData: nil, defaults: defaults),
+            [.professional]
+        )
+        XCTAssertEqual(
+            RewriteServiceProvider.chain(forUserData: "not-an-intent", defaults: defaults),
+            [.professional]
+        )
+    }
+
+    func testChainRunsEveryStepInOrder() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        Preferences.saveChain([.grammar, .shorten], to: defaults)
+
+        let provider = RewriteServiceProvider(
+            defaults: defaults,
+            timeout: 1,
+            rewriteOperation: { _, intent, text, _ in "\(text)|\(intent.rawValue)" }
+        )
+        let pasteboard = makePasteboard(containing: "Start")
+        var serviceError: NSString?
+
+        provider.rewriteSelection(pasteboard, userData: nil, error: &serviceError)
+
+        XCTAssertNil(serviceError)
+        XCTAssertEqual(pasteboard.string(forType: .string), "Start|grammar|shorten")
+    }
+
     private func makeDefaults() -> (UserDefaults, String) {
         let suiteName = "RewriteServiceProviderTests.\(UUID().uuidString)"
         return (UserDefaults(suiteName: suiteName)!, suiteName)

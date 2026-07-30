@@ -49,6 +49,8 @@
 	<string>pluma can capture the frontmost window only when screen context is enabled, to read visible names and terms with on-device OCR. Frames are not stored or uploaded.</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSServices</key>
 	<array>
 		<dict>
@@ -76,7 +78,7 @@
 			<key>NSServiceDescription</key>
 			<string>Rewrite the selected text with your chosen local writing action.</string>
 			<key>NSTimeout</key>
-			<string>60000</string>
+			<string>30000</string>
 			<key>NSUserData</key>
 			<string>selectedAction</string>
 		</dict>

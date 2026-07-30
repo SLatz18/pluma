@@ -53,7 +53,10 @@ final class RewriteServiceProvider: NSObject {
             return
         }
 
-        let chain = Preferences.chain(from: defaults)
+        // A Service entry can pin its action via NSUserData, so "Shorten" in the
+        // Services menu always shortens instead of running whatever the app
+        // happens to have selected. Without it we fall back to the saved chain.
+        let chain = Self.chain(forUserData: userData, defaults: defaults)
         guard !chain.isEmpty else {
             errorPointer.pointee = RewriteEngineError.emptyChain.localizedDescription as NSString
             return
@@ -112,6 +115,23 @@ final class RewriteServiceProvider: NSObject {
         case .failure(let error):
             errorPointer.pointee = error.localizedDescription as NSString
         }
+    }
+
+    // NSUserData is a plain string in Info.plist. "selectedAction" is the
+    // sentinel meaning "use whatever the app has selected"; any RewriteIntent
+    // raw value pins that single action instead.
+    static func chain(
+        forUserData userData: String?,
+        defaults: UserDefaults
+    ) -> [RewriteIntent] {
+        if
+            let userData,
+            userData != "selectedAction",
+            let pinned = RewriteIntent(rawValue: userData)
+        {
+            return [pinned]
+        }
+        return Preferences.chain(from: defaults)
     }
 }
 
