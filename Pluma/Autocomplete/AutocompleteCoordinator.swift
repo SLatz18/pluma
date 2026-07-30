@@ -267,13 +267,15 @@ final class AutocompleteCoordinator: ObservableObject {
 
         DebugLog.log("request provider=\(provider.rawValue) contextLen=\(context.count)")
         do {
-            let raw = try await RewriteRunner.complete(
+            let raw = try await generateCompletion(
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
                 memory: memoryDigest,
                 styleProfile: styleProfile,
-                ollamaModel: ollamaModel
+                ollamaModel: ollamaModel,
+                sequence: sequence,
+                prefix: prefix
             )
             guard
                 sequence == requestSequence,
@@ -319,6 +321,76 @@ final class AutocompleteCoordinator: ObservableObject {
             // Completion failures stay silent: autocomplete must never interrupt typing.
             DebugLog.log("request failed: \(error.localizedDescription)", at: .quiet)
         }
+    }
+
+    private func generateCompletion(
+        provider: RewriteProviderChoice,
+        context: String,
+        surrounding: String?,
+        memory: String?,
+        styleProfile: String?,
+        ollamaModel: String,
+        sequence: Int,
+        prefix: String
+    ) async throws -> String {
+        do {
+            return try await RewriteRunner.complete(
+                provider: provider,
+                context: context,
+                surrounding: surrounding,
+                memory: memory,
+                styleProfile: styleProfile,
+                ollamaModel: ollamaModel
+            )
+        } catch is CancellationError {
+            guard Self.shouldRetryModelCancellation(
+                taskIsCancelled: Task.isCancelled,
+                sequence: sequence,
+                currentSequence: requestSequence,
+                prefix: prefix,
+                currentPrefix: lastSnapshotPrefix
+            ) else {
+                throw CancellationError()
+            }
+
+            // Foundation Models can cancel an otherwise-current session while
+            // the system model is becoming available or another short session
+            // is winding down. A single retry recovers that transient case,
+            // while the guards above ensure continued typing and focus changes
+            // remain immediate cancellations.
+            DebugLog.log("model cancelled current completion; retrying once", at: .quiet)
+            try await Task.sleep(for: .milliseconds(120))
+            guard Self.shouldRetryModelCancellation(
+                taskIsCancelled: Task.isCancelled,
+                sequence: sequence,
+                currentSequence: requestSequence,
+                prefix: prefix,
+                currentPrefix: lastSnapshotPrefix
+            ) else {
+                throw CancellationError()
+            }
+
+            return try await RewriteRunner.complete(
+                provider: provider,
+                context: context,
+                surrounding: surrounding,
+                memory: memory,
+                styleProfile: styleProfile,
+                ollamaModel: ollamaModel
+            )
+        }
+    }
+
+    nonisolated static func shouldRetryModelCancellation(
+        taskIsCancelled: Bool,
+        sequence: Int,
+        currentSequence: Int,
+        prefix: String,
+        currentPrefix: String?
+    ) -> Bool {
+        !taskIsCancelled
+            && sequence == currentSequence
+            && prefix == currentPrefix
     }
 
     private func showOverlay(for suggestion: CompletionSuggestion, at knownCaret: CaretGeometry? = nil) {
