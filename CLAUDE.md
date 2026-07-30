@@ -84,3 +84,22 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
 - Privacy: transcripts/audio never persist; style memory and style profile
   are the only content stores, both opt-in. Preserve that in copy and code.
   See PRIVACY.md for the public privacy model (including optional OpenAI).
+
+## Git vocabulary — Scott is not a git native
+
+Read intent, not the literal command name. Scott describes outcomes.
+
+- **"rebase" / "rebase main" / "rebase the local repo" means SYNC**, not
+  `git rebase`. Do `git fetch origin && git merge --ff-only origin/main`.
+  Never run an actual rebase — see "Rebase: don't" in projects/CLAUDE.md.
+- "merge it here first" = merge locally and verify (build + tests + launch the
+  app) before anything reaches the remote.
+- Confirm before, not after, any history rewrite. If the literal reading is
+  destructive and the intent reading is safe, take the safe one and say so.
+- Destructive set — surface it and get an explicit yes: `push --force`,
+  `rebase` on shared history, `reset --hard`, `branch -D`, `clean -fd`.
+  Everything else is reflog-recoverable for ~90 days; say so when he asks
+  whether work was lost, and prove it (`git diff <discarded> HEAD`) rather
+  than just asserting it.
+- Uncommitted work is the ONLY unrecoverable state. Commit before a chat ends,
+  and commit freely on feature branches without being asked.
