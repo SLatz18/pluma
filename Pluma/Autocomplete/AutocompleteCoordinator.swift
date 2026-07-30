@@ -351,7 +351,11 @@ final class AutocompleteCoordinator: ObservableObject {
         // line, a lone "tion" is a puzzle — so the chip shows the whole word and
         // still inserts only the part that is missing.
         overlay.show(
-            .suggestionChip(text: chipText(for: suggestion), anchor: anchor),
+            .suggestionChip(
+                text: chipText(for: suggestion),
+                anchor: anchor,
+                fontSize: caret?.font?.size
+            ),
             from: .autocomplete
         )
     }

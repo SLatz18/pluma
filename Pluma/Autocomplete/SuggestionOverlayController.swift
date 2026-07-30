@@ -8,12 +8,24 @@ import AppKit
 // errors, permission nags — and the fallback for the cases where ghost text
 // cannot be drawn honestly. Text the user is about to accept goes to
 // GhostTextView instead.
+// Shaped after the completion chip macOS itself puts under the caret when it
+// wants to fix a word: a capsule, a light fill, a soft shadow, the word in
+// ordinary text colour, and a hairline before the trailing glyph. People have
+// been dismissing that chip for years, so it needs no explaining.
+//
+// It departs from the system's in one place, deliberately. macOS puts an ✕
+// there, because its chip applies itself unless you refuse. This one is offered
+// rather than applied, so the trailing glyph is ⇥ — the key that takes it.
 private final class PillView: NSVisualEffectView {
     private let iconView = NSImageView()
     private let label = NSTextField(labelWithString: "")
     private let hintLabel = NSTextField(labelWithString: "⇥")
-    private let hintBezel = NSView()
+    private let divider = NSView()
     private let stack = NSStackView()
+
+    // The system chip's own proportions: roomy sides, tight top and bottom.
+    private static let horizontalInset: CGFloat = 11
+    private static let verticalInset: CGFloat = 5
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -21,39 +33,37 @@ private final class PillView: NSVisualEffectView {
         blendingMode = .behindWindow
         state = .active
         wantsLayer = true
-        layer?.cornerRadius = 7
         layer?.cornerCurve = .continuous
         layer?.borderWidth = 1
 
         label.font = .systemFont(ofSize: 13)
-        label.textColor = .secondaryLabelColor
+        label.textColor = .labelColor
         label.lineBreakMode = .byTruncatingTail
         label.maximumNumberOfLines = 1
         label.preferredMaxLayoutWidth = 500
 
-        hintLabel.font = .systemFont(ofSize: 10, weight: .semibold)
+        hintLabel.font = .systemFont(ofSize: 12, weight: .regular)
         hintLabel.textColor = .tertiaryLabelColor
-        hintBezel.wantsLayer = true
-        hintBezel.layer?.cornerRadius = 3
+
+        divider.wantsLayer = true
+        divider.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([divider.widthAnchor.constraint(equalToConstant: 1)])
+
         applyDynamicColors()
-        hintLabel.translatesAutoresizingMaskIntoConstraints = false
-        hintBezel.addSubview(hintLabel)
-        NSLayoutConstraint.activate([
-            hintLabel.centerXAnchor.constraint(equalTo: hintBezel.centerXAnchor),
-            hintLabel.centerYAnchor.constraint(equalTo: hintBezel.centerYAnchor),
-            hintBezel.widthAnchor.constraint(equalTo: hintLabel.widthAnchor, constant: 8),
-            hintBezel.heightAnchor.constraint(equalTo: hintLabel.heightAnchor, constant: 2)
-        ])
 
         iconView.contentTintColor = .secondaryLabelColor
 
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 6
-        stack.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
+        stack.spacing = 8
+        stack.edgeInsets = NSEdgeInsets(
+            top: Self.verticalInset, left: Self.horizontalInset,
+            bottom: Self.verticalInset, right: Self.horizontalInset
+        )
         stack.addArrangedSubview(iconView)
         stack.addArrangedSubview(label)
-        stack.addArrangedSubview(hintBezel)
+        stack.addArrangedSubview(divider)
+        stack.addArrangedSubview(hintLabel)
 
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
@@ -61,7 +71,10 @@ private final class PillView: NSVisualEffectView {
             stack.topAnchor.constraint(equalTo: topAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor)
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            // The hairline runs the text's height, not the capsule's, so it
+            // stops short of the rounded ends.
+            divider.heightAnchor.constraint(equalTo: label.heightAnchor)
         ])
     }
 
@@ -69,8 +82,15 @@ private final class PillView: NSVisualEffectView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    // A capsule at any height, so the shape survives the text growing with the
+    // field's own font.
+    override func layout() {
+        super.layout()
+        layer?.cornerRadius = bounds.height / 2
+    }
+
     // CGColors are resolved snapshots: without this, a dark↔light switch while
-    // the pill is up leaves the border and bezel painted for the old mode.
+    // the pill is up leaves the border and hairline painted for the old mode.
     override func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
         applyDynamicColors()
@@ -78,17 +98,23 @@ private final class PillView: NSVisualEffectView {
 
     private func applyDynamicColors() {
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            layer?.borderColor = NSColor.labelColor.withAlphaComponent(0.1).cgColor
-            hintBezel.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.08).cgColor
+            layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.6).cgColor
+            divider.layer?.backgroundColor = NSColor.separatorColor.cgColor
         }
     }
 
-    func showSuggestion(_ text: String) {
+    // `fontSize` follows the field being typed into when Accessibility named it,
+    // so the chip reads as a peer of the writer's own text rather than as system
+    // furniture parked nearby.
+    func showSuggestion(_ text: String, fontSize: CGFloat?) {
         RecordingPulse.stop(on: iconView)
         iconView.isHidden = true
-        hintBezel.isHidden = false
-        label.font = .systemFont(ofSize: 13)
-        label.textColor = .secondaryLabelColor
+        divider.isHidden = false
+        hintLabel.isHidden = false
+        let size = (fontSize.map { min(20, max(11, $0)) }) ?? 13
+        label.font = .systemFont(ofSize: size)
+        hintLabel.font = .systemFont(ofSize: max(10, size - 1))
+        label.textColor = .labelColor
         label.maximumNumberOfLines = 1
         label.lineBreakMode = .byTruncatingTail
         label.preferredMaxLayoutWidth = 500
@@ -101,7 +127,8 @@ private final class PillView: NSVisualEffectView {
         iconView.contentTintColor = .secondaryLabelColor
         let base = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)
         iconView.image = base?.withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
-        hintBezel.isHidden = true
+        divider.isHidden = true
+        hintLabel.isHidden = true
         label.font = .systemFont(ofSize: 12, weight: .medium)
         label.textColor = .labelColor
         label.maximumNumberOfLines = 1
@@ -116,7 +143,8 @@ private final class PillView: NSVisualEffectView {
         let base = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Recording")
         iconView.image = base?.withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
         RecordingPulse.start(on: iconView)
-        hintBezel.isHidden = true
+        divider.isHidden = true
+        hintLabel.isHidden = true
         if transcript.isEmpty {
             label.font = .systemFont(ofSize: 12, weight: .medium)
             label.textColor = .secondaryLabelColor
@@ -156,7 +184,7 @@ final class SuggestionOverlayController {
     // it already had; everything else is the app speaking, and wears the chip.
     enum Presentation {
         case ghost(text: String, caret: CaretGeometry, style: GhostStyle, fieldFrame: CGRect?)
-        case suggestionChip(text: String, anchor: CGPoint)
+        case suggestionChip(text: String, anchor: CGPoint, fontSize: CGFloat? = nil)
         case dictationChip(transcript: String, anchor: CGPoint)
         case status(systemImage: String, message: String, anchor: CGPoint)
     }
@@ -218,8 +246,8 @@ final class SuggestionOverlayController {
             ghost.show(text: text, style: style, font: font, maxWidth: budget)
             present(ghost, placement: .ghost(caret))
 
-        case let .suggestionChip(text, anchor):
-            pill.showSuggestion(text)
+        case let .suggestionChip(text, anchor, fontSize):
+            pill.showSuggestion(text, fontSize: fontSize)
             present(pill, placement: .topLeft(anchor))
 
         case let .dictationChip(transcript, anchor):
@@ -284,6 +312,10 @@ final class SuggestionOverlayController {
             if panel.contentView !== content {
                 panel.contentView = content
             }
+            // The chip is a thing sitting above the document and casts a shadow
+            // like the system's own. Ghost text is pretending to be the document,
+            // and a shadow would give it away instantly.
+            panel.hasShadow = content === self.pill
             content.layoutSubtreeIfNeeded()
             let fitting = content.fittingSize
             panel.setContentSize(fitting)
