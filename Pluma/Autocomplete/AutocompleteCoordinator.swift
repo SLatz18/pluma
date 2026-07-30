@@ -39,6 +39,16 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var inlineSuggestions: Bool {
+        didSet {
+            guard inlineSuggestions != oldValue else { return }
+            Preferences.setInlineSuggestions(inlineSuggestions, to: defaults)
+            // The two looks are different windows' worth of layout; whatever is
+            // on screen was drawn for the old one.
+            dismissSuggestion()
+        }
+    }
+
     @Published private(set) var isScreenContextPermitted: Bool
     @Published private(set) var memoryEntryCount: Int
 
@@ -67,6 +77,7 @@ final class AutocompleteCoordinator: ObservableObject {
         isEnabled = Preferences.autocompleteEnabled(from: defaults)
         screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
         memoryEnabled = Preferences.memoryEnabled(from: defaults)
+        inlineSuggestions = Preferences.inlineSuggestions(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
         memoryEntryCount = memory.count
@@ -312,7 +323,7 @@ final class AutocompleteCoordinator: ObservableObject {
         ) + suggestion.remaining
 
         let caret = knownCaret ?? currentCaret(for: element)
-        if let caret, ghostEligibility.allows(caret) {
+        if inlineSuggestions, let caret, ghostEligibility.allows(caret) {
             overlay.show(
                 .ghost(
                     text: display,
@@ -325,15 +336,34 @@ final class AutocompleteCoordinator: ObservableObject {
             return
         }
 
-        // Mid-line and right-to-left carets fall back to the chip, sitting just
-        // below the line so it never covers what the user already wrote.
+        // The chip sits just below the caret's line, so it covers nothing the
+        // writer has already put down — which is what lets it appear anywhere in
+        // a line rather than only at the end of one, and what lets it work in
+        // apps that cannot report the geometry drawing inline would need.
         let anchor = caret.map { CGPoint(x: $0.rect.minX, y: $0.rect.maxY + 4) }
             ?? FocusedFieldTracker.fieldEdgeAnchor(for: element)
         guard let anchor else {
             DebugLog.log("no caret and no usable field frame; suggestion not shown")
             return
         }
-        overlay.show(.suggestionChip(text: display, anchor: anchor), from: .autocomplete)
+        // Detached from the writer's line, a completion has to read as a word.
+        // Inline, "documenta" followed by "tion" is obvious; on a chip below the
+        // line, a lone "tion" is a puzzle — so the chip shows the whole word and
+        // still inserts only the part that is missing.
+        overlay.show(
+            .suggestionChip(text: chipText(for: suggestion), anchor: anchor),
+            from: .autocomplete
+        )
+    }
+
+    private func chipText(for suggestion: CompletionSuggestion) -> String {
+        let prefix = lastSnapshotPrefix ?? ""
+        let partial = trailingWord(prefix)
+        guard !partial.isEmpty, endsMidWord(prefix) else {
+            return boundaryPrefix(prefix: prefix, accepted: suggestion.remaining)
+                + suggestion.remaining
+        }
+        return partial + suggestion.remaining
     }
 
     // Returns " " when the accepted text needs a separating space from the
