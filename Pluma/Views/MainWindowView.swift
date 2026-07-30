@@ -1,6 +1,7 @@
 import SwiftUI
 
 enum MainPage: String, CaseIterable, Identifiable, Hashable {
+    case overview
     case rewrite
     case autocomplete
     case dictation
@@ -11,6 +12,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
+        case .overview: "Overview"
         case .rewrite: "Rewrite"
         case .autocomplete: "Autocomplete"
         case .dictation: "Dictation"
@@ -20,6 +22,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
 
     var symbolName: String {
         switch self {
+        case .overview: "rectangle.grid.2x2"
         case .rewrite: "sparkles.rectangle.stack"
         case .autocomplete: "character.cursor.ibeam"
         case .dictation: "mic"
@@ -29,10 +32,19 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
 
     var tint: Color {
         switch self {
+        case .overview: .secondary
         case .rewrite: .accentColor
         case .autocomplete: DS.Feature.autocomplete.color
         case .dictation: DS.Feature.dictation.color
         case .developer: .gray
+        }
+    }
+
+    init(_ feature: FeatureDefinition.ID) {
+        switch feature {
+        case .rewrite: self = .rewrite
+        case .autocomplete: self = .autocomplete
+        case .dictation: self = .dictation
         }
     }
 }
@@ -41,7 +53,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
 /// recipes (the home page) and the two always-on features.
 struct MainWindowView: View {
     @EnvironmentObject private var developer: DeveloperMode
-    @State private var selection: MainPage? = .rewrite
+    @State private var selection: MainPage? = .overview
 
     // The Dev page is filtered out rather than disabled: locked, it is not in
     // the view tree at all.
@@ -59,11 +71,14 @@ struct MainWindowView: View {
                         .foregroundStyle(page.tint)
                 }
                 .tag(page)
+                .accessibilityIdentifier("nav-\(page.rawValue)")
             }
             .listStyle(.sidebar)
             .navigationTitle("pluma")
         } detail: {
-            switch selection ?? .rewrite {
+            switch selection ?? .overview {
+            case .overview:
+                OverviewView(selection: $selection)
             case .rewrite:
                 HomeView()
             case .autocomplete:
@@ -81,7 +96,7 @@ struct MainWindowView: View {
         .onDisappear { developer.stopListeningForCheatCode() }
         .onChange(of: developer.isUnlocked) { _, unlocked in
             if !unlocked, selection == .developer {
-                selection = .rewrite
+                selection = .overview
             }
         }
     }
