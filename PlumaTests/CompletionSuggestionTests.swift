@@ -288,6 +288,59 @@ final class CompletionSuggestionTests: XCTestCase {
         XCTAssertEqual(suggestion.remaining, ". Let me know")
     }
 
+    // MARK: Echoes seen in a real session
+    //
+    // Every case below was logged while typing one sentence into TextEdit, and
+    // every one of them reached the screen.
+
+    // The caret sits after a space. That trailing space made each candidate one
+    // character longer than the echo it was meant to match, so nothing matched.
+    func testEchoIsCaughtWhenTheCaretFollowsASpace() {
+        XCTAssertTrue(
+            CompletionSuggestion(
+                rawOutput: "test of the", context: "this is a test of the "
+            ).isEmpty
+        )
+    }
+
+    func testEchoOfTheWholeLineIsCaughtAfterASpace() {
+        XCTAssertTrue(
+            CompletionSuggestion(
+                rawOutput: "this is a test of the functionality from I",
+                context: "this is a test of the functionality from "
+            ).isEmpty
+        )
+    }
+
+    // The model restated words it had not finished: "of the functionali" against
+    // a context already holding "of the functionality". Redundant either way.
+    func testUnfinishedRestatementIsCaught() {
+        XCTAssertTrue(
+            CompletionSuggestion(
+                rawOutput: "of the functionali",
+                context: "this is a test of the functionality"
+            ).isEmpty
+        )
+    }
+
+    func testRestatementBeginningMidContextIsCaught() {
+        XCTAssertTrue(
+            CompletionSuggestion(
+                rawOutput: "tionality of the functionality",
+                context: "f the functionality of the functionality"
+            ).isEmpty
+        )
+    }
+
+    // The guard must not swallow real continuations that happen to reuse a word.
+    func testContinuationSharingAWordWithTheContextSurvives() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: " of the new release",
+            context: "I read the functionality notes and the scope"
+        )
+        XCTAssertEqual(suggestion.remaining, " of the new release")
+    }
+
     func testMultipleRepeatedWordsAreStripped() {
         let suggestion = CompletionSuggestion(
             rawOutput: "the middle section needs work",

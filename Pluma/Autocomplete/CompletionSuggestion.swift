@@ -124,6 +124,18 @@ struct CompletionSuggestion: Equatable, Sendable {
         guard !body.isEmpty else { return suggestion }
 
         let tail = String(context.suffix(maxEchoLength))
+
+        // The model sometimes restates a run of words it has *not* finished —
+        // given "…a test of the functionality" it offers "of the functionali".
+        // That is redundant however it ends, so the whole thing goes.
+        if isContainedInTail(body, tail: tail) { return "" }
+
+        // …and sometimes it lands back where the writer already is, closing with
+        // the very words the caret sits after. Whatever it did in between, a
+        // suggestion that ends by retyping the end of the line is not a
+        // continuation.
+        if endsWithContextTail(body, tail: tail) { return "" }
+
         guard let overlap = longestEchoedTail(of: tail, openingOf: body) else { return suggestion }
 
         var stripped = String(body.dropFirst(overlap))
@@ -132,9 +144,10 @@ struct CompletionSuggestion: Equatable, Sendable {
         while stripped.first?.isWhitespace == true {
             stripped.removeFirst()
         }
-        // What is left of a restated line is often just the punctuation the
-        // model tacked on. A lone "." is not a suggestion worth drawing.
-        guard stripped.contains(where: \.isLetterOrDigit) else { return "" }
+        // What is left of a restated line is often just the punctuation the model
+        // tacked on, or a single stray letter. Neither is worth interrupting the
+        // writer for, and both are what a mostly-echoed answer leaves behind.
+        guard stripped.filter(\.isLetterOrDigit).count >= minimumEchoLength else { return "" }
 
         // Restore the word boundary the comparison skipped — but only for a
         // word. Punctuation belongs tight against the writer's last word, so
@@ -156,7 +169,13 @@ struct CompletionSuggestion: Equatable, Sendable {
         let bodyLower = body.lowercased()
 
         for start in wordStarts(in: contextLower).sorted() {
-            let candidate = String(contextLower[start...])
+            // Trailing whitespace on the context is the writer's word boundary,
+            // not part of the repeated words. Leaving it on made every candidate
+            // one character longer than the echo it was meant to match, which
+            // defeated the whole check the moment the caret sat after a space.
+            let candidate = String(
+                contextLower[start...].reversed().drop(while: \.isWhitespace).reversed()
+            )
             guard candidate.count >= minimumEchoLength, candidate.count <= bodyLower.count else {
                 continue
             }
@@ -172,6 +191,37 @@ struct CompletionSuggestion: Equatable, Sendable {
             }
         }
         return nil
+    }
+
+    // True when the suggestion is just words the writer already has — the model
+    // re-typing the tail of the context instead of extending it, whether or not
+    // it got to the end of the last word.
+    private static func isContainedInTail(_ body: String, tail: String) -> Bool {
+        let bodyLower = body.lowercased()
+        guard bodyLower.count >= minimumEchoLength else { return false }
+        let tailLower = tail.lowercased()
+
+        for start in wordStarts(in: tailLower).sorted() {
+            let candidate = String(tailLower[start...])
+            guard candidate.count >= bodyLower.count else { continue }
+            if candidate.hasPrefix(bodyLower) { return true }
+        }
+        return false
+    }
+
+    // True when the suggestion finishes on the same run of words the context
+    // finishes on. Two words is enough to mean it: a genuine continuation lands
+    // somewhere new, and one shared word is ordinary English.
+    private static func endsWithContextTail(_ body: String, tail: String) -> Bool {
+        let bodyWords = body.lowercased().split(separator: " ").map(String.init)
+        let tailWords = tail.lowercased().split(separator: " ").map(String.init)
+        guard bodyWords.count >= 2, tailWords.count >= 2 else { return false }
+
+        for count in stride(from: min(4, min(bodyWords.count, tailWords.count)), through: 2, by: -1)
+        where Array(bodyWords.suffix(count)) == Array(tailWords.suffix(count)) {
+            return true
+        }
+        return false
     }
 
     // Indices that begin a word: the string's own start, plus every position

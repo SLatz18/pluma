@@ -21,6 +21,7 @@ enum Preferences {
     static let openAICleanupModelKey = "pluma.openAICleanupModel"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
+    static let inlineSuggestionsKey = "pluma.inlineSuggestions"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -80,6 +81,20 @@ enum Preferences {
 
     static func dictationEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: dictationEnabledKey)
+    }
+
+    // Off by default: drawing the suggestion into the writer's own line needs the
+    // exact glyph origin, baseline, and font of the field it is landing in, and
+    // only well-behaved AppKit apps report all three. Everywhere else it is
+    // approximations stacked on approximations and it shows. The chip below the
+    // caret only needs to know roughly where the caret is, which every app
+    // manages, so that is what ships.
+    static func inlineSuggestions(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: inlineSuggestionsKey)
+    }
+
+    static func setInlineSuggestions(_ inline: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(inline, forKey: inlineSuggestionsKey)
     }
 
     // Developer mode is off until the cheat code unlocks it, so a missing key
