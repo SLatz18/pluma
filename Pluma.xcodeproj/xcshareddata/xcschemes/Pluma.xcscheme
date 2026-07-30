@@ -15,7 +15,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E6858FFADD8DCE067C1157C5"
+               BlueprintIdentifier = "A5069CFF326DD297D6FD7F21"
                BuildableName = "Pluma.app"
                BlueprintName = "Pluma"
                ReferencedContainer = "container:Pluma.xcodeproj">
@@ -32,7 +32,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E6858FFADD8DCE067C1157C5"
+            BlueprintIdentifier = "A5069CFF326DD297D6FD7F21"
             BuildableName = "Pluma.app"
             BlueprintName = "Pluma"
             ReferencedContainer = "container:Pluma.xcodeproj">
@@ -44,7 +44,7 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "A5595AD58899D091476CB26C"
+               BlueprintIdentifier = "BAA69CA398D577C34D8DA018"
                BuildableName = "PlumaTests.xctest"
                BlueprintName = "PlumaTests"
                ReferencedContainer = "container:Pluma.xcodeproj">
@@ -68,7 +68,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E6858FFADD8DCE067C1157C5"
+            BlueprintIdentifier = "A5069CFF326DD297D6FD7F21"
             BuildableName = "Pluma.app"
             BlueprintName = "Pluma"
             ReferencedContainer = "container:Pluma.xcodeproj">
@@ -87,7 +87,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E6858FFADD8DCE067C1157C5"
+            BlueprintIdentifier = "A5069CFF326DD297D6FD7F21"
             BuildableName = "Pluma.app"
             BlueprintName = "Pluma"
             ReferencedContainer = "container:Pluma.xcodeproj">

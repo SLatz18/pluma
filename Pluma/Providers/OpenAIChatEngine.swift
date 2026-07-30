@@ -24,7 +24,7 @@ enum OpenAIChatEngine {
         let (data, response) = try await session.data(for: request)
         if let http = response as? HTTPURLResponse, http.statusCode != 200 {
             let detail = OpenAIErrorBody.describe(status: http.statusCode, data: data)
-            DebugLog.log("openai cleanup failed: \(detail)")
+            DebugLog.log("openai cleanup failed: \(detail)", at: .quiet)
             throw RewriteEngineError.modelUnavailable(detail)
         }
 

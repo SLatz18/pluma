@@ -41,7 +41,7 @@ final class SelectionRewriteController: ObservableObject {
         DebugLog.log("hotkey fired")
 
         guard AccessibilityPermission.shared.isTrusted else {
-            DebugLog.log("rewrite blocked: not trusted")
+            DebugLog.log("rewrite blocked: not trusted", at: .quiet)
             flash(systemImage: "hand.raised", message: "pluma needs Accessibility access")
             return
         }
@@ -67,9 +67,9 @@ final class SelectionRewriteController: ObservableObject {
         defer { isWorking = false }
 
         let anchor = Self.selectionAnchor(of: element) ?? Self.mouseAnchor()
-        overlay.showStatus(
-            systemImage: "sparkles", message: "Rewriting…",
-            atTopLeftPoint: anchor, from: .rewrite
+        overlay.show(
+            .status(systemImage: "sparkles", message: "Rewriting…", anchor: anchor),
+            from: .rewrite
         )
 
         do {
@@ -80,10 +80,13 @@ final class SelectionRewriteController: ObservableObject {
                 ollamaModel: Preferences.ollamaModel(from: defaults),
                 onProgress: { [overlay] progress in
                     guard case .starting(let step, let of, let intent) = progress, of > 1 else { return }
-                    overlay.showStatus(
-                        systemImage: "sparkles",
-                        message: "Rewriting \(step) of \(of) — \(intent.title)…",
-                        atTopLeftPoint: anchor, from: .rewrite
+                    overlay.show(
+                        .status(
+                            systemImage: "sparkles",
+                            message: "Rewriting \(step) of \(of) — \(intent.title)…",
+                            anchor: anchor
+                        ),
+                        from: .rewrite
                     )
                 }
             )
@@ -91,11 +94,11 @@ final class SelectionRewriteController: ObservableObject {
                 DebugLog.log("rewrite inserted OK")
                 overlay.hide(from: .rewrite)
             } else {
-                DebugLog.log("rewrite insertion failed")
+                DebugLog.log("rewrite insertion failed", at: .quiet)
                 flash(systemImage: "exclamationmark.triangle", message: "This field rejected the edit")
             }
         } catch {
-            DebugLog.log("rewrite failed: \(error.localizedDescription)")
+            DebugLog.log("rewrite failed: \(error.localizedDescription)", at: .quiet)
             flash(systemImage: "exclamationmark.triangle", message: error.localizedDescription)
         }
     }
@@ -117,6 +120,8 @@ final class SelectionRewriteController: ObservableObject {
         return selectedValue as? String
     }
 
+    // Just below the start of the selection, so the progress chip never covers
+    // the text being rewritten.
     private static func selectionAnchor(of element: AXUIElement) -> CGPoint? {
         var rangeValue: CFTypeRef?
         guard
@@ -130,24 +135,10 @@ final class SelectionRewriteController: ObservableObject {
         var selection = CFRange()
         guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &selection) else { return nil }
 
-        var anchorRange = CFRange(location: selection.location, length: 0)
-        guard let anchorRangeValue = AXValueCreate(.cfRange, &anchorRange) else { return nil }
-
-        var boundsValue: CFTypeRef?
         guard
-            AXUIElementCopyParameterizedAttributeValue(
-                element,
-                kAXBoundsForRangeParameterizedAttribute as CFString,
-                anchorRangeValue,
-                &boundsValue
-            ) == .success,
-            let boundsValue,
-            CFGetTypeID(boundsValue) == AXValueGetTypeID()
-        else { return nil }
-
-        var rect = CGRect.zero
-        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else { return nil }
-        return CGPoint(x: rect.minX, y: rect.maxY + 6)
+            let caret = FocusedFieldTracker.caretGeometry(for: element, location: selection.location)
+        else { return FocusedFieldTracker.fieldEdgeAnchor(for: element) }
+        return CGPoint(x: caret.rect.minX, y: caret.rect.maxY + 6)
     }
 
     private static func mouseAnchor() -> CGPoint {

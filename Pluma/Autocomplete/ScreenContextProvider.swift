@@ -83,7 +83,7 @@ final class ScreenContextProvider {
 
             return try ocr(image)
         } catch {
-            DebugLog.log("screen context failed: \(error.localizedDescription)")
+            DebugLog.log("screen context failed: \(error.localizedDescription)", at: .quiet)
             return nil
         }
     }

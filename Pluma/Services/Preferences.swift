@@ -19,6 +19,13 @@ enum Preferences {
     static let dictationProviderKey = "pluma.dictationProvider"
     static let cleanupProviderKey = "pluma.dictationCleanupProvider"
     static let openAICleanupModelKey = "pluma.openAICleanupModel"
+    static let developerModeEnabledKey = "pluma.developerModeEnabled"
+    static let logLevelKey = "pluma.logLevel"
+    static let inlineSuggestionsKey = "pluma.inlineSuggestions"
+    static let completionPhraseWordsKey = "pluma.completion.phraseWords"
+    static let completionBriefWordsKey = "pluma.completion.briefWords"
+    static let completionDebounceKey = "pluma.completion.debounceMilliseconds"
+    static let completionMinimumContextKey = "pluma.completion.minimumContext"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -79,6 +86,79 @@ enum Preferences {
     static func dictationEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: dictationEnabledKey)
     }
+
+    // Off by default: drawing the suggestion into the writer's own line needs the
+    // exact glyph origin, baseline, and font of the field it is landing in, and
+    // only well-behaved AppKit apps report all three. Everywhere else it is
+    // approximations stacked on approximations and it shows. The chip below the
+    // caret only needs to know roughly where the caret is, which every app
+    // manages, so that is what ships.
+    static func inlineSuggestions(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: inlineSuggestionsKey)
+    }
+
+    static func setInlineSuggestions(_ inline: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(inline, forKey: inlineSuggestionsKey)
+    }
+
+    // Each knob falls back to the shipped value on its own, so a partially
+    // written domain — or one key cleared by hand — still yields a sane whole.
+    static func completionTuning(from defaults: UserDefaults = .standard) -> CompletionTuning {
+        func value(_ key: String, _ fallback: Int) -> Int {
+            defaults.object(forKey: key) == nil ? fallback : defaults.integer(forKey: key)
+        }
+        let standard = CompletionTuning.standard
+        return CompletionTuning(
+            phraseWords: value(completionPhraseWordsKey, standard.phraseWords),
+            briefWords: value(completionBriefWordsKey, standard.briefWords),
+            debounceMilliseconds: value(completionDebounceKey, standard.debounceMilliseconds),
+            minimumContext: value(completionMinimumContextKey, standard.minimumContext)
+        ).clamped()
+    }
+
+    static func setCompletionTuning(
+        _ tuning: CompletionTuning, to defaults: UserDefaults = .standard
+    ) {
+        let clamped = tuning.clamped()
+        defaults.set(clamped.phraseWords, forKey: completionPhraseWordsKey)
+        defaults.set(clamped.briefWords, forKey: completionBriefWordsKey)
+        defaults.set(clamped.debounceMilliseconds, forKey: completionDebounceKey)
+        defaults.set(clamped.minimumContext, forKey: completionMinimumContextKey)
+    }
+
+    static func resetCompletionTuning(to defaults: UserDefaults = .standard) {
+        for key in [
+            completionPhraseWordsKey, completionBriefWordsKey,
+            completionDebounceKey, completionMinimumContextKey
+        ] {
+            defaults.removeObject(forKey: key)
+        }
+    }
+
+    // Developer mode is off until the cheat code unlocks it, so a missing key
+    // reading false is exactly right.
+    static func developerModeEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: developerModeEnabledKey)
+    }
+
+    static func setDeveloperModeEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: developerModeEnabledKey)
+    }
+
+    static func logLevel(from defaults: UserDefaults = .standard) -> DebugLog.Level {
+        guard
+            defaults.object(forKey: logLevelKey) != nil,
+            let level = DebugLog.Level(rawValue: defaults.integer(forKey: logLevelKey))
+        else {
+            return .normal
+        }
+        return level
+    }
+
+    static func setLogLevel(_ level: DebugLog.Level, to defaults: UserDefaults = .standard) {
+        defaults.set(level.rawValue, forKey: logLevelKey)
+    }
+
 
     // Cleanup is on unless the user turned it off, so register a default rather
     // than relying on bool(forKey:) returning false for an absent key.
