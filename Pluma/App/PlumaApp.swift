@@ -7,6 +7,7 @@ struct PlumaApp: App {
     @StateObject private var autocomplete: AutocompleteCoordinator
     @StateObject private var selectionRewrite: SelectionRewriteController
     @StateObject private var dictation: DictationController
+    @StateObject private var developer: DeveloperMode
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
@@ -18,6 +19,7 @@ struct PlumaApp: App {
         _autocomplete = StateObject(wrappedValue: AutocompleteCoordinator(overlay: overlay))
         _selectionRewrite = StateObject(wrappedValue: SelectionRewriteController(overlay: overlay))
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
+        _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
     }
 
     var body: some Scene {
@@ -27,6 +29,7 @@ struct PlumaApp: App {
                 .environmentObject(autocomplete)
                 .environmentObject(selectionRewrite)
                 .environmentObject(dictation)
+                .environmentObject(developer)
         }
         .defaultSize(width: 980, height: 700)
         .windowResizability(.contentMinSize)
@@ -43,6 +46,7 @@ struct PlumaApp: App {
             SettingsView()
                 .environmentObject(model)
                 .environmentObject(autocomplete)
+                .environmentObject(developer)
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)
         }

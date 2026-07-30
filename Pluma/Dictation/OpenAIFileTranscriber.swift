@@ -30,7 +30,7 @@ enum OpenAIFileTranscriber {
         let (data, response) = try await session.data(for: request)
         if let http = response as? HTTPURLResponse, http.statusCode != 200 {
             let detail = OpenAIErrorBody.describe(status: http.statusCode, data: data)
-            DebugLog.log("openai transcription failed: \(detail)")
+            DebugLog.log("openai transcription failed: \(detail)", at: .quiet)
             throw RewriteEngineError.modelUnavailable(detail)
         }
         let decoded = try JSONDecoder().decode(Reply.self, from: data)
