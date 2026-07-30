@@ -2,68 +2,15 @@ import SwiftUI
 
 struct AutocompleteView: View {
     @EnvironmentObject private var coordinator: AutocompleteCoordinator
-    @State private var showClearMemoryConfirmation = false
 
     var body: some View {
-        DSPage(
-            title: "Autocomplete",
-            subtitle: "Ghost-text suggestions as you type, in every app.",
-            eyebrow: "As you type → suggest"
+        DSFeaturePage(
+            .autocomplete,
+            subtitle: "Suggestions appear at the caret while you type in any app."
         ) {
             heroCard
 
-            VStack(alignment: .leading, spacing: 12) {
-                DSEyebrow(trigger: "Personalization")
-
-                VStack(spacing: 0) {
-                    DSToggleRow(
-                        title: "Screen context",
-                        detail: "OCR the frontmost window so completions can match what you're replying to — names, topics, tone. Nothing is stored.",
-                        isOn: $coordinator.screenContextEnabled,
-                        disabled: !coordinator.isPermissionGranted
-                    )
-
-                    if coordinator.screenContextEnabled && !coordinator.isScreenContextPermitted {
-                        rowDivider
-                        DSNoticeRow(
-                            systemImage: "rectangle.dashed.badge.record",
-                            tint: .orange,
-                            text: "Screen context needs Screen Recording access to read text near your cursor.",
-                            actionTitle: "Grant Screen Recording…"
-                        ) {
-                            coordinator.requestScreenContextPermission()
-                        }
-                    }
-
-                    rowDivider
-
-                    DSToggleRow(
-                        title: "Learn my style",
-                        detail: "Accepted phrases become local style memory, steering suggestions toward your vocabulary.",
-                        isOn: $coordinator.memoryEnabled,
-                        disabled: !coordinator.isPermissionGranted
-                    )
-
-                    if coordinator.memoryEnabled {
-                        rowDivider
-                        DSNoticeRow(
-                            systemImage: "brain",
-                            tint: .secondary,
-                            text: coordinator.memoryEntryCount == 0
-                                ? "No phrases yet — accepted suggestions become style memory."
-                                : "\(coordinator.memoryEntryCount) phrases remembered, stored locally only.",
-                            actionTitle: coordinator.memoryEntryCount > 0 ? "Clear…" : nil
-                        ) {
-                            showClearMemoryConfirmation = true
-                        }
-                    }
-                }
-                .dsCard()
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                DSEyebrow(trigger: "Appearance")
-
+            DSSection("Suggestion appearance") {
                 VStack(spacing: 0) {
                     DSToggleRow(
                         title: "Draw suggestions in the line",
@@ -75,21 +22,17 @@ struct AutocompleteView: View {
                 .dsCard()
             }
 
-            Text("Uses your selected writing model (Apple Intelligence on-device, or Ollama on loopback). macOS never shares password fields. Manage memory and import a style profile in Settings → Advanced.")
+            DSSharedSettingLink(
+                title: "Model, screen context, and style",
+                value: sharedSettingsSummary,
+                systemImage: "brain",
+                destination: .writing
+            )
+            .dsCard()
+
+            Text("macOS never shares password fields. Accepted style memory is stored only when enabled, and can be managed in Settings → Privacy.")
                 .font(DS.meta)
                 .foregroundStyle(.tertiary)
-        }
-        .confirmationDialog(
-            "Clear all remembered phrases?",
-            isPresented: $showClearMemoryConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Clear", role: .destructive) {
-                coordinator.clearMemory()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This deletes every stored phrase from this Mac and cannot be undone.")
         }
     }
 
@@ -156,5 +99,12 @@ struct AutocompleteView: View {
         case .suggesting:
             "Suggestion showing"
         }
+    }
+
+    private var sharedSettingsSummary: String {
+        var parts: [String] = []
+        parts.append(coordinator.screenContextEnabled ? "Screen context on" : "Screen context off")
+        parts.append(coordinator.memoryEnabled ? "Style learning on" : "Style learning off")
+        return parts.joined(separator: " · ")
     }
 }

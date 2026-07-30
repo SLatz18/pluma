@@ -67,11 +67,15 @@ final class AutocompleteCoordinator: ObservableObject {
     private let memory = MemoryStore.shared
 
     private var debounceTask: Task<Void, Never>?
+    private var completionInFlight = false
+    private var latestSnapshot: FocusedFieldSnapshot?
     private var activeSuggestion: CompletionSuggestion?
     private var activeElement: AXUIElement?
     private var lastSnapshotPrefix: String?
     private var ghostEligibility = GhostTextEligibility.unknown
     private var acceptedFromCurrentSuggestion = ""
+    private var activeSuggestionTopLeftY: CGFloat?
+    private var isAcceptingSuggestion = false
     private var requestSequence = 0
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
@@ -177,7 +181,13 @@ final class AutocompleteCoordinator: ObservableObject {
     }
 
     private func handleSnapshot(_ snapshot: FocusedFieldSnapshot?) {
+        // Accepting through AX can emit a transient empty/focus snapshot before
+        // the field reports its final value. That is our own edit, not new user
+        // input; handling it would hide and recreate the pill mid-accept.
+        guard !isAcceptingSuggestion else { return }
+
         guard let snapshot else {
+            latestSnapshot = nil
             debounceTask?.cancel()
             dismissSuggestion()
             lastSnapshotPrefix = nil
@@ -186,6 +196,7 @@ final class AutocompleteCoordinator: ObservableObject {
         }
 
         let prefix = snapshot.textBeforeCaret
+        latestSnapshot = snapshot
         // Decided here rather than at draw time: the field's whole text is in
         // hand now, and re-reading it on every repaint would cost an AX round
         // trip per keystroke.
@@ -201,6 +212,19 @@ final class AutocompleteCoordinator: ObservableObject {
         lastSnapshotPrefix = prefix
         DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)", at: .verbose)
 
+        // Once the model is working, ordinary continued typing should not kill
+        // it. The result is rebased against those extra characters below.
+        // Focus loss and stop() still cancel the task immediately.
+        guard !completionInFlight else {
+            DebugLog.log("typing advanced while completion is in flight", at: .verbose)
+            return
+        }
+
+        scheduleCompletion(for: snapshot)
+    }
+
+    private func scheduleCompletion(for snapshot: FocusedFieldSnapshot) {
+        let prefix = snapshot.textBeforeCaret
         debounceTask?.cancel()
         guard CompletionSuggestion.shouldTrigger(for: prefix, tuning: tuning) else {
             DebugLog.log("below trigger threshold", at: .verbose)
@@ -214,7 +238,20 @@ final class AutocompleteCoordinator: ObservableObject {
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: pause)
             guard !Task.isCancelled else { return }
-            await self?.requestCompletion(prefix: prefix, element: element, caret: caret)
+            guard let self else { return }
+            completionInFlight = true
+            await requestCompletion(prefix: prefix, element: element, caret: caret)
+            completionInFlight = false
+
+            // If the writer out-typed or diverged from that answer, start one
+            // fresh request from the newest field truth after the usual pause.
+            guard
+                !Task.isCancelled,
+                activeSuggestion == nil,
+                let latestSnapshot,
+                latestSnapshot.textBeforeCaret != prefix
+            else { return }
+            scheduleCompletion(for: latestSnapshot)
         }
     }
 
@@ -267,18 +304,24 @@ final class AutocompleteCoordinator: ObservableObject {
 
         DebugLog.log("request provider=\(provider.rawValue) contextLen=\(context.count)")
         do {
-            let raw = try await RewriteRunner.complete(
+            let raw = try await generateCompletion(
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
                 memory: memoryDigest,
                 styleProfile: styleProfile,
-                ollamaModel: ollamaModel
+                ollamaModel: ollamaModel,
+                sequence: sequence,
+                prefix: prefix
             )
             guard
                 sequence == requestSequence,
                 !Task.isCancelled,
-                prefix == lastSnapshotPrefix
+                let currentPrefix = lastSnapshotPrefix,
+                let typedSinceRequest = Self.typedSuffix(
+                    requestPrefix: prefix,
+                    currentPrefix: currentPrefix
+                )
             else {
                 DebugLog.log("response discarded: stale")
                 return
@@ -287,23 +330,37 @@ final class AutocompleteCoordinator: ObservableObject {
             let scope = CompletionSuggestion.scope(
                 forContext: context, endsMidWord: endsMidWord(context)
             )
-            var output = raw
-            if scope == .word {
-                let partial = trailingWord(context)
-                output = CompletionSuggestion.wordCompletion(
-                    forPartial: partial,
-                    modelSuggestion: raw,
-                    candidates: spellCompletions(for: partial)
-                )
-            }
-            let suggestion = CompletionSuggestion(
-                rawOutput: output, context: context, scope: scope, tuning: tuning
-            )
+            var suggestion = normalizedSuggestion(raw: raw, context: context, scope: scope)
             DebugLog.log(
                 "raw \(raw.debugDescription) tail \(context.suffix(40).debugDescription) "
                     + "scope \(scope) -> \(suggestion.remaining.debugDescription)",
                 at: .verbose
             )
+
+            // The on-device model occasionally returns only an echo, which the
+            // safety filter correctly removes. One fresh sample is cheaper than
+            // making the feature appear broken after a deliberate pause.
+            if suggestion.isEmpty, typedSinceRequest.isEmpty {
+                DebugLog.log("response filtered empty; retrying once")
+                let retry = try await generateCompletion(
+                    provider: provider,
+                    context: context,
+                    surrounding: surrounding,
+                    memory: memoryDigest,
+                    styleProfile: styleProfile,
+                    ollamaModel: ollamaModel,
+                    sequence: sequence,
+                    prefix: prefix
+                )
+                suggestion = normalizedSuggestion(raw: retry, context: context, scope: scope)
+            }
+
+            if !typedSinceRequest.isEmpty {
+                guard suggestion.consumeTypedText(typedSinceRequest) else {
+                    DebugLog.log("response discarded: writer diverged")
+                    return
+                }
+            }
             guard !suggestion.isEmpty else {
                 DebugLog.log("response empty")
                 return
@@ -313,7 +370,7 @@ final class AutocompleteCoordinator: ObservableObject {
             activeSuggestion = suggestion
             activeElement = element
             acceptedFromCurrentSuggestion = ""
-            showOverlay(for: suggestion, at: caret)
+            showOverlay(for: suggestion, at: typedSinceRequest.isEmpty ? caret : nil)
             updateActivity()
         } catch {
             // Completion failures stay silent: autocomplete must never interrupt typing.
@@ -321,7 +378,111 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
-    private func showOverlay(for suggestion: CompletionSuggestion, at knownCaret: CaretGeometry? = nil) {
+    private func normalizedSuggestion(
+        raw: String,
+        context: String,
+        scope: CompletionScope
+    ) -> CompletionSuggestion {
+        var output = raw
+        if scope == .word {
+            let partial = trailingWord(context)
+            output = CompletionSuggestion.wordCompletion(
+                forPartial: partial,
+                modelSuggestion: raw,
+                candidates: spellCompletions(for: partial)
+            )
+        }
+        return CompletionSuggestion(
+            rawOutput: output,
+            context: context,
+            scope: scope,
+            tuning: tuning
+        )
+    }
+
+    private func generateCompletion(
+        provider: RewriteProviderChoice,
+        context: String,
+        surrounding: String?,
+        memory: String?,
+        styleProfile: String?,
+        ollamaModel: String,
+        sequence: Int,
+        prefix: String
+    ) async throws -> String {
+        do {
+            return try await RewriteRunner.complete(
+                provider: provider,
+                context: context,
+                surrounding: surrounding,
+                memory: memory,
+                styleProfile: styleProfile,
+                ollamaModel: ollamaModel
+            )
+        } catch is CancellationError {
+            guard Self.shouldRetryModelCancellation(
+                taskIsCancelled: Task.isCancelled,
+                sequence: sequence,
+                currentSequence: requestSequence,
+                prefix: prefix,
+                currentPrefix: lastSnapshotPrefix
+            ) else {
+                throw CancellationError()
+            }
+
+            // Foundation Models can cancel an otherwise-current session while
+            // the system model is becoming available or another short session
+            // is winding down. A single retry recovers that transient case,
+            // while the guards above ensure continued typing and focus changes
+            // remain immediate cancellations.
+            DebugLog.log("model cancelled current completion; retrying once", at: .quiet)
+            try await Task.sleep(for: .milliseconds(120))
+            guard Self.shouldRetryModelCancellation(
+                taskIsCancelled: Task.isCancelled,
+                sequence: sequence,
+                currentSequence: requestSequence,
+                prefix: prefix,
+                currentPrefix: lastSnapshotPrefix
+            ) else {
+                throw CancellationError()
+            }
+
+            return try await RewriteRunner.complete(
+                provider: provider,
+                context: context,
+                surrounding: surrounding,
+                memory: memory,
+                styleProfile: styleProfile,
+                ollamaModel: ollamaModel
+            )
+        }
+    }
+
+    nonisolated static func shouldRetryModelCancellation(
+        taskIsCancelled: Bool,
+        sequence: Int,
+        currentSequence: Int,
+        prefix: String,
+        currentPrefix: String?
+    ) -> Bool {
+        !taskIsCancelled
+            && sequence == currentSequence
+            && currentPrefix?.hasPrefix(prefix) == true
+    }
+
+    nonisolated static func typedSuffix(
+        requestPrefix: String,
+        currentPrefix: String
+    ) -> String? {
+        guard currentPrefix.hasPrefix(requestPrefix) else { return nil }
+        return String(currentPrefix.dropFirst(requestPrefix.count))
+    }
+
+    private func showOverlay(
+        for suggestion: CompletionSuggestion,
+        at knownCaret: CaretGeometry? = nil,
+        preserveVertical: Bool = false
+    ) {
         guard !suggestion.isEmpty else {
             dismissSuggestion()
             return
@@ -350,19 +511,41 @@ final class AutocompleteCoordinator: ObservableObject {
         // writer has already put down — which is what lets it appear anywhere in
         // a line rather than only at the end of one, and what lets it work in
         // apps that cannot report the geometry drawing inline would need.
-        let anchor = caret.map { CGPoint(x: $0.rect.minX, y: $0.rect.maxY + 4) }
+        let proposedAnchor = caret.map { CGPoint(x: $0.rect.minX, y: $0.rect.maxY + 4) }
             ?? FocusedFieldTracker.fieldEdgeAnchor(for: element)
-        guard let anchor else {
+        guard let proposedAnchor else {
             DebugLog.log("no caret and no usable field frame; suggestion not shown")
             return
         }
+        let anchor = CGPoint(
+            x: proposedAnchor.x,
+            y: Self.stabilizedSuggestionY(
+                proposed: proposedAnchor.y,
+                previous: activeSuggestionTopLeftY,
+                preserveVertical: preserveVertical
+            )
+        )
+        activeSuggestionTopLeftY = anchor.y
         // Detached from the writer's line, a completion has to read as a word.
         // Inline, "documenta" followed by "tion" is obvious; on a chip below the
         // line, a lone "tion" is a puzzle — so the chip shows the whole word and
         // still inserts only the part that is missing.
         overlay.show(
-            .suggestionChip(text: chipText(for: suggestion), anchor: anchor),
+            .suggestion(text: chipText(for: suggestion), anchor: anchor),
             from: .autocomplete
+        )
+    }
+
+    nonisolated static func stabilizedSuggestionY(
+        proposed: CGFloat,
+        previous: CGFloat?,
+        preserveVertical: Bool
+    ) -> CGFloat {
+        guard let previous else { return proposed }
+        return SuggestionOverlayController.stabilizedPillY(
+            proposed: proposed,
+            previous: previous,
+            preserveVertical: preserveVertical
         )
     }
 
@@ -456,6 +639,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private func dismissSuggestion() {
         activeSuggestion = nil
         activeElement = nil
+        activeSuggestionTopLeftY = nil
         overlay.hide(from: .autocomplete)
         updateActivity()
     }
@@ -468,6 +652,9 @@ final class AutocompleteCoordinator: ObservableObject {
 
         let accepted = wholeSuggestion ? suggestion.acceptAll() : suggestion.acceptNextWord()
         guard !accepted.isEmpty else { return }
+        let topLeftYBeforeAcceptance = activeSuggestionTopLeftY
+        isAcceptingSuggestion = true
+        defer { isAcceptingSuggestion = false }
 
         // FoundationModels strips leading spaces, so word-boundary spacing is
         // computed mechanically: a space is inserted only where the prefix
@@ -500,7 +687,11 @@ final class AutocompleteCoordinator: ObservableObject {
             }
         } else {
             activeSuggestion = suggestion
-            showOverlay(for: suggestion)
+            // The accepted word may make Accessibility briefly report a
+            // different caret rectangle. Keep the current pill on its line;
+            // subsequent ordinary typing can still move it on a real wrap.
+            activeSuggestionTopLeftY = topLeftYBeforeAcceptance
+            showOverlay(for: suggestion, preserveVertical: true)
         }
     }
 

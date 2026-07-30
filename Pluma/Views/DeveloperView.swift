@@ -23,6 +23,7 @@ struct DeveloperView: View {
         ) {
             caretCard
             completionCard
+            componentGalleryCard
             logCard
             compareCard
         }
@@ -40,6 +41,108 @@ struct DeveloperView: View {
         .sheet(isPresented: $isComparing) {
             CleanupComparisonView()
         }
+    }
+
+    // MARK: Component gallery
+
+    private var componentGalleryCard: some View {
+        DSCard {
+            VStack(alignment: .leading, spacing: DS.Spacing.large) {
+                header(
+                    symbol: "square.grid.3x3",
+                    tint: .accentColor,
+                    title: "Component gallery",
+                    detail: "Shared states and the pure-AppKit overlay renderer."
+                )
+
+                Divider()
+
+                HStack(spacing: DS.Spacing.small) {
+                    DSBadge(text: "Normal")
+                    DSBadge(text: "Selected", tone: .success, systemImage: "checkmark")
+                    DSBadge(text: "Permission", tone: .attention, systemImage: "hand.raised")
+                    DSBadge(text: "Error", tone: .failure, systemImage: "exclamationmark.triangle")
+                }
+
+                HStack(spacing: DS.Spacing.small) {
+                    Button("Primary") {}
+                        .buttonStyle(.borderedProminent)
+                    Button("Disabled") {}
+                        .disabled(true)
+                    Button("Loading…") {}
+                        .disabled(true)
+                    Button("Delete", role: .destructive) {}
+                }
+
+                VStack(spacing: DS.Spacing.small) {
+                    DSStatusIndicator(tone: .success, text: "Ready")
+                    DSStatusIndicator(tone: .recording, text: "Recording")
+                    DSStatusIndicator(tone: .attention, text: "Permission needed")
+                    DSStatusIndicator(tone: .failure, text: "Something failed")
+                }
+
+                DSEmptyState(
+                    title: "Nothing here yet",
+                    detail: "An empty state uses the same inset surface.",
+                    systemImage: "tray"
+                )
+
+                Divider()
+
+                Text("Floating pill")
+                    .font(DS.cardTitle)
+
+                HStack(spacing: DS.Spacing.small) {
+                    Button("Suggestion") {
+                        developer.previewOverlay(
+                            .suggestion(text: "finish this thought", anchor: previewAnchor)
+                        )
+                    }
+                    Button("Dictation") {
+                        developer.previewOverlay(
+                            .dictation(transcript: "the latest words stay visible", anchor: previewAnchor)
+                        )
+                    }
+                    Button("Progress") {
+                        developer.previewOverlay(
+                            .status(
+                                systemImage: "sparkles",
+                                message: "Rewriting 2 of 3…",
+                                tone: .accent,
+                                anchor: previewAnchor
+                            )
+                        )
+                    }
+                    Button("Warning") {
+                        developer.previewOverlay(
+                            .warning(
+                                systemImage: "hand.raised",
+                                message: "Permission needed",
+                                anchor: previewAnchor
+                            )
+                        )
+                    }
+                    Button("Failure") {
+                        developer.previewOverlay(
+                            .failure(
+                                systemImage: "exclamationmark.triangle",
+                                message: "This field rejected the edit",
+                                anchor: previewAnchor
+                            )
+                        )
+                    }
+                    Button("Hide") {
+                        developer.hideOverlayPreview()
+                    }
+                }
+                .controlSize(.small)
+            }
+        }
+        .accessibilityIdentifier("developer-component-gallery")
+    }
+
+    private var previewAnchor: CGPoint {
+        SuggestionOverlayController.mouseTopLeftPoint()
     }
 
     // MARK: Caret

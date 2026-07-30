@@ -7,6 +7,7 @@ enum GhostStyle: Equatable {
 // A breathing red mark that says "live". Shared by the pill and the ghost text.
 // It animates opacity only — never a colour — so a light/dark switch mid-pulse
 // needs no CGColor bookkeeping.
+@MainActor
 enum RecordingPulse {
     private static let key = "recordingPulse"
 

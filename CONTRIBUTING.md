@@ -45,8 +45,9 @@ the pbxproj by hand.
 - **One job per PR.** Prefer small, reviewable changes with a clear test plan.
 - **Keep tests green.** Add or update unit tests next to behavior changes when
   the logic is pure enough to test without Accessibility.
-- **Use the design system.** New UI goes through `Views/DesignSystem.swift`
-  (`DS.*`) so surfaces do not drift.
+- **Use the design system.** New UI goes through `Pluma/DesignSystem`
+  (`PlumaTheme` / `DS.*`) so surfaces do not drift. Compose feature pages as
+  WHEN → THEN → RESULT and read [the design-system guide](docs/DESIGN_SYSTEM.md).
 - **Overlay stays AppKit.** The suggestion / status overlay is deliberately not
   SwiftUI — do not reintroduce a SwiftUI hosting graph there.
 - **No secrets.** Never commit API keys, certificates, or personal writing
@@ -68,3 +69,6 @@ the pbxproj by hand.
 - [ ] Tests added or updated when behavior changed
 - [ ] Privacy copy still matches the code path you touched
 - [ ] No personal or employer-specific fixtures in tests
+- [ ] New UI uses shared components or documents a platform-native exception
+- [ ] Keyboard traversal and minimum-window scrolling were checked
+- [ ] Light, dark, increased-contrast, and reduced-motion states were checked

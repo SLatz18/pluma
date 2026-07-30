@@ -225,7 +225,7 @@ final class DictationController: ObservableObject {
             return
         }
         if case .unsupported(let reason) = engine.availability {
-            flash(systemImage: "exclamationmark.triangle", message: reason)
+            flash(systemImage: "exclamationmark.triangle", message: reason, tone: .failure)
             return
         }
         guard case .ready = engine.availability else {
@@ -264,7 +264,11 @@ final class DictationController: ObservableObject {
             DebugLog.log("dictation start failed: \(error.localizedDescription)", at: .quiet)
             isStarting = false
             await cancelSession()
-            flash(systemImage: "exclamationmark.triangle", message: error.localizedDescription)
+            flash(
+                systemImage: "exclamationmark.triangle",
+                message: error.localizedDescription,
+                tone: .failure
+            )
             return
         }
 
@@ -333,7 +337,11 @@ final class DictationController: ObservableObject {
             remember(insertion, in: element)
             overlay.hide(from: .dictation)
         } else {
-            flash(systemImage: "exclamationmark.triangle", message: "This field rejected the text")
+            flash(
+                systemImage: "exclamationmark.triangle",
+                message: "This field rejected the text",
+                tone: .failure
+            )
         }
     }
 
@@ -477,7 +485,12 @@ final class DictationController: ObservableObject {
         // about to be inserted.
         if let message {
             overlay.show(
-                .status(systemImage: systemImage, message: message, anchor: chipAnchor),
+                .status(
+                    systemImage: systemImage,
+                    message: message,
+                    tone: .accent,
+                    anchor: chipAnchor
+                ),
                 from: .dictation
             )
             return
@@ -491,7 +504,7 @@ final class DictationController: ObservableObject {
             Preferences.inlineSuggestions(from: defaults),
             let caret, ghostEligibility.allows(caret)
         else {
-            overlay.show(.dictationChip(transcript: liveText, anchor: chipAnchor), from: .dictation)
+            overlay.show(.dictation(transcript: liveText, anchor: chipAnchor), from: .dictation)
             return
         }
         overlay.show(
@@ -505,10 +518,15 @@ final class DictationController: ObservableObject {
         )
     }
 
-    private func flash(systemImage: String, message: String) {
+    private func flash(
+        systemImage: String,
+        message: String,
+        tone: OverlayTone = .warning
+    ) {
         overlay.flash(
             systemImage: systemImage,
             message: message,
+            tone: tone,
             atTopLeftPoint: isSessionActive
                 ? chipAnchor : SuggestionOverlayController.mouseTopLeftPoint(),
             from: .dictation

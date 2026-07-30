@@ -46,6 +46,7 @@ struct PlumaApp: App {
             SettingsView()
                 .environmentObject(model)
                 .environmentObject(autocomplete)
+                .environmentObject(dictation)
                 .environmentObject(developer)
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)

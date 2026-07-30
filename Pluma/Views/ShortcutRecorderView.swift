@@ -12,18 +12,11 @@ struct ShortcutRecorderView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Text(isRecording ? "…" : shortcut.display)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 8)
-                .frame(minHeight: 24)
-                .background(
-                    DS.insetBackground,
-                    in: RoundedRectangle(cornerRadius: 6)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(isRecording ? Color.accentColor : DS.hairline)
-                }
+            DSBadge(
+                text: isRecording ? "…" : shortcut.display,
+                tone: isRecording ? .attention : .neutral,
+                systemImage: "keyboard"
+            )
 
             Button(isRecording ? "Cancel" : "Change…") {
                 if isRecording {
