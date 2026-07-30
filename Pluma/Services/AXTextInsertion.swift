@@ -19,6 +19,26 @@ enum AXTextInsertion {
         return paste(text)
     }
 
+    // Selects an absolute UTF-16 range, then writes through the same path as a
+    // caret insert — selected text is replaced rather than appended.
+    static func replace(
+        range: CFRange,
+        with text: String,
+        in element: AXUIElement
+    ) async -> Bool {
+        var mutableRange = range
+        guard let axRange = AXValueCreate(.cfRange, &mutableRange) else { return false }
+        guard
+            AXUIElementSetAttributeValue(
+                element, kAXSelectedTextRangeAttribute as CFString, axRange
+            ) == .success
+        else {
+            DebugLog.log("failed to select range for replace", at: .quiet)
+            return false
+        }
+        return await insert(text, into: element)
+    }
+
     private static func confirmInsertion(of text: String, into element: AXUIElement) async -> Bool {
         for attempt in 0...1 {
             if checkInsertion(of: text, into: element) { return true }

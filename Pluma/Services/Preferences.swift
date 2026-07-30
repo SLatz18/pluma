@@ -22,6 +22,9 @@ enum Preferences {
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
+    static let spellCorrectionEnabledKey = "pluma.spellCorrectionEnabled"
+    static let spellCorrectionEngineKey = "pluma.spellCorrectionEngine"
+    static let spellMemoryEnabledKey = "pluma.spellMemoryEnabled"
     static let completionPhraseWordsKey = "pluma.completion.phraseWords"
     static let completionBriefWordsKey = "pluma.completion.briefWords"
     static let completionDebounceKey = "pluma.completion.debounceMilliseconds"
@@ -99,6 +102,49 @@ enum Preferences {
 
     static func setInlineSuggestions(_ inline: Bool, to defaults: UserDefaults = .standard) {
         defaults.set(inline, forKey: inlineSuggestionsKey)
+    }
+
+    // On by default: local NSSpellChecker only, and the chip already looks like
+    // the system spelling popup. Unset keys read as on so existing installs
+    // pick the feature up without a migration.
+    static func spellCorrectionEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: spellCorrectionEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: spellCorrectionEnabledKey)
+    }
+
+    static func setSpellCorrectionEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: spellCorrectionEnabledKey)
+    }
+
+    // Apple Intelligence is the shipped spelling path. Developer mode can fall
+    // back to the system dictionary for comparison. Unset keys read as AI.
+    static func spellCorrectionEngine(from defaults: UserDefaults = .standard) -> SpellCorrectionEngine {
+        guard
+            let raw = defaults.string(forKey: spellCorrectionEngineKey),
+            let engine = SpellCorrectionEngine(rawValue: raw)
+        else {
+            return .appleIntelligence
+        }
+        return engine
+    }
+
+    static func setSpellCorrectionEngine(
+        _ engine: SpellCorrectionEngine, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(engine.rawValue, forKey: spellCorrectionEngineKey)
+    }
+
+    // On by default with spelling correction: remembering an accepted fix is
+    // local-only and makes the next identical typo instant. Unset → on.
+    static func spellMemoryEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: spellMemoryEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: spellMemoryEnabledKey)
+    }
+
+    static func setSpellMemoryEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: spellMemoryEnabledKey)
     }
 
     // Each knob falls back to the shipped value on its own, so a partially

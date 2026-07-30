@@ -231,6 +231,20 @@ struct DeveloperView: View {
 
                 Divider()
 
+                DSToggleRow(
+                    title: "Use Apple Intelligence for spelling",
+                    detail: "On by default. Uses the on-device model with preceding words and grammar. Turn off to compare against the Mac spelling dictionary instead. Shares one Apple Intelligence session with rewrite and autocomplete.",
+                    isOn: Binding(
+                        get: { autocomplete.spellCorrectionEngine == .appleIntelligence },
+                        set: { on in
+                            autocomplete.spellCorrectionEngine = on ? .appleIntelligence : .dictionary
+                        }
+                    ),
+                    disabled: !autocomplete.spellCorrectionEnabled || !autocomplete.isPermissionGranted
+                )
+
+                Divider()
+
                 HStack {
                     Text(autocomplete.tuning == .standard ? "Shipped values" : "Changed from shipped")
                         .font(DS.meta)
