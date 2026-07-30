@@ -65,6 +65,7 @@ private final class OverlayPillRenderer: NSVisualEffectView {
         stack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(stack)
         NSLayoutConstraint.activate([
+            heightAnchor.constraint(equalToConstant: DS.Overlay.height),
             stack.topAnchor.constraint(equalTo: topAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -190,6 +191,7 @@ final class SuggestionOverlayController {
     private var pendingPlacement: Placement?
     private var currentOwner: Owner?
     private var animatesNextFrameChange = false
+    private var lastPillTopLeftAnchor: CGPoint?
     // Bumped by every show and every hide so a fade-out's deferred orderOut
     // can never kill a presentation that arrived after the hide started.
     private var hideGeneration = 0
@@ -234,13 +236,15 @@ final class SuggestionOverlayController {
         currentOwner = owner
         ensurePanel()
         guard let pill, let ghost else { return }
-        // A handover is the one time the pill's own size is worth animating: the
-        // writer sees the suggestion give way to the recording rather than one
-        // pill blinking out and another appearing in its place.
-        animatesNextFrameChange = previousOwner != nil && previousOwner != owner
+        let isPillHandover = previousOwner != nil
+            && previousOwner != owner
+            && panel?.isVisible == true
+            && panel?.contentView === pill
+        animatesNextFrameChange = false
 
         switch presentation.content {
         case let .ghost(text, caret, style, fieldFrame):
+            lastPillTopLeftAnchor = nil
             let font = Self.ghostFont(for: caret)
             let budget = GhostTextGeometry.widthBudget(
                 caretMaxX: caret.rect.maxX,
@@ -260,12 +264,20 @@ final class SuggestionOverlayController {
         case let .suggestion(text):
             guard let anchor = presentation.anchor else { return }
             pill.showSuggestion(text)
-            present(pill, placement: .topLeft(anchor))
+            animatesNextFrameChange = isPillHandover
+            present(
+                pill,
+                placement: .topLeft(stabilizedPillAnchor(anchor, preserveVertical: isPillHandover))
+            )
 
         case let .dictation(transcript):
             guard let anchor = presentation.anchor else { return }
             pill.showDictation(transcript: transcript)
-            present(pill, placement: .topLeft(anchor))
+            animatesNextFrameChange = isPillHandover
+            present(
+                pill,
+                placement: .topLeft(stabilizedPillAnchor(anchor, preserveVertical: isPillHandover))
+            )
 
         case let .status(systemImage, message, tone, pulses):
             guard let anchor = presentation.anchor else { return }
@@ -275,8 +287,50 @@ final class SuggestionOverlayController {
                 tone: tone,
                 pulses: pulses
             )
-            present(pill, placement: .topLeft(anchor))
+            animatesNextFrameChange = isPillHandover
+            present(
+                pill,
+                placement: .topLeft(stabilizedPillAnchor(anchor, preserveVertical: isPillHandover))
+            )
         }
+    }
+
+    private func stabilizedPillAnchor(
+        _ proposed: CGPoint,
+        preserveVertical: Bool
+    ) -> CGPoint {
+        guard
+            panel?.isVisible == true,
+            panel?.contentView === pill,
+            let previous = lastPillTopLeftAnchor
+        else {
+            lastPillTopLeftAnchor = proposed
+            return proposed
+        }
+
+        let resolved = CGPoint(
+            x: proposed.x,
+            y: Self.stabilizedPillY(
+                proposed: proposed.y,
+                previous: previous.y,
+                preserveVertical: preserveVertical
+            )
+        )
+        lastPillTopLeftAnchor = resolved
+        return resolved
+    }
+
+    nonisolated static func stabilizedPillY(
+        proposed: CGFloat,
+        previous: CGFloat,
+        preserveVertical: Bool
+    ) -> CGFloat {
+        if preserveVertical
+            || abs(proposed - previous) <= DS.Overlay.verticalJitterTolerance
+        {
+            return previous
+        }
+        return proposed
     }
 
     // A status that dismisses itself — for permission nags, mis-presses, and
@@ -414,6 +468,7 @@ final class SuggestionOverlayController {
 
     func hide() {
         currentOwner = nil
+        lastPillTopLeftAnchor = nil
         hideGeneration += 1
         let generation = hideGeneration
         DispatchQueue.main.async { [weak self] in

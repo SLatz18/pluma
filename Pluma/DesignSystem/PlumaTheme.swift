@@ -35,11 +35,13 @@ enum PlumaTheme {
 
     enum Overlay {
         static let textSize: CGFloat = 13
+        static let height: CGFloat = 28
         static let horizontalInset: CGFloat = 11
         static let verticalInset: CGFloat = 5
         static let itemSpacing: CGFloat = 8
         static let maximumTextWidth: CGFloat = 460
         static let screenInset: CGFloat = 6
+        static let verticalJitterTolerance: CGFloat = 8
     }
 
     enum FeatureColor: String, Hashable, Sendable {

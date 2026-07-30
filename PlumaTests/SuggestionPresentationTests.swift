@@ -88,6 +88,39 @@ final class SuggestionPresentationTests: XCTestCase {
         XCTAssertEqual(overlay.owner, .autocomplete)
     }
 
+    func testPillIgnoresSmallVerticalCaretJitter() {
+        XCTAssertEqual(
+            SuggestionOverlayController.stabilizedPillY(
+                proposed: 106,
+                previous: 100,
+                preserveVertical: false
+            ),
+            100
+        )
+    }
+
+    func testPillStillFollowsARealLineChange() {
+        XCTAssertEqual(
+            SuggestionOverlayController.stabilizedPillY(
+                proposed: 120,
+                previous: 100,
+                preserveVertical: false
+            ),
+            120
+        )
+    }
+
+    func testPillKeepsItsVerticalPositionDuringOwnerHandover() {
+        XCTAssertEqual(
+            SuggestionOverlayController.stabilizedPillY(
+                proposed: 140,
+                previous: 100,
+                preserveVertical: true
+            ),
+            100
+        )
+    }
+
     // The chip covers nothing the writer has already put down, so unlike ghost
     // text it has no reason to refuse a caret in the middle of a line. This is
     // the eligibility ghost text still answers no to.
