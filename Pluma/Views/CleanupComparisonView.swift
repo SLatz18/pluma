@@ -107,31 +107,28 @@ struct CleanupComparisonView: View {
     private func resultBox(
         title: String, seconds: Double, body: String?, failure: String?
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Text(title)
-                    .font(DS.meta.weight(.semibold))
-                Text(String(format: "%.2fs", seconds))
-                    .font(DS.meta)
-                    .foregroundStyle(.secondary)
-            }
+        DSInset {
+            VStack(alignment: .leading, spacing: DS.Spacing.xSmall) {
+                HStack(spacing: DS.Spacing.small) {
+                    Text(title)
+                        .font(DS.meta.weight(.semibold))
+                    Text(String(format: "%.2fs", seconds))
+                        .font(DS.meta)
+                        .foregroundStyle(.secondary)
+                }
 
-            if let body, !body.isEmpty {
-                Text(body)
-                    .font(.system(size: 12))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                Text(failure ?? "No output")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let body, !body.isEmpty {
+                    Text(body)
+                        .font(DS.meta)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text(failure ?? "No output")
+                        .font(DS.meta)
+                        .foregroundStyle(.orange)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
-        .padding(10)
-        .background(
-            DS.insetBackground,
-            in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
-        )
     }
 }

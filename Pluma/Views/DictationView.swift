@@ -10,10 +10,9 @@ struct DictationView: View {
     @State private var ollamaModels: [String] = []
 
     var body: some View {
-        DSPage(
-            title: "Dictation",
-            subtitle: "Hold the shortcut and talk. Let go, and your words land at the cursor — tidied up.",
-            eyebrow: "Hold to talk → typed"
+        DSFeaturePage(
+            .dictation,
+            subtitle: "Hold the shortcut and talk. Release it to insert your words."
         ) {
             heroCard
 
@@ -21,16 +20,15 @@ struct DictationView: View {
 
             transcriptionCard
 
-            VStack(alignment: .leading, spacing: 12) {
-                DSEyebrow(trigger: "Context")
-
-                DSToggleRow(
-                    title: "Match what's on screen",
-                    detail: "Reads names and terms from the frontmost window so they transcribe correctly. Shared with autocomplete.",
-                    isOn: $autocomplete.screenContextEnabled
-                )
-                .dsCard()
-            }
+            DSSharedSettingLink(
+                title: "Shared screen context",
+                value: autocomplete.screenContextEnabled
+                    ? "On · improves names and visible terms"
+                    : "Off",
+                systemImage: "rectangle.dashed.badge.record",
+                destination: .writing
+            )
+            .dsCard()
 
             Text(privacyNote)
                 .font(DS.meta)

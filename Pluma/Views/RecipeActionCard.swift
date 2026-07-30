@@ -11,7 +11,12 @@ struct RecipeActionCard: View {
     private var isInChain: Bool { stepNumber != nil }
 
     var body: some View {
-        Button(action: action) {
+        DSSelectableCard(
+            isSelected: isInChain,
+            tint: intent.feature.color,
+            selectedLineWidth: 1.5,
+            action: action
+        ) {
             HStack(spacing: 14) {
                 DSIconTile(systemImage: intent.symbolName, tint: intent.feature.color)
 
@@ -41,22 +46,9 @@ struct RecipeActionCard: View {
                 .foregroundStyle(isInChain ? intent.feature.color : Color.secondary.opacity(0.35))
                 .contentTransition(.symbolEffect(.replace))
             }
-            .padding(DS.cardPadding)
             .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
-            .background(
-                isInChain ? intent.feature.color.opacity(0.08) : DS.cardBackground,
-                in: RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                    .strokeBorder(
-                        isInChain ? intent.feature.color.opacity(0.55) : DS.hairline,
-                        lineWidth: isInChain ? 1.5 : 1
-                    )
-            }
             .animation(reduceMotion ? nil : .spring(duration: 0.35), value: stepNumber)
         }
-        .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(isInChain ? .isSelected : [])
     }

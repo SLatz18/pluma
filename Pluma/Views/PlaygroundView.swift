@@ -77,10 +77,7 @@ struct PlaygroundView: View {
                 .scrollContentBackground(.hidden)
                 .padding(10)
                 .frame(maxWidth: .infinity, minHeight: 132)
-                .background(
-                    DS.insetBackground,
-                    in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
-                )
+                .dsInsetSurface()
                 .disabled(!isEditable)
         }
         .frame(maxWidth: .infinity)
@@ -133,10 +130,7 @@ struct PlaygroundView: View {
                 .padding(12)
             }
             .frame(maxWidth: .infinity, minHeight: 132)
-            .background(
-                DS.insetBackground,
-                in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
-            )
+            .dsInsetSurface()
         }
         .frame(maxWidth: .infinity)
     }
