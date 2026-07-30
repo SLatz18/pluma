@@ -72,6 +72,8 @@ final class AutocompleteCoordinator: ObservableObject {
     private var lastSnapshotPrefix: String?
     private var ghostEligibility = GhostTextEligibility.unknown
     private var acceptedFromCurrentSuggestion = ""
+    private var activeSuggestionTopLeftY: CGFloat?
+    private var isAcceptingSuggestion = false
     private var requestSequence = 0
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
@@ -177,6 +179,11 @@ final class AutocompleteCoordinator: ObservableObject {
     }
 
     private func handleSnapshot(_ snapshot: FocusedFieldSnapshot?) {
+        // Accepting through AX can emit a transient empty/focus snapshot before
+        // the field reports its final value. That is our own edit, not new user
+        // input; handling it would hide and recreate the pill mid-accept.
+        guard !isAcceptingSuggestion else { return }
+
         guard let snapshot else {
             debounceTask?.cancel()
             dismissSuggestion()
@@ -393,7 +400,11 @@ final class AutocompleteCoordinator: ObservableObject {
             && prefix == currentPrefix
     }
 
-    private func showOverlay(for suggestion: CompletionSuggestion, at knownCaret: CaretGeometry? = nil) {
+    private func showOverlay(
+        for suggestion: CompletionSuggestion,
+        at knownCaret: CaretGeometry? = nil,
+        preserveVertical: Bool = false
+    ) {
         guard !suggestion.isEmpty else {
             dismissSuggestion()
             return
@@ -422,12 +433,21 @@ final class AutocompleteCoordinator: ObservableObject {
         // writer has already put down — which is what lets it appear anywhere in
         // a line rather than only at the end of one, and what lets it work in
         // apps that cannot report the geometry drawing inline would need.
-        let anchor = caret.map { CGPoint(x: $0.rect.minX, y: $0.rect.maxY + 4) }
+        let proposedAnchor = caret.map { CGPoint(x: $0.rect.minX, y: $0.rect.maxY + 4) }
             ?? FocusedFieldTracker.fieldEdgeAnchor(for: element)
-        guard let anchor else {
+        guard let proposedAnchor else {
             DebugLog.log("no caret and no usable field frame; suggestion not shown")
             return
         }
+        let anchor = CGPoint(
+            x: proposedAnchor.x,
+            y: Self.stabilizedSuggestionY(
+                proposed: proposedAnchor.y,
+                previous: activeSuggestionTopLeftY,
+                preserveVertical: preserveVertical
+            )
+        )
+        activeSuggestionTopLeftY = anchor.y
         // Detached from the writer's line, a completion has to read as a word.
         // Inline, "documenta" followed by "tion" is obvious; on a chip below the
         // line, a lone "tion" is a puzzle — so the chip shows the whole word and
@@ -435,6 +455,19 @@ final class AutocompleteCoordinator: ObservableObject {
         overlay.show(
             .suggestion(text: chipText(for: suggestion), anchor: anchor),
             from: .autocomplete
+        )
+    }
+
+    nonisolated static func stabilizedSuggestionY(
+        proposed: CGFloat,
+        previous: CGFloat?,
+        preserveVertical: Bool
+    ) -> CGFloat {
+        guard let previous else { return proposed }
+        return SuggestionOverlayController.stabilizedPillY(
+            proposed: proposed,
+            previous: previous,
+            preserveVertical: preserveVertical
         )
     }
 
@@ -528,6 +561,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private func dismissSuggestion() {
         activeSuggestion = nil
         activeElement = nil
+        activeSuggestionTopLeftY = nil
         overlay.hide(from: .autocomplete)
         updateActivity()
     }
@@ -540,6 +574,9 @@ final class AutocompleteCoordinator: ObservableObject {
 
         let accepted = wholeSuggestion ? suggestion.acceptAll() : suggestion.acceptNextWord()
         guard !accepted.isEmpty else { return }
+        let topLeftYBeforeAcceptance = activeSuggestionTopLeftY
+        isAcceptingSuggestion = true
+        defer { isAcceptingSuggestion = false }
 
         // FoundationModels strips leading spaces, so word-boundary spacing is
         // computed mechanically: a space is inserted only where the prefix
@@ -572,7 +609,11 @@ final class AutocompleteCoordinator: ObservableObject {
             }
         } else {
             activeSuggestion = suggestion
-            showOverlay(for: suggestion)
+            // The accepted word may make Accessibility briefly report a
+            // different caret rectangle. Keep the current pill on its line;
+            // subsequent ordinary typing can still move it on a real wrap.
+            activeSuggestionTopLeftY = topLeftYBeforeAcceptance
+            showOverlay(for: suggestion, preserveVertical: true)
         }
     }
 
