@@ -33,6 +33,7 @@ The Dictation page states which path is active before you talk.
 | Autocomplete | Focused field text before the caret | In memory for the active suggestion only |
 | Screen context (opt-in) | Frontmost window OCR at request time | No — discarded after the request |
 | Style memory (opt-in) | Accepted suggestion phrases only | Local JSON, capped at 300 entries |
+| Spelling memory (opt-in) | Accepted misspelling → correction pairs | Local JSON, capped at 200 entries |
 | Style profile (opt-in) | Imported writing guide | Local markdown, capped at 3,000 characters |
 | Dictation | Microphone while the shortcut is held | No audio on disk; transcript in memory for one insertion |
 

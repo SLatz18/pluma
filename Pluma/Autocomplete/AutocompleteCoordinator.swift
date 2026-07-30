@@ -76,8 +76,16 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var spellMemoryEnabled: Bool {
+        didSet {
+            guard spellMemoryEnabled != oldValue else { return }
+            Preferences.setSpellMemoryEnabled(spellMemoryEnabled, to: defaults)
+        }
+    }
+
     @Published private(set) var isScreenContextPermitted: Bool
     @Published private(set) var memoryEntryCount: Int
+    @Published private(set) var spellMemoryEntryCount: Int
 
     private let defaults: UserDefaults
     private let tracker = FocusedFieldTracker()
@@ -85,6 +93,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private let permission = AccessibilityPermission.shared
     private let screenContext = ScreenContextProvider.shared
     private let memory = MemoryStore.shared
+    private let spellMemory = SpellMemoryStore.shared
 
     private var debounceTask: Task<Void, Never>?
     private var completionInFlight = false
@@ -112,10 +121,12 @@ final class AutocompleteCoordinator: ObservableObject {
         inlineSuggestions = Preferences.inlineSuggestions(from: defaults)
         spellCorrectionEnabled = Preferences.spellCorrectionEnabled(from: defaults)
         spellCorrectionEngine = Preferences.spellCorrectionEngine(from: defaults)
+        spellMemoryEnabled = Preferences.spellMemoryEnabled(from: defaults)
         tuning = Preferences.completionTuning(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
         memoryEntryCount = memory.count
+        spellMemoryEntryCount = spellMemory.count
         DebugLog.truncate()
         DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)", at: .quiet)
 
@@ -170,6 +181,11 @@ final class AutocompleteCoordinator: ObservableObject {
     func clearMemory() {
         memory.clear()
         memoryEntryCount = 0
+    }
+
+    func clearSpellMemory() {
+        spellMemory.clear()
+        spellMemoryEntryCount = 0
     }
 
     private func startIfPossible() {
@@ -273,9 +289,21 @@ final class AutocompleteCoordinator: ObservableObject {
     // replace-in-place must not pose as grey continuation.
     private func presentSpellCorrectionIfNeeded(for snapshot: FocusedFieldSnapshot) -> Bool {
         guard spellCorrectionEnabled else { return false }
-        guard spellCorrectionCandidate(for: snapshot.textBeforeCaret) != nil else {
+        guard let candidate = spellCorrectionCandidate(for: snapshot.textBeforeCaret) else {
             appleSpellTask?.cancel()
             return false
+        }
+
+        // Learned fixes beat dictionary and Apple Intelligence — they are the
+        // writer's own accepted answers for this exact misspelling.
+        if spellMemoryEnabled,
+           let learned = spellMemory.lookup(candidate.word),
+           let offer = SpellCorrection.offer(
+               misspelled: candidate.word, range: candidate.range, replacement: learned
+           ) {
+            presentCorrection(offer, element: snapshot.element, caret: snapshot.caret)
+            DebugLog.log("spell memory hit: \(candidate.word) -> \(learned)")
+            return true
         }
 
         switch spellCorrectionEngine {
@@ -945,6 +973,11 @@ final class AutocompleteCoordinator: ObservableObject {
         guard await AXTextInsertion.replace(range: range, with: offer.replacement, in: element) else {
             dismissSuggestion()
             return
+        }
+
+        if spellMemoryEnabled {
+            spellMemory.record(misspelling: offer.misspelled, replacement: offer.replacement)
+            spellMemoryEntryCount = spellMemory.count
         }
 
         if let refreshed = FocusedFieldTracker.readPrefix(of: element) {

@@ -25,6 +25,13 @@ struct AutocompleteView: View {
                         isOn: $coordinator.spellCorrectionEnabled,
                         disabled: !coordinator.isPermissionGranted
                     )
+                    rowDivider
+                    DSToggleRow(
+                        title: "Remember corrections",
+                        detail: "When you accept a fix, store that misspelling locally so the next time is instant — no dictionary wait, no model call. Clear anytime in Settings → Privacy.",
+                        isOn: $coordinator.spellMemoryEnabled,
+                        disabled: !coordinator.spellCorrectionEnabled || !coordinator.isPermissionGranted
+                    )
                 }
                 .dsCard()
             }
@@ -37,7 +44,7 @@ struct AutocompleteView: View {
             )
             .dsCard()
 
-            Text("macOS never shares password fields. Accepted style memory is stored only when enabled, and can be managed in Settings → Privacy.")
+            Text("macOS never shares password fields. Accepted style memory and spelling corrections are stored only when enabled, and can be managed in Settings → Privacy.")
                 .font(DS.meta)
                 .foregroundStyle(.tertiary)
         }

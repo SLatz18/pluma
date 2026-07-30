@@ -24,6 +24,7 @@ enum Preferences {
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
     static let spellCorrectionEnabledKey = "pluma.spellCorrectionEnabled"
     static let spellCorrectionEngineKey = "pluma.spellCorrectionEngine"
+    static let spellMemoryEnabledKey = "pluma.spellMemoryEnabled"
     static let completionPhraseWordsKey = "pluma.completion.phraseWords"
     static let completionBriefWordsKey = "pluma.completion.briefWords"
     static let completionDebounceKey = "pluma.completion.debounceMilliseconds"
@@ -132,6 +133,18 @@ enum Preferences {
         _ engine: SpellCorrectionEngine, to defaults: UserDefaults = .standard
     ) {
         defaults.set(engine.rawValue, forKey: spellCorrectionEngineKey)
+    }
+
+    // On by default with spelling correction: remembering an accepted fix is
+    // local-only and makes the next identical typo instant. Unset → on.
+    static func spellMemoryEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: spellMemoryEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: spellMemoryEnabledKey)
+    }
+
+    static func setSpellMemoryEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: spellMemoryEnabledKey)
     }
 
     // Each knob falls back to the shipped value on its own, so a partially
