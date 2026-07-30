@@ -27,9 +27,10 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
 
 - `App/PlumaApp.swift` — builds shared `SuggestionOverlayController` and
   injects it into all three presenters. One overlay panel, owner-scoped hides.
-- `Views/DesignSystem.swift` — the one card/tile/eyebrow/status-row grammar
-  (`DS.*`). New surfaces use it or they drift.
-- `Views/MainWindowView.swift` — sidebar: Rewrite / Autocomplete / Dictation.
+- `DesignSystem/` — semantic tokens, feature definitions, shared surfaces,
+  WHEN → THEN → RESULT flow, and overlay presentations (`DS.*`).
+- `Views/MainWindowView.swift` — sidebar: Overview / Rewrite / Autocomplete /
+  Dictation.
 - `Providers/RewriteRunner.swift` — chain runner. The `@MainActor` variant
   reports progress; the nonisolated variant exists because the macOS Services
   handler blocks its thread on a semaphore (a MainActor hop would deadlock).
