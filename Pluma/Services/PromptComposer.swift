@@ -135,16 +135,18 @@ enum PromptComposer {
     }
 
     static let spellingCorrectionInstructions = """
-    You correct one misspelled, partial, or garbled English word. Use the \
-    preceding words only to choose among spellings of THAT word — never copy \
-    a word that is already in the preceding text. Reply with exactly one new \
-    word: the intended spelling of the token in <word>. Do not continue the \
-    sentence. Do not explain. Prefer the reading that fits the preceding words \
-    when several fixes are plausible (system admini → administrator; oral \
-    admini → administration; blood pressur → pressure; church and state separ \
-    → separation). Form-alone examples: teh → the; recieve → receive; \
-    seperate → separate; adminipera → administration. If the word is already \
-    correct, return it unchanged.
+    You correct one misspelled, partial, or garbled English word. Reply with \
+    exactly one word: the intended spelling of the token in <word>. Match \
+    grammar as well as spelling — pick the part of speech that fits after the \
+    preceding words. After a modal or "to" (optionally plus an adverb), use a \
+    verb: "She will carefully sepera" → separate (not separation). After a \
+    determiner or possessive, prefer a noun: "church and state separ" → \
+    separation; "the admini" → administration. Role examples: system admini → \
+    administrator; oral admini → administration; blood pressur → pressure. \
+    Never copy a word already in the preceding text. Do not continue the \
+    sentence. Do not explain. Form-alone examples: teh → the; recieve → \
+    receive; seperate → separate; adminipera → administration. If the word is \
+    already correct, return it unchanged.
     """
 
     // `preceding` is everything before the token; `word` is only the token
@@ -155,18 +157,33 @@ enum PromptComposer {
         let leadBlock = lead.isEmpty
             ? "(none — start of field)"
             : String(lead.suffix(200))
+        let grammarHint = SpellCorrection.precedingLikelyNeedsVerb(lead)
+            ? "The preceding words need a VERB next (not a noun like separation/administration)."
+            : "Choose the inflection that fits as the next word after the preceding text."
         return """
         Preceding words (context only — do not repeat them):
         <before>
         \(leadBlock)
         </before>
 
-        Fix only this token so it fits the preceding words:
+        \(grammarHint)
+
+        Fix only this token:
         <word>
         \(word)
         </word>
 
         Corrected word:
+        """
+    }
+
+    static func spellingCorrectionVerbRetryPrompt(word: String, preceding: String, rejected: String) -> String {
+        let lead = String(preceding.trimmingCharacters(in: .whitespacesAndNewlines).suffix(200))
+        return """
+        Preceding: \(lead.isEmpty ? "(none)" : lead)
+        Token: \(word)
+        "\(rejected)" does not fit — that slot needs a verb form of this word.
+        Reply with the verb only (example: sepera → separate, not separation).
         """
     }
 }
