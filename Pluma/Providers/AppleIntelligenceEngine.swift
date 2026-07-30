@@ -79,9 +79,11 @@ enum AppleIntelligenceEngine {
 
     // One corrected word for a misspelling or garbled fragment. Queued behind
     // the same gate as completions so a spelling pass never races a suggestion.
-    static func correctSpelling(word: String, context: String) async throws -> String {
+    // `preceding` is the text before the token; the model uses it to pick among
+    // plausible fixes (system admini → administrator).
+    static func correctSpelling(word: String, preceding: String) async throws -> String {
         try await gate.run {
-            try await correctSpellingUnlocked(word: word, context: context)
+            try await correctSpellingUnlocked(word: word, preceding: preceding)
         }
     }
 
@@ -127,7 +129,7 @@ enum AppleIntelligenceEngine {
         return output
     }
 
-    private static func correctSpellingUnlocked(word: String, context: String) async throws -> String {
+    private static func correctSpellingUnlocked(word: String, preceding: String) async throws -> String {
         guard model.isAvailable else {
             throw RewriteEngineError.modelUnavailable(status().detail)
         }
@@ -137,7 +139,7 @@ enum AppleIntelligenceEngine {
             instructions: PromptComposer.spellingCorrectionInstructions
         )
         let response = try await session.respond(
-            to: PromptComposer.spellingCorrectionUserPrompt(word: word, context: context),
+            to: PromptComposer.spellingCorrectionUserPrompt(word: word, preceding: preceding),
             options: GenerationOptions(temperature: 0.0, maximumResponseTokens: 8)
         )
         let raw = response.content.trimmingCharacters(in: .whitespacesAndNewlines)

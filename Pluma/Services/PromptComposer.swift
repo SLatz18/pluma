@@ -135,22 +135,36 @@ enum PromptComposer {
     }
 
     static let spellingCorrectionInstructions = """
-    You correct one misspelled or garbled English word. Reply with exactly one \
-    word: the intended spelling of THAT word alone. Do not continue the \
-    sentence. Do not reuse words from earlier turns. Do not explain. \
-    Examples: teh → the; recieve → receive; seperate → separate; \
-    adminipera → administration; administraton → administration. If the word \
-    is already correct, return it unchanged.
+    You correct one misspelled, partial, or garbled English word. Use the \
+    preceding words only to choose among spellings of THAT word — never copy \
+    a word that is already in the preceding text. Reply with exactly one new \
+    word: the intended spelling of the token in <word>. Do not continue the \
+    sentence. Do not explain. Prefer the reading that fits the preceding words \
+    when several fixes are plausible (system admini → administrator; oral \
+    admini → administration; blood pressur → pressure; church and state separ \
+    → separation). Form-alone examples: teh → the; recieve → receive; \
+    seperate → separate; adminipera → administration. If the word is already \
+    correct, return it unchanged.
     """
 
-    static func spellingCorrectionUserPrompt(word: String, context: String) -> String {
-        // Keep context short and clearly secondary so the model does not
-        // continue the sentence or latch onto an earlier long correction.
-        let snippet = String(context.suffix(80))
+    // `preceding` is everything before the token; `word` is only the token
+    // under the caret. Keeping them separate stops the model from "correcting"
+    // by rewriting earlier words.
+    static func spellingCorrectionUserPrompt(word: String, preceding: String) -> String {
+        let lead = preceding.trimmingCharacters(in: .whitespacesAndNewlines)
+        let leadBlock = lead.isEmpty
+            ? "(none — start of field)"
+            : String(lead.suffix(200))
         return """
-        Correct only this word: \(word)
+        Preceding words (context only — do not repeat them):
+        <before>
+        \(leadBlock)
+        </before>
 
-        Nearby text (ignore except for meaning): \(snippet)
+        Fix only this token so it fits the preceding words:
+        <word>
+        \(word)
+        </word>
 
         Corrected word:
         """

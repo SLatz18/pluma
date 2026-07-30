@@ -176,6 +176,21 @@ final class SpellCorrectionTests: XCTestCase {
         )
     }
 
+    func testSanitizedReplacementRejectsUnrelatedPrecedingCopies() {
+        XCTAssertEqual(
+            SpellCorrection.sanitizedModelReplacement("church", forMisspelling: "separ"),
+            ""
+        )
+        XCTAssertEqual(
+            SpellCorrection.sanitizedModelReplacement("separation", forMisspelling: "separ"),
+            "separation"
+        )
+        XCTAssertEqual(
+            SpellCorrection.sanitizedModelReplacement("the", forMisspelling: "teh"),
+            "the"
+        )
+    }
+
     func testOfferUsesTopGuessOnly() {
         let offer = SpellCorrection.offer(
             prefix: "recieve ",
@@ -223,6 +238,25 @@ final class SpellCorrectionTests: XCTestCase {
                 guessesFor: { _ in ["the"] }
             )
         )
+    }
+
+    func testPrecedingTextExcludesTheCandidateToken() {
+        let prefix = "Hire a system admini"
+        let range = SpellCorrection.trailingWordRange(inPrefix: prefix)!.range
+        XCTAssertEqual(
+            SpellCorrection.precedingText(inPrefix: prefix, wordRange: range),
+            "Hire a system "
+        )
+    }
+
+    func testSpellingPromptPutsPrecedingWordsBeforeTheToken() {
+        let prompt = PromptComposer.spellingCorrectionUserPrompt(
+            word: "admini",
+            preceding: "oral medication "
+        )
+        XCTAssertTrue(prompt.contains("oral medication"))
+        XCTAssertTrue(prompt.contains("<word>\nadmini\n</word>"))
+        XCTAssertTrue(prompt.contains("Preceding words"))
     }
 
     func testPreferenceDefaultsOnAndRespectsExplicitOff() {
