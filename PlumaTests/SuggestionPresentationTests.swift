@@ -121,6 +121,39 @@ final class SuggestionPresentationTests: XCTestCase {
         )
     }
 
+    func testCurrentModelCancellationCanRetry() {
+        XCTAssertTrue(
+            AutocompleteCoordinator.shouldRetryModelCancellation(
+                taskIsCancelled: false,
+                sequence: 4,
+                currentSequence: 4,
+                prefix: "A current sentence",
+                currentPrefix: "A current sentence"
+            )
+        )
+    }
+
+    func testTypingOrNewerRequestPreventsModelCancellationRetry() {
+        XCTAssertFalse(
+            AutocompleteCoordinator.shouldRetryModelCancellation(
+                taskIsCancelled: true,
+                sequence: 4,
+                currentSequence: 4,
+                prefix: "A current sentence",
+                currentPrefix: "A current sentence"
+            )
+        )
+        XCTAssertFalse(
+            AutocompleteCoordinator.shouldRetryModelCancellation(
+                taskIsCancelled: false,
+                sequence: 4,
+                currentSequence: 5,
+                prefix: "A current sentence",
+                currentPrefix: "A current sentence plus typing"
+            )
+        )
+    }
+
     // The chip covers nothing the writer has already put down, so unlike ghost
     // text it has no reason to refuse a caret in the middle of a line. This is
     // the eligibility ghost text still answers no to.
