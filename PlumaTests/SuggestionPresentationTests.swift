@@ -154,6 +154,28 @@ final class SuggestionPresentationTests: XCTestCase {
         )
     }
 
+    func testAcceptedWordKeepsSuggestionOnItsCurrentLine() {
+        XCTAssertEqual(
+            AutocompleteCoordinator.stabilizedSuggestionY(
+                proposed: 140,
+                previous: 100,
+                preserveVertical: true
+            ),
+            100
+        )
+    }
+
+    func testOrdinaryTypingCanStillMoveSuggestionToANewLine() {
+        XCTAssertEqual(
+            AutocompleteCoordinator.stabilizedSuggestionY(
+                proposed: 140,
+                previous: 100,
+                preserveVertical: false
+            ),
+            140
+        )
+    }
+
     // The chip covers nothing the writer has already put down, so unlike ghost
     // text it has no reason to refuse a caret in the middle of a line. This is
     // the eligibility ghost text still answers no to.
