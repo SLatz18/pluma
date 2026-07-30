@@ -231,6 +231,20 @@ struct DeveloperView: View {
 
                 Divider()
 
+                DSToggleRow(
+                    title: "Correct misspellings with Apple Intelligence",
+                    detail: "On-device model instead of the spelling dictionary — catches garble the dictionary cannot, like adminipera → administration. Shares one Apple Intelligence session with rewrite and autocomplete so they never overlap.",
+                    isOn: Binding(
+                        get: { autocomplete.spellCorrectionEngine == .appleIntelligence },
+                        set: { on in
+                            autocomplete.spellCorrectionEngine = on ? .appleIntelligence : .dictionary
+                        }
+                    ),
+                    disabled: !autocomplete.spellCorrectionEnabled || !autocomplete.isPermissionGranted
+                )
+
+                Divider()
+
                 HStack {
                     Text(autocomplete.tuning == .standard ? "Shipped values" : "Changed from shipped")
                         .font(DS.meta)

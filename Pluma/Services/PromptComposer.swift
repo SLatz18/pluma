@@ -133,4 +133,36 @@ enum PromptComposer {
         Return only the continuation text.
         """
     }
+
+    static let spellingCorrectionInstructions = """
+    You fix a single misspelled or garbled word. Return only the corrected \
+    word — one token, no quotes, no punctuation, no explanation. Keep the \
+    writer's language. Prefer the intended English word when the fragment is \
+    close (adminipera → administration). If the word is already correct, \
+    return it unchanged.
+    """
+
+    static func spellingCorrectionUserPrompt(word: String, context: String) -> String {
+        let contextBlock: String
+        if context.isEmpty {
+            contextBlock = ""
+        } else {
+            contextBlock = """
+            SURROUNDING TEXT (for meaning only):
+            <context>
+            \(context)
+            </context>
+
+
+            """
+        }
+        return """
+        \(contextBlock)WORD TO CORRECT:
+        <word>
+        \(word)
+        </word>
+
+        Return only the corrected word.
+        """
+    }
 }

@@ -7,6 +7,17 @@ enum AppleIntelligenceEngine {
         guardrails: .permissiveContentTransformations
     )
 
+    // Foundation Models cancels overlapping sessions on the same system model.
+    // Every rewrite, completion, and spelling pass shares this gate so only one
+    // LanguageModelSession is live at a time — others wait their turn.
+    private static let gate = SessionGate()
+
+    private actor SessionGate {
+        func run<T: Sendable>(_ operation: @Sendable () async throws -> T) async throws -> T {
+            try await operation()
+        }
+    }
+
     static func status() -> ProviderStatus {
         switch model.availability {
         case .available:
@@ -48,6 +59,33 @@ enum AppleIntelligenceEngine {
     }
 
     static func rewrite(_ text: String, directive: String) async throws -> String {
+        try await gate.run {
+            try await rewriteUnlocked(text, directive: directive)
+        }
+    }
+
+    static func complete(
+        _ context: String,
+        surrounding: String? = nil,
+        memory: String? = nil,
+        styleProfile: String? = nil
+    ) async throws -> String {
+        try await gate.run {
+            try await completeUnlocked(
+                context, surrounding: surrounding, memory: memory, styleProfile: styleProfile
+            )
+        }
+    }
+
+    // One corrected word for a misspelling or garbled fragment. Queued behind
+    // the same gate as completions so a spelling pass never races a suggestion.
+    static func correctSpelling(word: String, context: String) async throws -> String {
+        try await gate.run {
+            try await correctSpellingUnlocked(word: word, context: context)
+        }
+    }
+
+    private static func rewriteUnlocked(_ text: String, directive: String) async throws -> String {
         guard model.isAvailable else {
             throw RewriteEngineError.modelUnavailable(status().detail)
         }
@@ -62,11 +100,11 @@ enum AppleIntelligenceEngine {
         return response.content.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func complete(
+    private static func completeUnlocked(
         _ context: String,
-        surrounding: String? = nil,
-        memory: String? = nil,
-        styleProfile: String? = nil
+        surrounding: String?,
+        memory: String?,
+        styleProfile: String?
     ) async throws -> String {
         guard model.isAvailable else {
             throw RewriteEngineError.modelUnavailable(status().detail)
@@ -87,5 +125,26 @@ enum AppleIntelligenceEngine {
             throw RewriteEngineError.invalidResponse
         }
         return output
+    }
+
+    private static func correctSpellingUnlocked(word: String, context: String) async throws -> String {
+        guard model.isAvailable else {
+            throw RewriteEngineError.modelUnavailable(status().detail)
+        }
+
+        let session = LanguageModelSession(
+            model: model,
+            instructions: PromptComposer.spellingCorrectionInstructions
+        )
+        let response = try await session.respond(
+            to: PromptComposer.spellingCorrectionUserPrompt(word: word, context: context),
+            options: GenerationOptions(temperature: 0.1, maximumResponseTokens: 12)
+        )
+        let raw = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleaned = SpellCorrection.sanitizedModelReplacement(raw, forMisspelling: word)
+        guard !cleaned.isEmpty else {
+            throw RewriteEngineError.invalidResponse
+        }
+        return cleaned
     }
 }

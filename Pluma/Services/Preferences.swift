@@ -23,6 +23,7 @@ enum Preferences {
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
     static let spellCorrectionEnabledKey = "pluma.spellCorrectionEnabled"
+    static let spellCorrectionEngineKey = "pluma.spellCorrectionEngine"
     static let completionPhraseWordsKey = "pluma.completion.phraseWords"
     static let completionBriefWordsKey = "pluma.completion.briefWords"
     static let completionDebounceKey = "pluma.completion.debounceMilliseconds"
@@ -113,6 +114,24 @@ enum Preferences {
 
     static func setSpellCorrectionEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
         defaults.set(enabled, forKey: spellCorrectionEnabledKey)
+    }
+
+    // Dictionary is the shipped path. Apple Intelligence is a developer
+    // experiment for misspellings the system dictionary cannot guess.
+    static func spellCorrectionEngine(from defaults: UserDefaults = .standard) -> SpellCorrectionEngine {
+        guard
+            let raw = defaults.string(forKey: spellCorrectionEngineKey),
+            let engine = SpellCorrectionEngine(rawValue: raw)
+        else {
+            return .dictionary
+        }
+        return engine
+    }
+
+    static func setSpellCorrectionEngine(
+        _ engine: SpellCorrectionEngine, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(engine.rawValue, forKey: spellCorrectionEngineKey)
     }
 
     // Each knob falls back to the shipped value on its own, so a partially

@@ -21,7 +21,7 @@ struct AutocompleteView: View {
                     rowDivider
                     DSToggleRow(
                         title: "Correct misspellings",
-                        detail: "When you finish a misspelled word, offer a fix on the chip before suggesting what comes next. Tab replaces the word. Uses the Mac’s spelling dictionary — nothing leaves the device.",
+                        detail: "When you finish a misspelled word, offer a fix on the chip before suggesting what comes next. Tab replaces the word. Uses the Mac’s spelling dictionary by default — Developer can switch the fix to Apple Intelligence.",
                         isOn: $coordinator.spellCorrectionEnabled,
                         disabled: !coordinator.isPermissionGranted
                     )

@@ -66,6 +66,16 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var spellCorrectionEngine: SpellCorrectionEngine {
+        didSet {
+            guard spellCorrectionEngine != oldValue else { return }
+            Preferences.setSpellCorrectionEngine(spellCorrectionEngine, to: defaults)
+            if activeCorrection != nil {
+                dismissSuggestion()
+            }
+        }
+    }
+
     @Published private(set) var isScreenContextPermitted: Bool
     @Published private(set) var memoryEntryCount: Int
 
@@ -78,6 +88,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
     private var debounceTask: Task<Void, Never>?
     private var completionInFlight = false
+    private var appleSpellTask: Task<Void, Never>?
     private var latestSnapshot: FocusedFieldSnapshot?
     private var activeSuggestion: CompletionSuggestion?
     private var activeCorrection: SpellCorrectionOffer?
@@ -100,6 +111,7 @@ final class AutocompleteCoordinator: ObservableObject {
         memoryEnabled = Preferences.memoryEnabled(from: defaults)
         inlineSuggestions = Preferences.inlineSuggestions(from: defaults)
         spellCorrectionEnabled = Preferences.spellCorrectionEnabled(from: defaults)
+        spellCorrectionEngine = Preferences.spellCorrectionEngine(from: defaults)
         tuning = Preferences.completionTuning(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
@@ -174,6 +186,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
     private func stop() {
         debounceTask?.cancel()
+        appleSpellTask?.cancel()
         tracker.stop()
         dismissSuggestion()
         removeEventTap()
@@ -201,6 +214,7 @@ final class AutocompleteCoordinator: ObservableObject {
         guard let snapshot else {
             latestSnapshot = nil
             debounceTask?.cancel()
+            appleSpellTask?.cancel()
             dismissSuggestion()
             lastSnapshotPrefix = nil
             updateActivity()
@@ -224,8 +238,10 @@ final class AutocompleteCoordinator: ObservableObject {
             // Still the same finished misspelling — keep the chip. Any other
             // edit clears it so a fresh correction or model pass can run.
             if spellCorrectionEnabled,
-               let fresh = spellCorrectionOffer(for: prefix),
-               fresh == correction {
+               let candidate = spellCorrectionCandidate(for: prefix),
+               candidate.word == correction.misspelled,
+               candidate.range.location == correction.wordLocation,
+               candidate.range.length == correction.wordLength {
                 lastSnapshotPrefix = prefix
                 return
             }
@@ -257,26 +273,35 @@ final class AutocompleteCoordinator: ObservableObject {
     // replace-in-place must not pose as grey continuation.
     private func presentSpellCorrectionIfNeeded(for snapshot: FocusedFieldSnapshot) -> Bool {
         guard spellCorrectionEnabled else { return false }
-        guard let offer = spellCorrectionOffer(for: snapshot.textBeforeCaret) else {
+        guard spellCorrectionCandidate(for: snapshot.textBeforeCaret) != nil else {
+            appleSpellTask?.cancel()
             return false
         }
 
-        debounceTask?.cancel()
-        // Drop any in-flight model answer: a correction is more urgent than a
-        // continuation that was already asked for under the misspelling.
-        requestSequence += 1
-        activeSuggestion = nil
-        activeCorrection = offer
-        activeElement = snapshot.element
-        acceptedFromCurrentSuggestion = ""
-        activeSuggestionTopLeftY = nil
-        showCorrectionOverlay(offer, at: snapshot.caret)
-        updateActivity()
-        DebugLog.log("spell correction: \(offer.misspelled) -> \(offer.replacement)")
-        return true
+        switch spellCorrectionEngine {
+        case .dictionary:
+            guard let offer = dictionarySpellCorrectionOffer(for: snapshot.textBeforeCaret) else {
+                return false
+            }
+            presentCorrection(offer, element: snapshot.element, caret: snapshot.caret)
+            return true
+        case .appleIntelligence:
+            scheduleAppleSpellCorrection(for: snapshot)
+            return true
+        }
     }
 
-    private func spellCorrectionOffer(for prefix: String) -> SpellCorrectionOffer? {
+    private func spellCorrectionCandidate(
+        for prefix: String
+    ) -> (word: String, range: NSRange)? {
+        SpellCorrection.candidateWordRange(
+            inPrefix: prefix,
+            allowMidWord: spellCorrectionEngine == .appleIntelligence,
+            isMisspelled: { [self] word in !isCompleteWord(word) }
+        )
+    }
+
+    private func dictionarySpellCorrectionOffer(for prefix: String) -> SpellCorrectionOffer? {
         SpellCorrection.offer(
             prefix: prefix,
             isMisspelled: { [self] word in !isCompleteWord(word) },
@@ -284,9 +309,118 @@ final class AutocompleteCoordinator: ObservableObject {
         )
     }
 
+    private func scheduleAppleSpellCorrection(for snapshot: FocusedFieldSnapshot) {
+        guard let candidate = spellCorrectionCandidate(for: snapshot.textBeforeCaret) else {
+            return
+        }
+
+        debounceTask?.cancel()
+        appleSpellTask?.cancel()
+        // Drop any in-flight continuation; spelling and completion share the
+        // Apple Intelligence gate, and the misspelling is more urgent.
+        requestSequence += 1
+        let sequence = requestSequence
+        let prefix = snapshot.textBeforeCaret
+        let element = snapshot.element
+        let caret = snapshot.caret
+        let word = candidate.word
+        let range = candidate.range
+        let context = String(prefix.suffix(240))
+
+        let pause = Duration.milliseconds(min(tuning.debounceMilliseconds, 400))
+        appleSpellTask = Task { [weak self] in
+            try? await Task.sleep(for: pause)
+            guard !Task.isCancelled, let self else { return }
+            await requestAppleSpellCorrection(
+                word: word,
+                range: range,
+                context: context,
+                prefix: prefix,
+                element: element,
+                caret: caret,
+                sequence: sequence
+            )
+        }
+    }
+
+    private func requestAppleSpellCorrection(
+        word: String,
+        range: NSRange,
+        context: String,
+        prefix: String,
+        element: AXUIElement,
+        caret: CaretGeometry?,
+        sequence: Int
+    ) async {
+        DebugLog.log("apple spell request: \(word)")
+        do {
+            let replacement = try await AppleIntelligenceEngine.correctSpelling(
+                word: word, context: context
+            )
+            guard
+                sequence == requestSequence,
+                !Task.isCancelled,
+                lastSnapshotPrefix == prefix,
+                activeSuggestion == nil
+            else {
+                DebugLog.log("apple spell discarded: stale")
+                return
+            }
+            guard
+                let offer = SpellCorrection.offer(
+                    misspelled: word, range: range, replacement: replacement
+                )
+            else {
+                DebugLog.log("apple spell empty or unchanged")
+                // Nothing to fix — fall through to an ordinary continuation.
+                guard !completionInFlight else { return }
+                if let latestSnapshot, latestSnapshot.textBeforeCaret == prefix {
+                    scheduleCompletion(for: latestSnapshot)
+                }
+                return
+            }
+            presentCorrection(offer, element: element, caret: caret)
+        } catch is CancellationError {
+            DebugLog.log("apple spell cancelled", at: .quiet)
+        } catch {
+            DebugLog.log("apple spell failed: \(error.localizedDescription)", at: .quiet)
+            guard
+                sequence == requestSequence,
+                !Task.isCancelled,
+                activeCorrection == nil,
+                activeSuggestion == nil,
+                !completionInFlight,
+                let latestSnapshot
+            else { return }
+            scheduleCompletion(for: latestSnapshot)
+        }
+    }
+
+    private func presentCorrection(
+        _ offer: SpellCorrectionOffer,
+        element: AXUIElement,
+        caret: CaretGeometry?
+    ) {
+        debounceTask?.cancel()
+        appleSpellTask?.cancel()
+        requestSequence += 1
+        activeSuggestion = nil
+        activeCorrection = offer
+        activeElement = element
+        acceptedFromCurrentSuggestion = ""
+        activeSuggestionTopLeftY = nil
+        showCorrectionOverlay(offer, at: caret)
+        updateActivity()
+        DebugLog.log(
+            "spell correction (\(spellCorrectionEngine.rawValue)): "
+                + "\(offer.misspelled) -> \(offer.replacement)"
+        )
+    }
+
     private func scheduleCompletion(for snapshot: FocusedFieldSnapshot) {
         let prefix = snapshot.textBeforeCaret
         debounceTask?.cancel()
+        appleSpellTask?.cancel()
         guard CompletionSuggestion.shouldTrigger(for: prefix, tuning: tuning) else {
             DebugLog.log("below trigger threshold", at: .verbose)
             updateActivity()
@@ -733,6 +867,7 @@ final class AutocompleteCoordinator: ObservableObject {
     }
 
     private func dismissSuggestion() {
+        appleSpellTask?.cancel()
         activeSuggestion = nil
         activeCorrection = nil
         activeElement = nil
