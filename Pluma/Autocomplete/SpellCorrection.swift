@@ -91,7 +91,11 @@ enum SpellCorrection {
     // Models sometimes wrap the answer in quotes or tack on a second word.
     // Spelling replace must stay a single token that actually changes the text,
     // and must look like a fix of the token — not a copy of an earlier word.
-    static func sanitizedModelReplacement(_ raw: String, forMisspelling misspelled: String) -> String {
+    static func sanitizedModelReplacement(
+        _ raw: String,
+        forMisspelling misspelled: String,
+        preceding: String = ""
+    ) -> String {
         var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if let newline = text.firstIndex(of: "\n") {
             text = String(text[..<newline])
@@ -105,6 +109,10 @@ enum SpellCorrection {
             return ""
         }
         guard looksLikeSpellingOf(misspelled, replacement: text) else { return "" }
+        // "She will carefully sepera" must not accept "separation".
+        if precedingLikelyNeedsVerb(preceding), looksLikeNominalization(text) {
+            return ""
+        }
         return text
     }
 
@@ -117,6 +125,33 @@ enum SpellCorrection {
         if broken.count <= 4 { return true }
         let shared = min(3, broken.count, fixed.count)
         return broken.prefix(shared) == fixed.prefix(shared)
+    }
+
+    // Modal / infinitive marker, optionally followed by one adverb, then the
+    // caret — the next word should be a verb ("will carefully ▁", "to ▁").
+    static func precedingLikelyNeedsVerb(_ preceding: String) -> Bool {
+        let trimmed = preceding
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard !trimmed.isEmpty else { return false }
+        let tokens = trimmed.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).map(String.init)
+        guard let last = tokens.last else { return false }
+        let modals: Set<String> = [
+            "will", "would", "can", "could", "should", "must", "may", "might", "shall", "to"
+        ]
+        if modals.contains(last) { return true }
+        guard tokens.count >= 2, last.hasSuffix("ly") else { return false }
+        return modals.contains(tokens[tokens.count - 2])
+    }
+
+    static func looksLikeNominalization(_ word: String) -> Bool {
+        let lower = word.lowercased()
+        let suffixes = ["tion", "sion", "ment", "ance", "ence", "ness", "ity"]
+        return suffixes.contains { lower.hasSuffix($0) }
+    }
+
+    static func fitsGrammatically(_ replacement: String, after preceding: String) -> Bool {
+        !(precedingLikelyNeedsVerb(preceding) && looksLikeNominalization(replacement))
     }
 
     private static func trailingNonLettersStart(in prefix: String) -> String.Index {

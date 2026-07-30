@@ -138,15 +138,35 @@ enum AppleIntelligenceEngine {
             model: model,
             instructions: PromptComposer.spellingCorrectionInstructions
         )
+        let options = GenerationOptions(temperature: 0.0, maximumResponseTokens: 8)
         let response = try await session.respond(
             to: PromptComposer.spellingCorrectionUserPrompt(word: word, preceding: preceding),
-            options: GenerationOptions(temperature: 0.0, maximumResponseTokens: 8)
+            options: options
         )
-        let raw = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleaned = SpellCorrection.sanitizedModelReplacement(raw, forMisspelling: word)
-        guard !cleaned.isEmpty else {
+        let first = SpellCorrection.sanitizedModelReplacement(
+            response.content, forMisspelling: word, preceding: preceding
+        )
+        if !first.isEmpty { return first }
+
+        // First pass often returns a noun ("separation") where grammar wants
+        // a verb ("separate"). One retry in the same session with an explicit
+        // verb constraint recovers that without opening another gated session.
+        guard SpellCorrection.precedingLikelyNeedsVerb(preceding) else {
             throw RewriteEngineError.invalidResponse
         }
-        return cleaned
+        let rejected = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let retry = try await session.respond(
+            to: PromptComposer.spellingCorrectionVerbRetryPrompt(
+                word: word, preceding: preceding, rejected: rejected
+            ),
+            options: options
+        )
+        let second = SpellCorrection.sanitizedModelReplacement(
+            retry.content, forMisspelling: word, preceding: preceding
+        )
+        guard !second.isEmpty else {
+            throw RewriteEngineError.invalidResponse
+        }
+        return second
     }
 }

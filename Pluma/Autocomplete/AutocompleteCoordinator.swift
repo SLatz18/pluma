@@ -295,9 +295,17 @@ final class AutocompleteCoordinator: ObservableObject {
         }
 
         // Learned fixes beat dictionary and Apple Intelligence — they are the
-        // writer's own accepted answers for this exact misspelling.
+        // writer's own accepted answers for this exact misspelling. Still apply
+        // the grammar gate so a remembered "separation" is not offered after
+        // "will carefully".
         if spellMemoryEnabled,
            let learned = spellMemory.lookup(candidate.word),
+           SpellCorrection.fitsGrammatically(
+               learned,
+               after: SpellCorrection.precedingText(
+                   inPrefix: snapshot.textBeforeCaret, wordRange: candidate.range
+               )
+           ),
            let offer = SpellCorrection.offer(
                misspelled: candidate.word, range: candidate.range, replacement: learned
            ) {

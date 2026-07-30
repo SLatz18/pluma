@@ -191,6 +191,39 @@ final class SpellCorrectionTests: XCTestCase {
         )
     }
 
+    func testGrammarGatePrefersVerbAfterModalAdverb() {
+        XCTAssertTrue(SpellCorrection.precedingLikelyNeedsVerb("She will carefully "))
+        XCTAssertTrue(SpellCorrection.precedingLikelyNeedsVerb("to "))
+        XCTAssertFalse(SpellCorrection.precedingLikelyNeedsVerb("church and state "))
+        XCTAssertTrue(SpellCorrection.looksLikeNominalization("separation"))
+        XCTAssertFalse(SpellCorrection.looksLikeNominalization("separate"))
+
+        XCTAssertEqual(
+            SpellCorrection.sanitizedModelReplacement(
+                "separation",
+                forMisspelling: "sepera",
+                preceding: "She will carefully "
+            ),
+            ""
+        )
+        XCTAssertEqual(
+            SpellCorrection.sanitizedModelReplacement(
+                "separate",
+                forMisspelling: "sepera",
+                preceding: "She will carefully "
+            ),
+            "separate"
+        )
+        XCTAssertEqual(
+            SpellCorrection.sanitizedModelReplacement(
+                "separation",
+                forMisspelling: "separ",
+                preceding: "church and state "
+            ),
+            "separation"
+        )
+    }
+
     func testOfferUsesTopGuessOnly() {
         let offer = SpellCorrection.offer(
             prefix: "recieve ",
