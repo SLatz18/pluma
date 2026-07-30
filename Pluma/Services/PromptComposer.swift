@@ -135,34 +135,24 @@ enum PromptComposer {
     }
 
     static let spellingCorrectionInstructions = """
-    You fix a single misspelled or garbled word. Return only the corrected \
-    word — one token, no quotes, no punctuation, no explanation. Keep the \
-    writer's language. Prefer the intended English word when the fragment is \
-    close (adminipera → administration). If the word is already correct, \
-    return it unchanged.
+    You correct one misspelled or garbled English word. Reply with exactly one \
+    word: the intended spelling of THAT word alone. Do not continue the \
+    sentence. Do not reuse words from earlier turns. Do not explain. \
+    Examples: teh → the; recieve → receive; seperate → separate; \
+    adminipera → administration; administraton → administration. If the word \
+    is already correct, return it unchanged.
     """
 
     static func spellingCorrectionUserPrompt(word: String, context: String) -> String {
-        let contextBlock: String
-        if context.isEmpty {
-            contextBlock = ""
-        } else {
-            contextBlock = """
-            SURROUNDING TEXT (for meaning only):
-            <context>
-            \(context)
-            </context>
-
-
-            """
-        }
+        // Keep context short and clearly secondary so the model does not
+        // continue the sentence or latch onto an earlier long correction.
+        let snippet = String(context.suffix(80))
         return """
-        \(contextBlock)WORD TO CORRECT:
-        <word>
-        \(word)
-        </word>
+        Correct only this word: \(word)
 
-        Return only the corrected word.
+        Nearby text (ignore except for meaning): \(snippet)
+
+        Corrected word:
         """
     }
 }
