@@ -138,7 +138,7 @@ enum AppleIntelligenceEngine {
         )
         let response = try await session.respond(
             to: PromptComposer.spellingCorrectionUserPrompt(word: word, context: context),
-            options: GenerationOptions(temperature: 0.1, maximumResponseTokens: 12)
+            options: GenerationOptions(temperature: 0.0, maximumResponseTokens: 8)
         )
         let raw = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleaned = SpellCorrection.sanitizedModelReplacement(raw, forMisspelling: word)
