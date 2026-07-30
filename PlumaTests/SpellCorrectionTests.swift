@@ -1,11 +1,15 @@
+import AppKit
 import XCTest
 @testable import Pluma
 
 final class SpellCorrectionTests: XCTestCase {
     func testFinishedWordRequiresTrailingBoundary() {
         XCTAssertNil(SpellCorrection.finishedWordRange(inPrefix: "teh"))
+        XCTAssertNil(SpellCorrection.finishedWordRange(inPrefix: "adminipera"))
+        XCTAssertNil(SpellCorrection.finishedWordRange(inPrefix: "documenta"))
         XCTAssertNil(SpellCorrection.finishedWordRange(inPrefix: ""))
         XCTAssertNil(SpellCorrection.finishedWordRange(inPrefix: " "))
+        XCTAssertNil(SpellCorrection.finishedWordRange(inPrefix: "..."))
     }
 
     func testFinishedWordAfterSpace() {
@@ -16,14 +20,56 @@ final class SpellCorrectionTests: XCTestCase {
     }
 
     func testFinishedWordAfterPunctuation() {
-        let result = SpellCorrection.finishedWordRange(inPrefix: "teh.")
-        XCTAssertEqual(result?.word, "teh")
-        XCTAssertEqual(result?.range, NSRange(location: 0, length: 3))
+        XCTAssertEqual(SpellCorrection.finishedWordRange(inPrefix: "teh.")?.word, "teh")
+        XCTAssertEqual(SpellCorrection.finishedWordRange(inPrefix: "teh!")?.word, "teh")
+        XCTAssertEqual(SpellCorrection.finishedWordRange(inPrefix: "teh?")?.word, "teh")
+        XCTAssertEqual(SpellCorrection.finishedWordRange(inPrefix: "teh,")?.word, "teh")
     }
 
     func testFinishedWordSkipsTrailingNonLetters() {
         let result = SpellCorrection.finishedWordRange(inPrefix: "recieve... ")
         XCTAssertEqual(result?.word, "recieve")
+    }
+
+    func testFinishedWordUsesOnlyTheTokenBeforeTheCaret() {
+        let result = SpellCorrection.finishedWordRange(inPrefix: "teh draft is fine ")
+        XCTAssertEqual(result?.word, "fine")
+    }
+
+    func testTrailingWordIncludesMidWordFragments() {
+        let result = SpellCorrection.trailingWordRange(inPrefix: "Please review adminipera")
+        XCTAssertEqual(result?.word, "adminipera")
+        XCTAssertEqual(
+            ("Please review adminipera" as NSString).substring(with: result!.range),
+            "adminipera"
+        )
+    }
+
+    func testCandidateAllowsMidWordOnlyWhenRequested() {
+        let mid = SpellCorrection.candidateWordRange(
+            inPrefix: "adminipera",
+            allowMidWord: true,
+            isMisspelled: { _ in true }
+        )
+        XCTAssertEqual(mid?.word, "adminipera")
+
+        XCTAssertNil(
+            SpellCorrection.candidateWordRange(
+                inPrefix: "adminipera",
+                allowMidWord: false,
+                isMisspelled: { _ in true }
+            )
+        )
+    }
+
+    func testLongMisspellingRangeInsideASentence() {
+        let prefix = "The administraton of the fund "
+        let result = SpellCorrection.finishedWordRange(inPrefix: prefix)
+        XCTAssertEqual(result?.word, "fund")
+
+        let mid = SpellCorrection.trailingWordRange(inPrefix: "The administraton")
+        XCTAssertEqual(mid?.word, "administraton")
+        XCTAssertEqual(mid?.range.length, "administraton".utf16.count)
     }
 
     func testOfferRequiresMisspellingAndDistinctGuess() {
@@ -41,6 +87,38 @@ final class SpellCorrectionTests: XCTestCase {
                 wordLength: 3
             )
         )
+    }
+
+    func testOfferFromModelReplacementSanitizesNoise() {
+        let range = NSRange(location: 4, length: 10)
+        let offer = SpellCorrection.offer(
+            misspelled: "adminipera",
+            range: range,
+            replacement: "\"administration\" please"
+        )
+        XCTAssertEqual(offer?.replacement, "administration")
+        XCTAssertEqual(offer?.wordLocation, 4)
+        XCTAssertEqual(offer?.wordLength, 10)
+    }
+
+    func testSanitizedReplacementRejectsUnchangedWord() {
+        XCTAssertEqual(
+            SpellCorrection.sanitizedModelReplacement("Adminipera", forMisspelling: "adminipera"),
+            ""
+        )
+        XCTAssertEqual(
+            SpellCorrection.sanitizedModelReplacement("", forMisspelling: "teh"),
+            ""
+        )
+    }
+
+    func testOfferUsesTopGuessOnly() {
+        let offer = SpellCorrection.offer(
+            prefix: "recieve ",
+            isMisspelled: { _ in true },
+            guessesFor: { _ in ["receive", "received", "receives"] }
+        )
+        XCTAssertEqual(offer?.replacement, "receive")
     }
 
     func testOfferIgnoresCorrectWords() {
@@ -73,17 +151,143 @@ final class SpellCorrectionTests: XCTestCase {
         )
     }
 
+    func testOfferIgnoresMidWordPrefixForDictionaryPath() {
+        XCTAssertNil(
+            SpellCorrection.offer(
+                prefix: "teh",
+                isMisspelled: { _ in true },
+                guessesFor: { _ in ["the"] }
+            )
+        )
+    }
+
     func testPreferenceDefaultsOnAndRespectsExplicitOff() {
         let suite = "pluma.tests.spellCorrection.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
 
         XCTAssertTrue(Preferences.spellCorrectionEnabled(from: defaults))
+        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .dictionary)
 
         Preferences.setSpellCorrectionEnabled(false, to: defaults)
         XCTAssertFalse(Preferences.spellCorrectionEnabled(from: defaults))
 
+        Preferences.setSpellCorrectionEngine(.appleIntelligence, to: defaults)
+        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .appleIntelligence)
+
+        Preferences.setSpellCorrectionEngine(.dictionary, to: defaults)
         Preferences.setSpellCorrectionEnabled(true, to: defaults)
         XCTAssertTrue(Preferences.spellCorrectionEnabled(from: defaults))
+        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .dictionary)
+    }
+
+    func testLiveDictionaryOffersCorrectionsForCommonMisspellings() throws {
+        try skipUnlessEnglishSpellChecker()
+
+        let cases: [(prefix: String, expected: String)] = [
+            ("teh ", "the"),
+            ("Please review teh ", "the"),
+            ("recieve ", "receive"),
+            ("seperate ", "separate"),
+            ("occured ", "occurred"),
+            ("definately ", "definitely"),
+            ("administraton ", "administration"),
+            ("adminstration ", "administration"),
+            ("teh.", "the"),
+        ]
+
+        for testCase in cases {
+            let offer = liveOffer(for: testCase.prefix)
+            XCTAssertEqual(
+                offer?.replacement.lowercased(),
+                testCase.expected,
+                "prefix \(testCase.prefix.debugDescription)"
+            )
+        }
+    }
+
+    func testLiveDictionaryCannotGuessAdminipera() throws {
+        try skipUnlessEnglishSpellChecker()
+        XCTAssertNil(liveOffer(for: "adminipera "))
+        XCTAssertNil(
+            SpellCorrection.candidateWordRange(
+                inPrefix: "adminipera",
+                allowMidWord: true,
+                isMisspelled: { word in
+                    let misspelled = NSSpellChecker.shared.checkSpelling(
+                        of: word,
+                        startingAt: 0,
+                        language: NSSpellChecker.shared.language(),
+                        wrap: false,
+                        inSpellDocumentWithTag: 0,
+                        wordCount: nil
+                    )
+                    return misspelled.location != NSNotFound
+                }
+            ).flatMap { word, range in
+                SpellCorrection.offer(
+                    misspelled: word,
+                    range: range,
+                    replacement: (
+                        NSSpellChecker.shared.guesses(
+                            forWordRange: NSRange(location: 0, length: (word as NSString).length),
+                            in: word,
+                            language: NSSpellChecker.shared.language(),
+                            inSpellDocumentWithTag: 0
+                        ) ?? []
+                    ).first ?? ""
+                )
+            }
+        )
+    }
+
+    func testLiveDictionaryDoesNotCorrectValidWords() throws {
+        try skipUnlessEnglishSpellChecker()
+
+        for prefix in ["the ", "receive ", "separate ", "administration ", "Please review the "] {
+            XCTAssertNil(liveOffer(for: prefix), prefix)
+        }
+    }
+
+    func testLiveDictionaryDoesNotCorrectMidWordFragments() throws {
+        try skipUnlessEnglishSpellChecker()
+
+        for prefix in ["teh", "recieve", "documenta", "adminipera"] {
+            XCTAssertNil(liveOffer(for: prefix), prefix)
+        }
+    }
+
+    private func liveOffer(for prefix: String) -> SpellCorrectionOffer? {
+        SpellCorrection.offer(
+            prefix: prefix,
+            isMisspelled: { word in
+                let misspelled = NSSpellChecker.shared.checkSpelling(
+                    of: word,
+                    startingAt: 0,
+                    language: NSSpellChecker.shared.language(),
+                    wrap: false,
+                    inSpellDocumentWithTag: 0,
+                    wordCount: nil
+                )
+                return misspelled.location != NSNotFound
+            },
+            guessesFor: { word in
+                let range = NSRange(location: 0, length: (word as NSString).length)
+                return NSSpellChecker.shared.guesses(
+                    forWordRange: range,
+                    in: word,
+                    language: NSSpellChecker.shared.language(),
+                    inSpellDocumentWithTag: 0
+                ) ?? []
+            }
+        )
+    }
+
+    private func skipUnlessEnglishSpellChecker() throws {
+        let language = NSSpellChecker.shared.language().lowercased()
+        let offer = liveOffer(for: "teh ")
+        guard language.hasPrefix("en") || offer?.replacement.lowercased() == "the" else {
+            throw XCTSkip("English spell checker unavailable (language=\(language))")
+        }
     }
 }
