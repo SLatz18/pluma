@@ -232,8 +232,8 @@ struct DeveloperView: View {
                 Divider()
 
                 DSToggleRow(
-                    title: "Correct misspellings with Apple Intelligence",
-                    detail: "On-device model instead of the spelling dictionary — catches garble the dictionary cannot, like adminipera → administration. Shares one Apple Intelligence session with rewrite and autocomplete so they never overlap.",
+                    title: "Use Apple Intelligence for spelling",
+                    detail: "On by default. Uses the on-device model with preceding words and grammar. Turn off to compare against the Mac spelling dictionary instead. Shares one Apple Intelligence session with rewrite and autocomplete.",
                     isOn: Binding(
                         get: { autocomplete.spellCorrectionEngine == .appleIntelligence },
                         set: { on in

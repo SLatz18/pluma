@@ -298,18 +298,18 @@ final class SpellCorrectionTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
 
         XCTAssertTrue(Preferences.spellCorrectionEnabled(from: defaults))
-        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .dictionary)
+        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .appleIntelligence)
 
         Preferences.setSpellCorrectionEnabled(false, to: defaults)
         XCTAssertFalse(Preferences.spellCorrectionEnabled(from: defaults))
 
-        Preferences.setSpellCorrectionEngine(.appleIntelligence, to: defaults)
-        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .appleIntelligence)
-
         Preferences.setSpellCorrectionEngine(.dictionary, to: defaults)
+        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .dictionary)
+
+        Preferences.setSpellCorrectionEngine(.appleIntelligence, to: defaults)
         Preferences.setSpellCorrectionEnabled(true, to: defaults)
         XCTAssertTrue(Preferences.spellCorrectionEnabled(from: defaults))
-        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .dictionary)
+        XCTAssertEqual(Preferences.spellCorrectionEngine(from: defaults), .appleIntelligence)
     }
 
     func testLiveDictionaryOffersCorrectionsForCommonMisspellings() throws {
