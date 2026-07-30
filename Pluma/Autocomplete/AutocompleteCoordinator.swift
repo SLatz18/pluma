@@ -67,6 +67,8 @@ final class AutocompleteCoordinator: ObservableObject {
     private let memory = MemoryStore.shared
 
     private var debounceTask: Task<Void, Never>?
+    private var completionInFlight = false
+    private var latestSnapshot: FocusedFieldSnapshot?
     private var activeSuggestion: CompletionSuggestion?
     private var activeElement: AXUIElement?
     private var lastSnapshotPrefix: String?
@@ -185,6 +187,7 @@ final class AutocompleteCoordinator: ObservableObject {
         guard !isAcceptingSuggestion else { return }
 
         guard let snapshot else {
+            latestSnapshot = nil
             debounceTask?.cancel()
             dismissSuggestion()
             lastSnapshotPrefix = nil
@@ -193,6 +196,7 @@ final class AutocompleteCoordinator: ObservableObject {
         }
 
         let prefix = snapshot.textBeforeCaret
+        latestSnapshot = snapshot
         // Decided here rather than at draw time: the field's whole text is in
         // hand now, and re-reading it on every repaint would cost an AX round
         // trip per keystroke.
@@ -208,6 +212,19 @@ final class AutocompleteCoordinator: ObservableObject {
         lastSnapshotPrefix = prefix
         DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)", at: .verbose)
 
+        // Once the model is working, ordinary continued typing should not kill
+        // it. The result is rebased against those extra characters below.
+        // Focus loss and stop() still cancel the task immediately.
+        guard !completionInFlight else {
+            DebugLog.log("typing advanced while completion is in flight", at: .verbose)
+            return
+        }
+
+        scheduleCompletion(for: snapshot)
+    }
+
+    private func scheduleCompletion(for snapshot: FocusedFieldSnapshot) {
+        let prefix = snapshot.textBeforeCaret
         debounceTask?.cancel()
         guard CompletionSuggestion.shouldTrigger(for: prefix, tuning: tuning) else {
             DebugLog.log("below trigger threshold", at: .verbose)
@@ -221,7 +238,20 @@ final class AutocompleteCoordinator: ObservableObject {
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: pause)
             guard !Task.isCancelled else { return }
-            await self?.requestCompletion(prefix: prefix, element: element, caret: caret)
+            guard let self else { return }
+            completionInFlight = true
+            await requestCompletion(prefix: prefix, element: element, caret: caret)
+            completionInFlight = false
+
+            // If the writer out-typed or diverged from that answer, start one
+            // fresh request from the newest field truth after the usual pause.
+            guard
+                !Task.isCancelled,
+                activeSuggestion == nil,
+                let latestSnapshot,
+                latestSnapshot.textBeforeCaret != prefix
+            else { return }
+            scheduleCompletion(for: latestSnapshot)
         }
     }
 
@@ -287,7 +317,11 @@ final class AutocompleteCoordinator: ObservableObject {
             guard
                 sequence == requestSequence,
                 !Task.isCancelled,
-                prefix == lastSnapshotPrefix
+                let currentPrefix = lastSnapshotPrefix,
+                let typedSinceRequest = Self.typedSuffix(
+                    requestPrefix: prefix,
+                    currentPrefix: currentPrefix
+                )
             else {
                 DebugLog.log("response discarded: stale")
                 return
@@ -296,23 +330,37 @@ final class AutocompleteCoordinator: ObservableObject {
             let scope = CompletionSuggestion.scope(
                 forContext: context, endsMidWord: endsMidWord(context)
             )
-            var output = raw
-            if scope == .word {
-                let partial = trailingWord(context)
-                output = CompletionSuggestion.wordCompletion(
-                    forPartial: partial,
-                    modelSuggestion: raw,
-                    candidates: spellCompletions(for: partial)
-                )
-            }
-            let suggestion = CompletionSuggestion(
-                rawOutput: output, context: context, scope: scope, tuning: tuning
-            )
+            var suggestion = normalizedSuggestion(raw: raw, context: context, scope: scope)
             DebugLog.log(
                 "raw \(raw.debugDescription) tail \(context.suffix(40).debugDescription) "
                     + "scope \(scope) -> \(suggestion.remaining.debugDescription)",
                 at: .verbose
             )
+
+            // The on-device model occasionally returns only an echo, which the
+            // safety filter correctly removes. One fresh sample is cheaper than
+            // making the feature appear broken after a deliberate pause.
+            if suggestion.isEmpty, typedSinceRequest.isEmpty {
+                DebugLog.log("response filtered empty; retrying once")
+                let retry = try await generateCompletion(
+                    provider: provider,
+                    context: context,
+                    surrounding: surrounding,
+                    memory: memoryDigest,
+                    styleProfile: styleProfile,
+                    ollamaModel: ollamaModel,
+                    sequence: sequence,
+                    prefix: prefix
+                )
+                suggestion = normalizedSuggestion(raw: retry, context: context, scope: scope)
+            }
+
+            if !typedSinceRequest.isEmpty {
+                guard suggestion.consumeTypedText(typedSinceRequest) else {
+                    DebugLog.log("response discarded: writer diverged")
+                    return
+                }
+            }
             guard !suggestion.isEmpty else {
                 DebugLog.log("response empty")
                 return
@@ -322,12 +370,34 @@ final class AutocompleteCoordinator: ObservableObject {
             activeSuggestion = suggestion
             activeElement = element
             acceptedFromCurrentSuggestion = ""
-            showOverlay(for: suggestion, at: caret)
+            showOverlay(for: suggestion, at: typedSinceRequest.isEmpty ? caret : nil)
             updateActivity()
         } catch {
             // Completion failures stay silent: autocomplete must never interrupt typing.
             DebugLog.log("request failed: \(error.localizedDescription)", at: .quiet)
         }
+    }
+
+    private func normalizedSuggestion(
+        raw: String,
+        context: String,
+        scope: CompletionScope
+    ) -> CompletionSuggestion {
+        var output = raw
+        if scope == .word {
+            let partial = trailingWord(context)
+            output = CompletionSuggestion.wordCompletion(
+                forPartial: partial,
+                modelSuggestion: raw,
+                candidates: spellCompletions(for: partial)
+            )
+        }
+        return CompletionSuggestion(
+            rawOutput: output,
+            context: context,
+            scope: scope,
+            tuning: tuning
+        )
     }
 
     private func generateCompletion(
@@ -397,7 +467,15 @@ final class AutocompleteCoordinator: ObservableObject {
     ) -> Bool {
         !taskIsCancelled
             && sequence == currentSequence
-            && prefix == currentPrefix
+            && currentPrefix?.hasPrefix(prefix) == true
+    }
+
+    nonisolated static func typedSuffix(
+        requestPrefix: String,
+        currentPrefix: String
+    ) -> String? {
+        guard currentPrefix.hasPrefix(requestPrefix) else { return nil }
+        return String(currentPrefix.dropFirst(requestPrefix.count))
     }
 
     private func showOverlay(

@@ -154,6 +154,34 @@ final class SuggestionPresentationTests: XCTestCase {
         )
     }
 
+    func testInFlightCompletionCanRebaseAgainstContinuedTyping() {
+        XCTAssertEqual(
+            AutocompleteCoordinator.typedSuffix(
+                requestPrefix: "Please review",
+                currentPrefix: "Please review the "
+            ),
+            " the "
+        )
+        XCTAssertTrue(
+            AutocompleteCoordinator.shouldRetryModelCancellation(
+                taskIsCancelled: false,
+                sequence: 4,
+                currentSequence: 4,
+                prefix: "Please review",
+                currentPrefix: "Please review the "
+            )
+        )
+    }
+
+    func testInFlightCompletionRejectsCorrectionsThatDiverge() {
+        XCTAssertNil(
+            AutocompleteCoordinator.typedSuffix(
+                requestPrefix: "Please review",
+                currentPrefix: "Please revise"
+            )
+        )
+    }
+
     func testAcceptedWordKeepsSuggestionOnItsCurrentLine() {
         XCTAssertEqual(
             AutocompleteCoordinator.stabilizedSuggestionY(
