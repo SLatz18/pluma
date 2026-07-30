@@ -100,6 +100,131 @@ final class CompletionSuggestionTests: XCTestCase {
         XCTAssertFalse(CompletionSuggestion.looksLikeRefusal("the report by Friday"))
     }
 
+    // MARK: Scope
+
+    // Partway through a word, the only thing worth offering is the rest of that
+    // word — where the sentence goes next is a separate guess.
+    func testMidWordScopeKeepsOnlyTheWord() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "tion of the quarterly report is due",
+            context: "We should finish the execu",
+            scope: .word
+        )
+        XCTAssertEqual(suggestion.remaining, "tion")
+    }
+
+    // Thin context cannot support a clause, so a few words at most.
+    func testBriefScopeCapsAtAFewWords() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: " to the meeting room on the second floor tomorrow",
+            context: "Please come",
+            scope: .brief
+        )
+        XCTAssertEqual(suggestion.remaining, " to the meeting room")
+    }
+
+    // The leading space is a boundary marker, not a word: a one-word limit that
+    // counted it would leave nothing at all.
+    func testWordLimitPreservesTheLeadingSpace() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: " tomorrow morning at nine",
+            context: "Let us meet",
+            scope: .word
+        )
+        XCTAssertEqual(suggestion.remaining, " tomorrow")
+    }
+
+    func testMidWordContextChoosesWordScope() {
+        XCTAssertEqual(
+            CompletionSuggestion.scope(forContext: "the execu", endsMidWord: true), .word
+        )
+    }
+
+    func testShortContextChoosesBriefScope() {
+        XCTAssertEqual(
+            CompletionSuggestion.scope(forContext: "Please come", endsMidWord: false), .brief
+        )
+    }
+
+    func testAmpleContextChoosesPhraseScope() {
+        let ample = "The deployment failed again this morning so I spent an hour digging"
+        XCTAssertEqual(
+            CompletionSuggestion.scope(forContext: ample, endsMidWord: false), .phrase
+        )
+    }
+
+    // Mid-word wins over context length: a long paragraph that stops halfway
+    // through a word still only wants that word finished.
+    func testMidWordBeatsAmpleContext() {
+        let ample = "The deployment failed again this morning so I spent an hour investiga"
+        XCTAssertEqual(
+            CompletionSuggestion.scope(forContext: ample, endsMidWord: true), .word
+        )
+    }
+
+    // MARK: Mid-word completion
+
+    private let documenta = ["documentation", "documentary", "documentaries"]
+
+    // The model's answer is kept when it really does finish the word.
+    func testModelWordCompletionIsUsedWhenItExtendsThePartial() {
+        let completion = CompletionSuggestion.wordCompletion(
+            forPartial: "execu",
+            modelSuggestion: "tion of the report",
+            candidates: ["executive", "execution", "executives"]
+        )
+        XCTAssertEqual(completion, "tion")
+    }
+
+    // The failure seen live: asked to continue "documenta" the model answered
+    // "documents.", which appended would read "documentadocuments."
+    func testModelAnswerThatWouldCorruptTheWordIsReplaced() {
+        let completion = CompletionSuggestion.wordCompletion(
+            forPartial: "documenta", modelSuggestion: "documents.", candidates: documenta
+        )
+        XCTAssertEqual(completion, "tion")
+    }
+
+    func testFallsBackToTheSpellCheckerWhenTheModelSaysNothingUseful() {
+        let completion = CompletionSuggestion.wordCompletion(
+            forPartial: "documenta", modelSuggestion: "", candidates: documenta
+        )
+        XCTAssertEqual(completion, "tion")
+    }
+
+    func testNoCompletionWhenNothingExtendsThePartial() {
+        XCTAssertEqual(
+            CompletionSuggestion.wordCompletion(
+                forPartial: "qqqq", modelSuggestion: "something", candidates: []
+            ),
+            ""
+        )
+    }
+
+    // Candidates that merely equal the partial are not completions.
+    func testCandidateEqualToThePartialIsNotACompletion() {
+        XCTAssertEqual(
+            CompletionSuggestion.wordCompletion(
+                forPartial: "hour", modelSuggestion: "", candidates: ["hour"]
+            ),
+            ""
+        )
+    }
+
+    func testMatchingIsCaseInsensitive() {
+        let completion = CompletionSuggestion.wordCompletion(
+            forPartial: "Execu", modelSuggestion: "tion", candidates: ["execution"]
+        )
+        XCTAssertEqual(completion, "tion")
+    }
+
+    func testSuggestionShorterThanTheLimitIsUntouched() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: " the logs", context: "I spent an hour digging", scope: .brief
+        )
+        XCTAssertEqual(suggestion.remaining, " the logs")
+    }
+
     // MARK: Prompt leakage
 
     // Seen live in TextEdit: the model finished the prompt instead of the

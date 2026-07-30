@@ -298,10 +298,15 @@ final class SuggestionOverlayController {
             case let .ghost(caret):
                 let ghost = content as? GhostTextView
                 let offset = ghost?.baselineOffsetFromTop ?? 0
+                let caretBaseline = GhostTextGeometry.baselineY(
+                    forCaretRect: caret.rect,
+                    lineHeight: ghost?.lineHeight,
+                    baselineOffset: offset
+                )
                 let topLeft = CGPoint(
                     x: caret.rect.maxX + GhostTextGeometry.caretGap
                         - (ghost?.textInsetFromLeading ?? 0),
-                    y: GhostTextGeometry.baselineY(forCaretRect: caret.rect) - offset
+                    y: caretBaseline - offset
                 )
                 target = ghostOrigin(forTopLeftPoint: topLeft, panelSize: fitting)
                 ghostTrace?.show(caret: caret, ghostFrame: NSRect(origin: target, size: fitting))
