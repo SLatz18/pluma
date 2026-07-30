@@ -68,3 +68,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.PlumaTests
         GENERATE_INFOPLIST_FILE: YES
+
+  PlumaUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: PlumaUITests
+    dependencies:
+      - target: Pluma
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.scottlatz.PlumaUITests
+        GENERATE_INFOPLIST_FILE: YES

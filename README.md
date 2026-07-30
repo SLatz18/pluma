@@ -55,7 +55,7 @@ Full detail: [PRIVACY.md](PRIVACY.md).
 
 Hidden behind a cheat code: with the pluma window focused, press
 **↑ ↑ ↓ ↓ ← → ← →**. A **Developer** page appears in the sidebar; entering the
-code again removes it. There is also a plain switch in Settings → Advanced for
+code again removes it. There is also a plain switch in Settings → General for
 when the code slips your mind.
 
 It holds the things worth having when a feature misbehaves in another app:
@@ -141,7 +141,7 @@ Services) for apps where Accessibility insertion misbehaves.
 | `Dictation/` | Push-to-talk capture, Apple / OpenAI transcription, cleanup |
 | `Hotkey/` | Slot-based Carbon hotkeys; Hyperkey-aware chord display |
 | `Developer/` | Cheat-code unlock, caret inspector, trace panel, log viewer |
-| `Views/DesignSystem.swift` | Shared card / eyebrow / status grammar (`DS.*`) |
+| `DesignSystem/` | Shared tokens, WHEN → THEN → RESULT grammar, components, and overlay presentations |
 | `Services/Preferences.swift` | UserDefaults keys + migrations |
 
 Agent-oriented notes and toolchain traps: [CLAUDE.md](CLAUDE.md).

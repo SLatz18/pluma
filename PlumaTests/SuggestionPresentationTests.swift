@@ -44,16 +44,16 @@ final class SuggestionPresentationTests: XCTestCase {
     func testDictationKeepsThePillWhileAutocompleteTriesToSpeak() {
         let overlay = SuggestionOverlayController()
         overlay.show(
-            .suggestionChip(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
+            .suggestion(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
             from: .autocomplete
         )
         overlay.show(
-            .dictationChip(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
+            .dictation(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
         )
         XCTAssertEqual(overlay.owner, .dictation)
 
         overlay.show(
-            .suggestionChip(text: "another suggestion", anchor: CGPoint(x: 100, y: 100)),
+            .suggestion(text: "another suggestion", anchor: CGPoint(x: 100, y: 100)),
             from: .autocomplete
         )
         XCTAssertEqual(overlay.owner, .dictation, "autocomplete must not interrupt dictation")
@@ -64,7 +64,7 @@ final class SuggestionPresentationTests: XCTestCase {
     func testDeliberateOwnersStillPreemptEachOther() {
         let overlay = SuggestionOverlayController()
         overlay.show(
-            .dictationChip(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
+            .dictation(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
         )
         overlay.show(
             .status(systemImage: "hand.raised", message: "needs access", anchor: .zero),
@@ -78,14 +78,130 @@ final class SuggestionPresentationTests: XCTestCase {
     func testAutocompleteResumesAfterDictationReleases() {
         let overlay = SuggestionOverlayController()
         overlay.show(
-            .dictationChip(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
+            .dictation(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
         )
         overlay.hide(from: .dictation)
         overlay.show(
-            .suggestionChip(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
+            .suggestion(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
             from: .autocomplete
         )
         XCTAssertEqual(overlay.owner, .autocomplete)
+    }
+
+    func testPillIgnoresSmallVerticalCaretJitter() {
+        XCTAssertEqual(
+            SuggestionOverlayController.stabilizedPillY(
+                proposed: 106,
+                previous: 100,
+                preserveVertical: false
+            ),
+            100
+        )
+    }
+
+    func testPillStillFollowsARealLineChange() {
+        XCTAssertEqual(
+            SuggestionOverlayController.stabilizedPillY(
+                proposed: 120,
+                previous: 100,
+                preserveVertical: false
+            ),
+            120
+        )
+    }
+
+    func testPillKeepsItsVerticalPositionDuringOwnerHandover() {
+        XCTAssertEqual(
+            SuggestionOverlayController.stabilizedPillY(
+                proposed: 140,
+                previous: 100,
+                preserveVertical: true
+            ),
+            100
+        )
+    }
+
+    func testCurrentModelCancellationCanRetry() {
+        XCTAssertTrue(
+            AutocompleteCoordinator.shouldRetryModelCancellation(
+                taskIsCancelled: false,
+                sequence: 4,
+                currentSequence: 4,
+                prefix: "A current sentence",
+                currentPrefix: "A current sentence"
+            )
+        )
+    }
+
+    func testTypingOrNewerRequestPreventsModelCancellationRetry() {
+        XCTAssertFalse(
+            AutocompleteCoordinator.shouldRetryModelCancellation(
+                taskIsCancelled: true,
+                sequence: 4,
+                currentSequence: 4,
+                prefix: "A current sentence",
+                currentPrefix: "A current sentence"
+            )
+        )
+        XCTAssertFalse(
+            AutocompleteCoordinator.shouldRetryModelCancellation(
+                taskIsCancelled: false,
+                sequence: 4,
+                currentSequence: 5,
+                prefix: "A current sentence",
+                currentPrefix: "A current sentence plus typing"
+            )
+        )
+    }
+
+    func testInFlightCompletionCanRebaseAgainstContinuedTyping() {
+        XCTAssertEqual(
+            AutocompleteCoordinator.typedSuffix(
+                requestPrefix: "Please review",
+                currentPrefix: "Please review the "
+            ),
+            " the "
+        )
+        XCTAssertTrue(
+            AutocompleteCoordinator.shouldRetryModelCancellation(
+                taskIsCancelled: false,
+                sequence: 4,
+                currentSequence: 4,
+                prefix: "Please review",
+                currentPrefix: "Please review the "
+            )
+        )
+    }
+
+    func testInFlightCompletionRejectsCorrectionsThatDiverge() {
+        XCTAssertNil(
+            AutocompleteCoordinator.typedSuffix(
+                requestPrefix: "Please review",
+                currentPrefix: "Please revise"
+            )
+        )
+    }
+
+    func testAcceptedWordKeepsSuggestionOnItsCurrentLine() {
+        XCTAssertEqual(
+            AutocompleteCoordinator.stabilizedSuggestionY(
+                proposed: 140,
+                previous: 100,
+                preserveVertical: true
+            ),
+            100
+        )
+    }
+
+    func testOrdinaryTypingCanStillMoveSuggestionToANewLine() {
+        XCTAssertEqual(
+            AutocompleteCoordinator.stabilizedSuggestionY(
+                proposed: 140,
+                previous: 100,
+                preserveVertical: false
+            ),
+            140
+        )
     }
 
     // The chip covers nothing the writer has already put down, so unlike ghost
