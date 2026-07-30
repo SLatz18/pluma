@@ -325,7 +325,9 @@ final class AutocompleteCoordinator: ObservableObject {
         let caret = snapshot.caret
         let word = candidate.word
         let range = candidate.range
-        let context = String(prefix.suffix(240))
+        // Hand the model the words *before* the token, not the token itself —
+        // so "system admini" steers toward administrator, not a re-read of admini.
+        let preceding = SpellCorrection.precedingText(inPrefix: prefix, wordRange: range)
 
         let pause = Duration.milliseconds(min(tuning.debounceMilliseconds, 400))
         appleSpellTask = Task { [weak self] in
@@ -334,7 +336,7 @@ final class AutocompleteCoordinator: ObservableObject {
             await requestAppleSpellCorrection(
                 word: word,
                 range: range,
-                context: context,
+                preceding: preceding,
                 prefix: prefix,
                 element: element,
                 caret: caret,
@@ -346,16 +348,18 @@ final class AutocompleteCoordinator: ObservableObject {
     private func requestAppleSpellCorrection(
         word: String,
         range: NSRange,
-        context: String,
+        preceding: String,
         prefix: String,
         element: AXUIElement,
         caret: CaretGeometry?,
         sequence: Int
     ) async {
-        DebugLog.log("apple spell request: \(word)")
+        DebugLog.log(
+            "apple spell request: \(word) preceding=\(preceding.suffix(40).debugDescription)"
+        )
         do {
             let replacement = try await AppleIntelligenceEngine.correctSpelling(
-                word: word, context: context
+                word: word, preceding: preceding
             )
             guard
                 sequence == requestSequence,

@@ -80,8 +80,17 @@ enum SpellCorrection {
         )
     }
 
+    // Text before the candidate token, so the model can use prior words without
+    // seeing the broken token twice.
+    static func precedingText(inPrefix prefix: String, wordRange: NSRange) -> String {
+        let ns = prefix as NSString
+        guard wordRange.location >= 0, wordRange.location <= ns.length else { return "" }
+        return ns.substring(to: wordRange.location)
+    }
+
     // Models sometimes wrap the answer in quotes or tack on a second word.
-    // Spelling replace must stay a single token that actually changes the text.
+    // Spelling replace must stay a single token that actually changes the text,
+    // and must look like a fix of the token — not a copy of an earlier word.
     static func sanitizedModelReplacement(_ raw: String, forMisspelling misspelled: String) -> String {
         var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if let newline = text.firstIndex(of: "\n") {
@@ -95,7 +104,19 @@ enum SpellCorrection {
         guard !text.isEmpty, text.caseInsensitiveCompare(misspelled) != .orderedSame else {
             return ""
         }
+        guard looksLikeSpellingOf(misspelled, replacement: text) else { return "" }
         return text
+    }
+
+    // Short typos (teh → the) need latitude. Longer partials must share a
+    // prefix with the answer so "separ" cannot become "church".
+    static func looksLikeSpellingOf(_ misspelled: String, replacement: String) -> Bool {
+        let broken = misspelled.lowercased()
+        let fixed = replacement.lowercased()
+        guard !broken.isEmpty, !fixed.isEmpty else { return false }
+        if broken.count <= 4 { return true }
+        let shared = min(3, broken.count, fixed.count)
+        return broken.prefix(shared) == fixed.prefix(shared)
     }
 
     private static func trailingNonLettersStart(in prefix: String) -> String.Index {
