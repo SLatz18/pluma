@@ -483,7 +483,14 @@ final class DictationController: ObservableObject {
             return
         }
 
-        guard let caret, ghostEligibility.allows(caret) else {
+        // Follows the same setting suggestions do. Dictation and autocomplete
+        // speak from the same pill in the same place, so one of them drawing
+        // into the line while the other sat below it would read as two features
+        // that had never met.
+        guard
+            Preferences.inlineSuggestions(from: defaults),
+            let caret, ghostEligibility.allows(caret)
+        else {
             overlay.show(.dictationChip(transcript: liveText, anchor: chipAnchor), from: .dictation)
             return
         }

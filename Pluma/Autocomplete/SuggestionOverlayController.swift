@@ -196,11 +196,16 @@ final class SuggestionOverlayController {
     private var pendingContent: NSView?
     private var pendingPlacement: Placement?
     private var currentOwner: Owner?
+    private var animatesNextFrameChange = false
     // Bumped by every show and every hide so a fade-out's deferred orderOut
     // can never kill a presentation that arrived after the hide started.
     private var hideGeneration = 0
 
     var isVisible: Bool { panel?.isVisible ?? false }
+
+    // Who the pill currently belongs to, so the arbitration between an ambient
+    // suggestion and a held-key recording can be tested without a screen.
+    var owner: Owner? { currentOwner }
 
     private var reduceMotion: Bool {
         NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -220,9 +225,26 @@ final class SuggestionOverlayController {
     }
 
     func show(_ presentation: Presentation, from owner: Owner) {
+        // Autocomplete is the only ambient speaker here — it offers things
+        // nobody asked for. Dictation, selection rewrite, and the developer
+        // trace all run because the writer is holding a key or pressed one, so
+        // they take the pill and keep it. Without this the two simply raced:
+        // hold the dictation shortcut and the next completion would land on top
+        // of "Listening…", then the transcript would land on top of that.
+        // Ownership decides this, not visibility: presentation is deferred a run
+        // loop turn, so a completion arriving in the same turn as the recording
+        // would find the panel still not visible and take it anyway.
+        if owner == .autocomplete, let currentOwner, currentOwner != .autocomplete {
+            return
+        }
+        let previousOwner = currentOwner
         currentOwner = owner
         ensurePanel()
         guard let pill, let ghost else { return }
+        // A handover is the one time the pill's own size is worth animating: the
+        // writer sees the suggestion give way to the recording rather than one
+        // pill blinking out and another appearing in its place.
+        animatesNextFrameChange = previousOwner != nil && previousOwner != owner
 
         switch presentation {
         case let .ghost(text, caret, style, fieldFrame):
@@ -314,10 +336,17 @@ final class SuggestionOverlayController {
             panel.hasShadow = content === self.pill
             content.layoutSubtreeIfNeeded()
             let fitting = content.fittingSize
-            panel.setContentSize(fitting)
-            // A second pass: the baseline offset below is only meaningful once
-            // the label has been laid out at its final width.
-            content.layoutSubtreeIfNeeded()
+
+            // A handover animates its whole frame, so the size must not be
+            // applied up front — that is the change the writer is meant to see.
+            let handover = animatesNextFrameChange && panel.isVisible && !reduceMotion
+            animatesNextFrameChange = false
+            if !handover {
+                panel.setContentSize(fitting)
+                // A second pass: the baseline offset below is only meaningful
+                // once the label has been laid out at its final width.
+                content.layoutSubtreeIfNeeded()
+            }
 
             let target: CGPoint
             switch placement {
@@ -338,6 +367,19 @@ final class SuggestionOverlayController {
                 )
                 target = ghostOrigin(forTopLeftPoint: topLeft, panelSize: fitting)
                 ghostTrace?.show(caret: caret, ghostFrame: NSRect(origin: target, size: fitting))
+            }
+
+            // The suggestion giving way to the recording: one pill resizing in
+            // place, rather than a blink out and a new one appearing.
+            if handover {
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0.16
+                    context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    panel.animator().setFrame(
+                        NSRect(origin: target, size: fitting), display: true
+                    )
+                }
+                return
             }
 
             // Caret-tracking updates stay instant so the text never lags a
