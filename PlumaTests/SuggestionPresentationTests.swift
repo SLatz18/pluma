@@ -44,16 +44,16 @@ final class SuggestionPresentationTests: XCTestCase {
     func testDictationKeepsThePillWhileAutocompleteTriesToSpeak() {
         let overlay = SuggestionOverlayController()
         overlay.show(
-            .suggestionChip(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
+            .suggestion(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
             from: .autocomplete
         )
         overlay.show(
-            .dictationChip(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
+            .dictation(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
         )
         XCTAssertEqual(overlay.owner, .dictation)
 
         overlay.show(
-            .suggestionChip(text: "another suggestion", anchor: CGPoint(x: 100, y: 100)),
+            .suggestion(text: "another suggestion", anchor: CGPoint(x: 100, y: 100)),
             from: .autocomplete
         )
         XCTAssertEqual(overlay.owner, .dictation, "autocomplete must not interrupt dictation")
@@ -64,7 +64,7 @@ final class SuggestionPresentationTests: XCTestCase {
     func testDeliberateOwnersStillPreemptEachOther() {
         let overlay = SuggestionOverlayController()
         overlay.show(
-            .dictationChip(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
+            .dictation(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
         )
         overlay.show(
             .status(systemImage: "hand.raised", message: "needs access", anchor: .zero),
@@ -78,11 +78,11 @@ final class SuggestionPresentationTests: XCTestCase {
     func testAutocompleteResumesAfterDictationReleases() {
         let overlay = SuggestionOverlayController()
         overlay.show(
-            .dictationChip(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
+            .dictation(transcript: "", anchor: CGPoint(x: 100, y: 100)), from: .dictation
         )
         overlay.hide(from: .dictation)
         overlay.show(
-            .suggestionChip(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
+            .suggestion(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
             from: .autocomplete
         )
         XCTAssertEqual(overlay.owner, .autocomplete)
