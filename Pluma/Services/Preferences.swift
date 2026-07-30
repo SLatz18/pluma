@@ -117,14 +117,14 @@ enum Preferences {
         defaults.set(enabled, forKey: spellCorrectionEnabledKey)
     }
 
-    // Dictionary is the shipped path. Apple Intelligence is a developer
-    // experiment for misspellings the system dictionary cannot guess.
+    // Apple Intelligence is the shipped spelling path. Developer mode can fall
+    // back to the system dictionary for comparison. Unset keys read as AI.
     static func spellCorrectionEngine(from defaults: UserDefaults = .standard) -> SpellCorrectionEngine {
         guard
             let raw = defaults.string(forKey: spellCorrectionEngineKey),
             let engine = SpellCorrectionEngine(rawValue: raw)
         else {
-            return .dictionary
+            return .appleIntelligence
         }
         return engine
     }
