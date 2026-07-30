@@ -7,6 +7,7 @@ import SwiftUI
 struct DeveloperView: View {
     @EnvironmentObject private var developer: DeveloperMode
     @EnvironmentObject private var dictation: DictationController
+    @EnvironmentObject private var autocomplete: AutocompleteCoordinator
 
     @StateObject private var inspector = CaretInspector()
     @StateObject private var log = LogViewerModel()
@@ -21,6 +22,7 @@ struct DeveloperView: View {
             eyebrow: "cheat code"
         ) {
             caretCard
+            completionCard
             logCard
             compareCard
         }
@@ -69,6 +71,97 @@ struct DeveloperView: View {
                     isOn: $developer.isTracingEnabled
                 )
             }
+        }
+    }
+
+    // MARK: Completion tuning
+
+    // These four decide how much a suggestion says and how eagerly it asks, and
+    // the only way to judge them is to type under them. They live here rather
+    // than in Settings because the right values are found by experiment, not
+    // chosen by preference.
+    private var completionCard: some View {
+        DSCard {
+            VStack(alignment: .leading, spacing: 14) {
+                header(
+                    symbol: "slider.horizontal.3",
+                    tint: DS.Feature.autocomplete.color,
+                    title: "Completion tuning",
+                    detail: "Takes effect on the next suggestion — no restart."
+                )
+
+                Divider()
+
+                stepperRow(
+                    title: "Words in the pill",
+                    detail: "Longest suggestion offered when the sentence has direction.",
+                    value: $autocomplete.tuning.phraseWords,
+                    range: CompletionTuning.phraseWordRange,
+                    format: { "\($0) words" }
+                )
+
+                stepperRow(
+                    title: "Words when unsure",
+                    detail: "Cap once there is too little written to commit to a clause.",
+                    value: $autocomplete.tuning.briefWords,
+                    range: CompletionTuning.briefWordRange,
+                    format: { "\($0) words" }
+                )
+
+                stepperRow(
+                    title: "Pause before asking",
+                    detail: "Typing this long without a keystroke sends the request. Shorter feels quicker and cancels more.",
+                    value: $autocomplete.tuning.debounceMilliseconds,
+                    range: CompletionTuning.debounceRange,
+                    step: 50,
+                    format: { "\($0) ms" }
+                )
+
+                stepperRow(
+                    title: "Minimum context",
+                    detail: "Characters that must be written before anything is suggested.",
+                    value: $autocomplete.tuning.minimumContext,
+                    range: CompletionTuning.minimumContextRange,
+                    step: 2,
+                    format: { "\($0) characters" }
+                )
+
+                Divider()
+
+                HStack {
+                    Text(autocomplete.tuning == .standard ? "Shipped values" : "Changed from shipped")
+                        .font(DS.meta)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                    Button("Reset") { autocomplete.tuning = .standard }
+                        .disabled(autocomplete.tuning == .standard)
+                }
+            }
+        }
+    }
+
+    private func stepperRow(
+        title: String,
+        detail: String,
+        value: Binding<Int>,
+        range: ClosedRange<Int>,
+        step: Int = 1,
+        format: @escaping (Int) -> String
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(DS.cardBody)
+                Text(detail)
+                    .font(DS.meta)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 12)
+            Text(format(value.wrappedValue))
+                .font(DS.meta.monospacedDigit())
+                .foregroundStyle(.secondary)
+            Stepper("", value: value, in: range, step: step)
+                .labelsHidden()
         }
     }
 

@@ -22,6 +22,10 @@ enum Preferences {
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
+    static let completionPhraseWordsKey = "pluma.completion.phraseWords"
+    static let completionBriefWordsKey = "pluma.completion.briefWords"
+    static let completionDebounceKey = "pluma.completion.debounceMilliseconds"
+    static let completionMinimumContextKey = "pluma.completion.minimumContext"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -95,6 +99,40 @@ enum Preferences {
 
     static func setInlineSuggestions(_ inline: Bool, to defaults: UserDefaults = .standard) {
         defaults.set(inline, forKey: inlineSuggestionsKey)
+    }
+
+    // Each knob falls back to the shipped value on its own, so a partially
+    // written domain — or one key cleared by hand — still yields a sane whole.
+    static func completionTuning(from defaults: UserDefaults = .standard) -> CompletionTuning {
+        func value(_ key: String, _ fallback: Int) -> Int {
+            defaults.object(forKey: key) == nil ? fallback : defaults.integer(forKey: key)
+        }
+        let standard = CompletionTuning.standard
+        return CompletionTuning(
+            phraseWords: value(completionPhraseWordsKey, standard.phraseWords),
+            briefWords: value(completionBriefWordsKey, standard.briefWords),
+            debounceMilliseconds: value(completionDebounceKey, standard.debounceMilliseconds),
+            minimumContext: value(completionMinimumContextKey, standard.minimumContext)
+        ).clamped()
+    }
+
+    static func setCompletionTuning(
+        _ tuning: CompletionTuning, to defaults: UserDefaults = .standard
+    ) {
+        let clamped = tuning.clamped()
+        defaults.set(clamped.phraseWords, forKey: completionPhraseWordsKey)
+        defaults.set(clamped.briefWords, forKey: completionBriefWordsKey)
+        defaults.set(clamped.debounceMilliseconds, forKey: completionDebounceKey)
+        defaults.set(clamped.minimumContext, forKey: completionMinimumContextKey)
+    }
+
+    static func resetCompletionTuning(to defaults: UserDefaults = .standard) {
+        for key in [
+            completionPhraseWordsKey, completionBriefWordsKey,
+            completionDebounceKey, completionMinimumContextKey
+        ] {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     // Developer mode is off until the cheat code unlocks it, so a missing key

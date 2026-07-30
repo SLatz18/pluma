@@ -103,21 +103,31 @@ private final class PillView: NSVisualEffectView {
         }
     }
 
-    // `fontSize` follows the field being typed into when Accessibility named it,
-    // so the chip reads as a peer of the writer's own text rather than as system
-    // furniture parked nearby.
-    func showSuggestion(_ text: String, fontSize: CGFloat?) {
+    // One size, one weight, one width, one colour for every pill the app shows.
+    // Suggesting, dictating, and reporting a problem are different messages, but
+    // they arrive in the same place wearing the same chip; a size that shifted
+    // between them would read as three components rather than one.
+    static let textSize: CGFloat = 13
+    private static let maximumTextWidth: CGFloat = 460
+
+    private func applySharedTypography(lineBreak: NSLineBreakMode = .byTruncatingTail) {
+        label.font = .systemFont(ofSize: Self.textSize)
+        label.textColor = .labelColor
+        label.maximumNumberOfLines = 1
+        label.lineBreakMode = lineBreak
+        label.preferredMaxLayoutWidth = Self.maximumTextWidth
+        hintLabel.font = .systemFont(ofSize: Self.textSize - 1)
+        iconView.image = iconView.image?.withSymbolConfiguration(
+            .init(pointSize: Self.textSize - 1, weight: .semibold)
+        )
+    }
+
+    func showSuggestion(_ text: String) {
         RecordingPulse.stop(on: iconView)
         iconView.isHidden = true
         divider.isHidden = false
         hintLabel.isHidden = false
-        let size = (fontSize.map { min(20, max(11, $0)) }) ?? 13
-        label.font = .systemFont(ofSize: size)
-        hintLabel.font = .systemFont(ofSize: max(10, size - 1))
-        label.textColor = .labelColor
-        label.maximumNumberOfLines = 1
-        label.lineBreakMode = .byTruncatingTail
-        label.preferredMaxLayoutWidth = 500
+        applySharedTypography()
         label.stringValue = text
     }
 
@@ -125,41 +135,27 @@ private final class PillView: NSVisualEffectView {
         RecordingPulse.stop(on: iconView)
         iconView.isHidden = false
         iconView.contentTintColor = .secondaryLabelColor
-        let base = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)
-        iconView.image = base?.withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
+        iconView.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: Self.textSize - 1, weight: .semibold))
         divider.isHidden = true
         hintLabel.isHidden = true
-        label.font = .systemFont(ofSize: 12, weight: .medium)
-        label.textColor = .labelColor
-        label.maximumNumberOfLines = 1
-        label.lineBreakMode = .byTruncatingTail
-        label.preferredMaxLayoutWidth = 500
+        applySharedTypography()
         label.stringValue = message
     }
 
     func showDictation(transcript: String) {
         iconView.isHidden = false
         iconView.contentTintColor = .systemRed
-        let base = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Recording")
-        iconView.image = base?.withSymbolConfiguration(.init(pointSize: 12, weight: .semibold))
+        iconView.image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Recording")?
+            .withSymbolConfiguration(.init(pointSize: Self.textSize - 1, weight: .semibold))
         RecordingPulse.start(on: iconView)
         divider.isHidden = true
         hintLabel.isHidden = true
-        if transcript.isEmpty {
-            label.font = .systemFont(ofSize: 12, weight: .medium)
-            label.textColor = .secondaryLabelColor
-            label.maximumNumberOfLines = 1
-            label.stringValue = "Listening…"
-        } else {
-            // Volatile results get revised as more audio arrives, so keep the
-            // tail visible rather than the beginning.
-            label.font = .systemFont(ofSize: 12)
-            label.textColor = .labelColor
-            label.maximumNumberOfLines = 2
-            label.stringValue = transcript
-        }
-        label.lineBreakMode = .byTruncatingHead
-        label.preferredMaxLayoutWidth = 320
+        // Volatile results get revised as more audio arrives, so keep the tail —
+        // the newest words — visible rather than the beginning.
+        applySharedTypography(lineBreak: transcript.isEmpty ? .byTruncatingTail : .byTruncatingHead)
+        label.textColor = transcript.isEmpty ? .secondaryLabelColor : .labelColor
+        label.stringValue = transcript.isEmpty ? "Listening…" : transcript
     }
 }
 
@@ -184,7 +180,7 @@ final class SuggestionOverlayController {
     // it already had; everything else is the app speaking, and wears the chip.
     enum Presentation {
         case ghost(text: String, caret: CaretGeometry, style: GhostStyle, fieldFrame: CGRect?)
-        case suggestionChip(text: String, anchor: CGPoint, fontSize: CGFloat? = nil)
+        case suggestionChip(text: String, anchor: CGPoint)
         case dictationChip(transcript: String, anchor: CGPoint)
         case status(systemImage: String, message: String, anchor: CGPoint)
     }
@@ -246,8 +242,8 @@ final class SuggestionOverlayController {
             ghost.show(text: text, style: style, font: font, maxWidth: budget)
             present(ghost, placement: .ghost(caret))
 
-        case let .suggestionChip(text, anchor, fontSize):
-            pill.showSuggestion(text, fontSize: fontSize)
+        case let .suggestionChip(text, anchor):
+            pill.showSuggestion(text)
             present(pill, placement: .topLeft(anchor))
 
         case let .dictationChip(transcript, anchor):

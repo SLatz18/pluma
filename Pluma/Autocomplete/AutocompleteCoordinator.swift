@@ -39,6 +39,13 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var tuning: CompletionTuning {
+        didSet {
+            guard tuning != oldValue else { return }
+            Preferences.setCompletionTuning(tuning, to: defaults)
+        }
+    }
+
     @Published var inlineSuggestions: Bool {
         didSet {
             guard inlineSuggestions != oldValue else { return }
@@ -69,7 +76,6 @@ final class AutocompleteCoordinator: ObservableObject {
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
 
-    private static let debounceInterval: Duration = .milliseconds(650)
 
     init(defaults: UserDefaults = .standard, overlay: SuggestionOverlayController = SuggestionOverlayController()) {
         self.defaults = defaults
@@ -78,6 +84,7 @@ final class AutocompleteCoordinator: ObservableObject {
         screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
         memoryEnabled = Preferences.memoryEnabled(from: defaults)
         inlineSuggestions = Preferences.inlineSuggestions(from: defaults)
+        tuning = Preferences.completionTuning(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
         memoryEntryCount = memory.count
@@ -195,7 +202,7 @@ final class AutocompleteCoordinator: ObservableObject {
         DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)", at: .verbose)
 
         debounceTask?.cancel()
-        guard CompletionSuggestion.shouldTrigger(for: prefix) else {
+        guard CompletionSuggestion.shouldTrigger(for: prefix, tuning: tuning) else {
             DebugLog.log("below trigger threshold", at: .verbose)
             updateActivity()
             return
@@ -203,8 +210,9 @@ final class AutocompleteCoordinator: ObservableObject {
 
         let element = snapshot.element
         let caret = snapshot.caret
+        let pause = Duration.milliseconds(tuning.debounceMilliseconds)
         debounceTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.debounceInterval)
+            try? await Task.sleep(for: pause)
             guard !Task.isCancelled else { return }
             await self?.requestCompletion(prefix: prefix, element: element, caret: caret)
         }
@@ -288,7 +296,9 @@ final class AutocompleteCoordinator: ObservableObject {
                     candidates: spellCompletions(for: partial)
                 )
             }
-            let suggestion = CompletionSuggestion(rawOutput: output, context: context, scope: scope)
+            let suggestion = CompletionSuggestion(
+                rawOutput: output, context: context, scope: scope, tuning: tuning
+            )
             DebugLog.log(
                 "raw \(raw.debugDescription) tail \(context.suffix(40).debugDescription) "
                     + "scope \(scope) -> \(suggestion.remaining.debugDescription)",
@@ -351,11 +361,7 @@ final class AutocompleteCoordinator: ObservableObject {
         // line, a lone "tion" is a puzzle — so the chip shows the whole word and
         // still inserts only the part that is missing.
         overlay.show(
-            .suggestionChip(
-                text: chipText(for: suggestion),
-                anchor: anchor,
-                fontSize: caret?.font?.size
-            ),
+            .suggestionChip(text: chipText(for: suggestion), anchor: anchor),
             from: .autocomplete
         )
     }

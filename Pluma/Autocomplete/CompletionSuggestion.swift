@@ -4,6 +4,45 @@ import Foundation
 // ghost text is a word the writer has to read and judge before carrying on, so a
 // long guess made from thin context costs more than it offers. When the sentence
 // has not declared its direction yet, one word is the honest suggestion.
+// The numbers that decide how much a suggestion says and how eagerly it asks.
+// Gathered into one value because they are only ever tuned against each other —
+// a longer suggestion wants a longer pause behind it — and because guessing them
+// from the outside was costing a rebuild per guess. Exposed on the Developer
+// page; `standard` is what ships.
+struct CompletionTuning: Equatable, Sendable {
+    var phraseWords: Int
+    var briefWords: Int
+    var debounceMilliseconds: Int
+    var minimumContext: Int
+
+    static let standard = CompletionTuning(
+        phraseWords: 14,
+        briefWords: 4,
+        debounceMilliseconds: 650,
+        minimumContext: 16
+    )
+
+    static let phraseWordRange = 1...25
+    static let briefWordRange = 1...12
+    static let debounceRange = 150...1_500
+    static let minimumContextRange = 4...80
+
+    // Anything read back from defaults is clamped: a zero word limit or a zero
+    // debounce would look like the feature was broken rather than mistuned.
+    func clamped() -> CompletionTuning {
+        CompletionTuning(
+            phraseWords: Self.phraseWordRange.clamping(phraseWords),
+            briefWords: Self.briefWordRange.clamping(briefWords),
+            debounceMilliseconds: Self.debounceRange.clamping(debounceMilliseconds),
+            minimumContext: Self.minimumContextRange.clamping(minimumContext)
+        )
+    }
+}
+
+extension ClosedRange where Bound == Int {
+    func clamping(_ value: Int) -> Int { Swift.min(upperBound, Swift.max(lowerBound, value)) }
+}
+
 enum CompletionScope: Equatable, Sendable {
     // The writer is partway through a word. Finish that word and stop — where
     // the sentence goes next is a separate guess, and not one worth making
@@ -15,11 +54,11 @@ enum CompletionScope: Equatable, Sendable {
     // Enough context that continuing the thought is a reasonable bet.
     case phrase
 
-    var wordLimit: Int {
+    func wordLimit(_ tuning: CompletionTuning = .standard) -> Int {
         switch self {
         case .word: 1
-        case .brief: 4
-        case .phrase: CompletionSuggestion.maxWords
+        case .brief: tuning.briefWords
+        case .phrase: tuning.phraseWords
         }
     }
 }
@@ -27,7 +66,12 @@ enum CompletionScope: Equatable, Sendable {
 struct CompletionSuggestion: Equatable, Sendable {
     private(set) var remaining: String
 
-    init(rawOutput: String, context: String = "", scope: CompletionScope = .phrase) {
+    init(
+        rawOutput: String,
+        context: String = "",
+        scope: CompletionScope = .phrase,
+        tuning: CompletionTuning = .standard
+    ) {
         // Keep leading whitespace: the model uses a leading space to mark a
         // word boundary versus a mid-word continuation, and dropping it fuses
         // words on insertion. Trailing whitespace and extra lines are dropped.
@@ -46,7 +90,7 @@ struct CompletionSuggestion: Equatable, Sendable {
 
         text = Self.strippingEcho(of: context, from: text)
 
-        text = Self.limitingWords(text, to: scope.wordLimit)
+        text = Self.limitingWords(text, to: scope.wordLimit(tuning))
 
         if text.allSatisfy(\.isWhitespace) {
             text = ""
@@ -136,9 +180,9 @@ struct CompletionSuggestion: Equatable, Sendable {
         // continuation.
         if endsWithContextTail(body, tail: tail) { return "" }
 
-        guard let overlap = longestEchoedTail(of: tail, openingOf: body) else { return suggestion }
+        guard let echo = longestEchoedTail(of: tail, openingOf: body) else { return suggestion }
 
-        var stripped = String(body.dropFirst(overlap))
+        var stripped = String(body.dropFirst(echo.length))
         // The context still ends mid-sentence, so whatever survives has to
         // rejoin it across a word boundary.
         while stripped.first?.isWhitespace == true {
@@ -151,8 +195,11 @@ struct CompletionSuggestion: Equatable, Sendable {
 
         // Restore the word boundary the comparison skipped — but only for a
         // word. Punctuation belongs tight against the writer's last word, so
-        // " . Let me know" would be wrong where ". Let me know" is right.
+        // " . Let me know" would be wrong where ". Let me know" is right. And a
+        // strip that ended inside a word is finishing that word, so "work" +
+        // "ing on." must not become "work ing on."
         guard
+            !echo.endedMidWord,
             context.last?.isWhitespace == false,
             stripped.first?.isLetterOrDigit == true
         else { return stripped }
@@ -164,7 +211,14 @@ struct CompletionSuggestion: Equatable, Sendable {
     // halves of that matter: without the first, "…the mid" would cut into a
     // suggestion of "midpoint"; without the second, it still would, leaving the
     // writer "the point".
-    private static func longestEchoedTail(of context: String, openingOf body: String) -> Int? {
+    private struct Echo {
+        let length: Int
+        // True when the repeated run stopped inside a word of the suggestion,
+        // which means what follows finishes that word rather than starting one.
+        let endedMidWord: Bool
+    }
+
+    private static func longestEchoedTail(of context: String, openingOf body: String) -> Echo? {
         let contextLower = context.lowercased()
         let bodyLower = body.lowercased()
 
@@ -183,11 +237,18 @@ struct CompletionSuggestion: Equatable, Sendable {
             let next = bodyLower.index(bodyLower.startIndex, offsetBy: candidate.count)
             // Punctuation ends a word as surely as a space does: the model likes
             // to repeat the line and add the full stop the writer had not typed
-            // yet, and that trailing "." must not disguise the echo. Only a
-            // letter or digit means the match ran into the middle of a longer
-            // word and has to be refused.
+            // yet, and that trailing "." must not disguise the echo.
             if next == bodyLower.endIndex || !bodyLower[next].isLetterOrDigit {
-                return candidate.count
+                return Echo(length: candidate.count, endedMidWord: false)
+            }
+            // The match ran into the middle of a longer word. That is fine when
+            // several words matched — "I am work" against "I am working on" is
+            // the model restating the line and finishing the last word, and the
+            // continuation the writer wants is "ing on". It is not fine for a
+            // single word, where "apple" against "applesauce" is just two words
+            // that start alike.
+            if candidate.split(separator: " ").count >= minimumEchoWords {
+                return Echo(length: candidate.count, endedMidWord: true)
             }
         }
         return nil
@@ -245,6 +306,10 @@ struct CompletionSuggestion: Equatable, Sendable {
     // writer's own ("option A" continuing "A is cheaper") as it is an echo.
     static let minimumEchoLength = 2
 
+    // How many repeated words it takes before a match is allowed to end inside a
+    // word. Two is enough to be deliberate rather than coincidence.
+    static let minimumEchoWords = 2
+
     // A full-line echo is the failure worth catching; anything longer than a
     // sentence or two of context cannot be one, and scanning it is wasted work.
     static let maxEchoLength = 400
@@ -255,9 +320,11 @@ struct CompletionSuggestion: Equatable, Sendable {
 
     static let minimumContextLength = 16
 
-    static func shouldTrigger(for prefix: String) -> Bool {
+    static func shouldTrigger(
+        for prefix: String, tuning: CompletionTuning = .standard
+    ) -> Bool {
         let trimmed = prefix.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.count >= minimumContextLength
+        return trimmed.count >= tuning.minimumContext
     }
 
     // The context handed to the model is fenced in <context> markers, and the

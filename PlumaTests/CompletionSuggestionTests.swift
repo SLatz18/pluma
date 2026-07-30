@@ -332,6 +332,25 @@ final class CompletionSuggestionTests: XCTestCase {
         )
     }
 
+    // Logged live: the model restated three words and finished the last one, so
+    // accepting it wrote "what I am work I am working on."
+    func testRestatementThatFinishesTheLastWordIsStripped() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "I am working on.",
+            context: "trying to figure out what I am work"
+        )
+        XCTAssertEqual(suggestion.remaining, "ing on.")
+    }
+
+    // One shared word is not evidence of anything, so a longer word that merely
+    // starts the same survives intact.
+    func testSingleSharedWordDoesNotLicenseAMidWordCut() {
+        let suggestion = CompletionSuggestion(
+            rawOutput: "applesauce is better", context: "I ate an apple"
+        )
+        XCTAssertEqual(suggestion.remaining, "applesauce is better")
+    }
+
     // The guard must not swallow real continuations that happen to reuse a word.
     func testContinuationSharingAWordWithTheContextSurvives() {
         let suggestion = CompletionSuggestion(
