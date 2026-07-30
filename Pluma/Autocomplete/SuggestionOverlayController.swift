@@ -16,7 +16,7 @@ import AppKit
 // It departs from the system's in one place, deliberately. macOS puts an ✕
 // there, because its chip applies itself unless you refuse. This one is offered
 // rather than applied, so the trailing glyph is ⇥ — the key that takes it.
-private final class PillView: NSVisualEffectView {
+private final class OverlayPillRenderer: NSVisualEffectView {
     private let iconView = NSImageView()
     private let label = NSTextField(labelWithString: "")
     private let hintLabel = NSTextField(labelWithString: "⇥")
@@ -24,9 +24,6 @@ private final class PillView: NSVisualEffectView {
     private let stack = NSStackView()
 
     // The system chip's own proportions: roomy sides, tight top and bottom.
-    private static let horizontalInset: CGFloat = 11
-    private static let verticalInset: CGFloat = 5
-
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         material = .popover
@@ -36,13 +33,13 @@ private final class PillView: NSVisualEffectView {
         layer?.cornerCurve = .continuous
         layer?.borderWidth = 1
 
-        label.font = .systemFont(ofSize: 13)
+        label.font = .systemFont(ofSize: DS.Overlay.textSize)
         label.textColor = .labelColor
         label.lineBreakMode = .byTruncatingTail
         label.maximumNumberOfLines = 1
-        label.preferredMaxLayoutWidth = 500
+        label.preferredMaxLayoutWidth = DS.Overlay.maximumTextWidth
 
-        hintLabel.font = .systemFont(ofSize: 12, weight: .regular)
+        hintLabel.font = .systemFont(ofSize: DS.Overlay.textSize - 1, weight: .regular)
         hintLabel.textColor = .tertiaryLabelColor
 
         divider.wantsLayer = true
@@ -55,10 +52,10 @@ private final class PillView: NSVisualEffectView {
 
         stack.orientation = .horizontal
         stack.alignment = .centerY
-        stack.spacing = 8
+        stack.spacing = DS.Overlay.itemSpacing
         stack.edgeInsets = NSEdgeInsets(
-            top: Self.verticalInset, left: Self.horizontalInset,
-            bottom: Self.verticalInset, right: Self.horizontalInset
+            top: DS.Overlay.verticalInset, left: DS.Overlay.horizontalInset,
+            bottom: DS.Overlay.verticalInset, right: DS.Overlay.horizontalInset
         )
         stack.addArrangedSubview(iconView)
         stack.addArrangedSubview(label)
@@ -107,18 +104,15 @@ private final class PillView: NSVisualEffectView {
     // Suggesting, dictating, and reporting a problem are different messages, but
     // they arrive in the same place wearing the same chip; a size that shifted
     // between them would read as three components rather than one.
-    static let textSize: CGFloat = 13
-    private static let maximumTextWidth: CGFloat = 460
-
     private func applySharedTypography(lineBreak: NSLineBreakMode = .byTruncatingTail) {
-        label.font = .systemFont(ofSize: Self.textSize)
+        label.font = .systemFont(ofSize: DS.Overlay.textSize)
         label.textColor = .labelColor
         label.maximumNumberOfLines = 1
         label.lineBreakMode = lineBreak
-        label.preferredMaxLayoutWidth = Self.maximumTextWidth
-        hintLabel.font = .systemFont(ofSize: Self.textSize - 1)
+        label.preferredMaxLayoutWidth = DS.Overlay.maximumTextWidth
+        hintLabel.font = .systemFont(ofSize: DS.Overlay.textSize - 1)
         iconView.image = iconView.image?.withSymbolConfiguration(
-            .init(pointSize: Self.textSize - 1, weight: .semibold)
+            .init(pointSize: DS.Overlay.textSize - 1, weight: .semibold)
         )
     }
 
@@ -131,12 +125,21 @@ private final class PillView: NSVisualEffectView {
         label.stringValue = text
     }
 
-    func showStatus(systemImage: String, message: String) {
-        RecordingPulse.stop(on: iconView)
+    func showStatus(
+        systemImage: String,
+        message: String,
+        tone: OverlayTone,
+        pulses: Bool
+    ) {
         iconView.isHidden = false
-        iconView.contentTintColor = .secondaryLabelColor
+        iconView.contentTintColor = tone.color
         iconView.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: Self.textSize - 1, weight: .semibold))
+            .withSymbolConfiguration(.init(pointSize: DS.Overlay.textSize - 1, weight: .semibold))
+        if pulses {
+            RecordingPulse.start(on: iconView)
+        } else {
+            RecordingPulse.stop(on: iconView)
+        }
         divider.isHidden = true
         hintLabel.isHidden = true
         applySharedTypography()
@@ -147,7 +150,7 @@ private final class PillView: NSVisualEffectView {
         iconView.isHidden = false
         iconView.contentTintColor = .systemRed
         iconView.image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Recording")?
-            .withSymbolConfiguration(.init(pointSize: Self.textSize - 1, weight: .semibold))
+            .withSymbolConfiguration(.init(pointSize: DS.Overlay.textSize - 1, weight: .semibold))
         RecordingPulse.start(on: iconView)
         divider.isHidden = true
         hintLabel.isHidden = true
@@ -175,23 +178,13 @@ final class SuggestionOverlayController {
     // Weak: the developer-mode object owns the panel, not the overlay.
     weak var ghostTrace: (any GhostTracing)?
 
-    // Two looks, one panel. The dividing line is whose words these are: ghost
-    // text is text that will land in the user's document, so it is drawn as if
-    // it already had; everything else is the app speaking, and wears the chip.
-    enum Presentation {
-        case ghost(text: String, caret: CaretGeometry, style: GhostStyle, fieldFrame: CGRect?)
-        case suggestionChip(text: String, anchor: CGPoint)
-        case dictationChip(transcript: String, anchor: CGPoint)
-        case status(systemImage: String, message: String, anchor: CGPoint)
-    }
-
     private enum Placement {
         case topLeft(CGPoint)
         case ghost(CaretGeometry)
     }
 
     private var panel: NSPanel?
-    private var pill: PillView?
+    private var pill: OverlayPillRenderer?
     private var ghost: GhostTextView?
     private var pendingContent: NSView?
     private var pendingPlacement: Placement?
@@ -224,7 +217,7 @@ final class SuggestionOverlayController {
         return CGPoint(x: mouse.x + 8, y: primaryHeight - mouse.y + 12)
     }
 
-    func show(_ presentation: Presentation, from owner: Owner) {
+    func show(_ presentation: OverlayPresentation, from owner: Owner) {
         // Autocomplete is the only ambient speaker here — it offers things
         // nobody asked for. Dictation, selection rewrite, and the developer
         // trace all run because the writer is holding a key or pressed one, so
@@ -246,7 +239,7 @@ final class SuggestionOverlayController {
         // pill blinking out and another appearing in its place.
         animatesNextFrameChange = previousOwner != nil && previousOwner != owner
 
-        switch presentation {
+        switch presentation.content {
         case let .ghost(text, caret, style, fieldFrame):
             let font = Self.ghostFont(for: caret)
             let budget = GhostTextGeometry.widthBudget(
@@ -264,16 +257,24 @@ final class SuggestionOverlayController {
             ghost.show(text: text, style: style, font: font, maxWidth: budget)
             present(ghost, placement: .ghost(caret))
 
-        case let .suggestionChip(text, anchor):
+        case let .suggestion(text):
+            guard let anchor = presentation.anchor else { return }
             pill.showSuggestion(text)
             present(pill, placement: .topLeft(anchor))
 
-        case let .dictationChip(transcript, anchor):
+        case let .dictation(transcript):
+            guard let anchor = presentation.anchor else { return }
             pill.showDictation(transcript: transcript)
             present(pill, placement: .topLeft(anchor))
 
-        case let .status(systemImage, message, anchor):
-            pill.showStatus(systemImage: systemImage, message: message)
+        case let .status(systemImage, message, tone, pulses):
+            guard let anchor = presentation.anchor else { return }
+            pill.showStatus(
+                systemImage: systemImage,
+                message: message,
+                tone: tone,
+                pulses: pulses
+            )
             present(pill, placement: .topLeft(anchor))
         }
     }
@@ -281,17 +282,26 @@ final class SuggestionOverlayController {
     // A status that dismisses itself — for permission nags, mis-presses, and
     // failures. The owner-scoped hide means a flash that fires just before a
     // newer presentation can't hide it.
-    func flash(systemImage: String, message: String, atTopLeftPoint point: CGPoint, from owner: Owner) {
-        show(.status(systemImage: systemImage, message: message, anchor: point), from: owner)
+    func flash(
+        systemImage: String,
+        message: String,
+        tone: OverlayTone = .warning,
+        atTopLeftPoint point: CGPoint,
+        from owner: Owner
+    ) {
+        show(
+            .status(systemImage: systemImage, message: message, tone: tone, anchor: point),
+            from: owner
+        )
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(2.5))
+            try? await Task.sleep(for: DS.Motion.flash)
             self?.hide(from: owner)
         }
     }
 
     private func ensurePanel() {
         guard panel == nil else { return }
-        let pill = PillView(frame: .zero)
+        let pill = OverlayPillRenderer(frame: .zero)
         let ghost = GhostTextView(frame: .zero)
         let panel = NSPanel(
             contentRect: .zero,
@@ -373,7 +383,7 @@ final class SuggestionOverlayController {
             // place, rather than a blink out and a new one appearing.
             if handover {
                 NSAnimationContext.runAnimationGroup { context in
-                    context.duration = 0.16
+                    context.duration = DS.Motion.present
                     context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                     panel.animator().setFrame(
                         NSRect(origin: target, size: fitting), display: true
@@ -391,10 +401,10 @@ final class SuggestionOverlayController {
                 return
             }
             panel.alphaValue = 0
-            panel.setFrameOrigin(CGPoint(x: target.x, y: target.y - 5))
+            panel.setFrameOrigin(CGPoint(x: target.x, y: target.y - DS.Motion.rise))
             panel.orderFrontRegardless()
             NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.16
+                context.duration = DS.Motion.present
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 panel.animator().alphaValue = 1
                 panel.animator().setFrameOrigin(target)
@@ -413,12 +423,14 @@ final class SuggestionOverlayController {
                 return
             }
             NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.12
+                context.duration = DS.Motion.dismiss
                 panel.animator().alphaValue = 0
             }, completionHandler: { [weak self] in
-                guard let self, self.hideGeneration == generation else { return }
-                self.panel?.orderOut(nil)
-                self.panel?.alphaValue = 1
+                Task { @MainActor [weak self] in
+                    guard let self, self.hideGeneration == generation else { return }
+                    self.panel?.orderOut(nil)
+                    self.panel?.alphaValue = 1
+                }
             })
         }
     }
@@ -438,7 +450,10 @@ final class SuggestionOverlayController {
         let origin = CGPoint(x: cocoaPoint.x, y: cocoaPoint.y - panelSize.height)
 
         let screen = NSScreen.screens.first { NSPointInRect(cocoaPoint, $0.frame) } ?? primary
-        let visible = screen.visibleFrame.insetBy(dx: 6, dy: 6)
+        let visible = screen.visibleFrame.insetBy(
+            dx: DS.Overlay.screenInset,
+            dy: DS.Overlay.screenInset
+        )
         return CGPoint(
             x: max(visible.minX, min(origin.x, max(visible.minX, visible.maxX - panelSize.width))),
             y: max(visible.minY, min(origin.y, max(visible.minY, visible.maxY - panelSize.height)))

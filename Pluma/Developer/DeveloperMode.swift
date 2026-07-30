@@ -97,9 +97,18 @@ final class DeveloperMode: ObservableObject {
         overlay.flash(
             systemImage: unlocked ? "hammer.fill" : "lock.fill",
             message: unlocked ? "Developer mode unlocked" : "Developer mode locked",
+            tone: .accent,
             atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint(),
             from: .developer
         )
+    }
+
+    func previewOverlay(_ presentation: OverlayPresentation) {
+        overlay.show(presentation, from: .developer)
+    }
+
+    func hideOverlayPreview() {
+        overlay.hide(from: .developer)
     }
 
     // MARK: Caret tracing

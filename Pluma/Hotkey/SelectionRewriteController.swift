@@ -68,7 +68,12 @@ final class SelectionRewriteController: ObservableObject {
 
         let anchor = Self.selectionAnchor(of: element) ?? Self.mouseAnchor()
         overlay.show(
-            .status(systemImage: "sparkles", message: "Rewriting…", anchor: anchor),
+            .status(
+                systemImage: "sparkles",
+                message: "Rewriting…",
+                tone: .accent,
+                anchor: anchor
+            ),
             from: .rewrite
         )
 
@@ -84,6 +89,7 @@ final class SelectionRewriteController: ObservableObject {
                         .status(
                             systemImage: "sparkles",
                             message: "Rewriting \(step) of \(of) — \(intent.title)…",
+                            tone: .accent,
                             anchor: anchor
                         ),
                         from: .rewrite
@@ -95,17 +101,29 @@ final class SelectionRewriteController: ObservableObject {
                 overlay.hide(from: .rewrite)
             } else {
                 DebugLog.log("rewrite insertion failed", at: .quiet)
-                flash(systemImage: "exclamationmark.triangle", message: "This field rejected the edit")
+                flash(
+                    systemImage: "exclamationmark.triangle",
+                    message: "This field rejected the edit",
+                    tone: .failure
+                )
             }
         } catch {
             DebugLog.log("rewrite failed: \(error.localizedDescription)", at: .quiet)
-            flash(systemImage: "exclamationmark.triangle", message: error.localizedDescription)
+            flash(
+                systemImage: "exclamationmark.triangle",
+                message: error.localizedDescription,
+                tone: .failure
+            )
         }
     }
 
-    private func flash(systemImage: String, message: String) {
+    private func flash(
+        systemImage: String,
+        message: String,
+        tone: OverlayTone = .warning
+    ) {
         overlay.flash(
-            systemImage: systemImage, message: message,
+            systemImage: systemImage, message: message, tone: tone,
             atTopLeftPoint: Self.mouseAnchor(), from: .rewrite
         )
     }
