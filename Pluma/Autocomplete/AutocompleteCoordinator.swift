@@ -39,6 +39,23 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var tuning: CompletionTuning {
+        didSet {
+            guard tuning != oldValue else { return }
+            Preferences.setCompletionTuning(tuning, to: defaults)
+        }
+    }
+
+    @Published var inlineSuggestions: Bool {
+        didSet {
+            guard inlineSuggestions != oldValue else { return }
+            Preferences.setInlineSuggestions(inlineSuggestions, to: defaults)
+            // The two looks are different windows' worth of layout; whatever is
+            // on screen was drawn for the old one.
+            dismissSuggestion()
+        }
+    }
+
     @Published private(set) var isScreenContextPermitted: Bool
     @Published private(set) var memoryEntryCount: Int
 
@@ -53,12 +70,12 @@ final class AutocompleteCoordinator: ObservableObject {
     private var activeSuggestion: CompletionSuggestion?
     private var activeElement: AXUIElement?
     private var lastSnapshotPrefix: String?
+    private var ghostEligibility = GhostTextEligibility.unknown
     private var acceptedFromCurrentSuggestion = ""
     private var requestSequence = 0
     private var eventTap: CFMachPort?
     private var eventTapSource: CFRunLoopSource?
 
-    private static let debounceInterval: Duration = .milliseconds(650)
 
     init(defaults: UserDefaults = .standard, overlay: SuggestionOverlayController = SuggestionOverlayController()) {
         self.defaults = defaults
@@ -66,11 +83,13 @@ final class AutocompleteCoordinator: ObservableObject {
         isEnabled = Preferences.autocompleteEnabled(from: defaults)
         screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
         memoryEnabled = Preferences.memoryEnabled(from: defaults)
+        inlineSuggestions = Preferences.inlineSuggestions(from: defaults)
+        tuning = Preferences.completionTuning(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
         memoryEntryCount = memory.count
         DebugLog.truncate()
-        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)")
+        DebugLog.log("coordinator init trusted=\(permission.isTrusted) enabled=\(isEnabled) screenCtx=\(screenContextEnabled) screenPermitted=\(isScreenContextPermitted)", at: .quiet)
 
         screenContext.onChange = { [weak self] permitted in
             Task { @MainActor [weak self] in
@@ -127,7 +146,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
     private func startIfPossible() {
         guard permission.isTrusted else {
-            DebugLog.log("start blocked: not trusted")
+            DebugLog.log("start blocked: not trusted", at: .quiet)
             updateActivity()
             return
         }
@@ -167,6 +186,10 @@ final class AutocompleteCoordinator: ObservableObject {
         }
 
         let prefix = snapshot.textBeforeCaret
+        // Decided here rather than at draw time: the field's whole text is in
+        // hand now, and re-reading it on every repaint would cost an AX round
+        // trip per keystroke.
+        ghostEligibility = snapshot.ghostEligibility
 
         if activeSuggestion != nil {
             handleTypedProgress(prefix: prefix)
@@ -176,21 +199,22 @@ final class AutocompleteCoordinator: ObservableObject {
 
         guard prefix != lastSnapshotPrefix else { return }
         lastSnapshotPrefix = prefix
-        DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)")
+        DebugLog.log("snapshot len=\(prefix.count) caret=\(snapshot.caretLocation)", at: .verbose)
 
         debounceTask?.cancel()
-        guard CompletionSuggestion.shouldTrigger(for: prefix) else {
-            DebugLog.log("below trigger threshold")
+        guard CompletionSuggestion.shouldTrigger(for: prefix, tuning: tuning) else {
+            DebugLog.log("below trigger threshold", at: .verbose)
             updateActivity()
             return
         }
 
         let element = snapshot.element
-        let caretPoint = snapshot.caretScreenPoint
+        let caret = snapshot.caret
+        let pause = Duration.milliseconds(tuning.debounceMilliseconds)
         debounceTask = Task { [weak self] in
-            try? await Task.sleep(for: Self.debounceInterval)
+            try? await Task.sleep(for: pause)
             guard !Task.isCancelled else { return }
-            await self?.requestCompletion(prefix: prefix, element: element, caretPoint: caretPoint)
+            await self?.requestCompletion(prefix: prefix, element: element, caret: caret)
         }
     }
 
@@ -224,7 +248,7 @@ final class AutocompleteCoordinator: ObservableObject {
     private func requestCompletion(
         prefix: String,
         element: AXUIElement,
-        caretPoint: CGPoint?
+        caret: CaretGeometry?
     ) async {
         requestSequence += 1
         let sequence = requestSequence
@@ -260,7 +284,26 @@ final class AutocompleteCoordinator: ObservableObject {
                 return
             }
 
-            let suggestion = CompletionSuggestion(rawOutput: raw)
+            let scope = CompletionSuggestion.scope(
+                forContext: context, endsMidWord: endsMidWord(context)
+            )
+            var output = raw
+            if scope == .word {
+                let partial = trailingWord(context)
+                output = CompletionSuggestion.wordCompletion(
+                    forPartial: partial,
+                    modelSuggestion: raw,
+                    candidates: spellCompletions(for: partial)
+                )
+            }
+            let suggestion = CompletionSuggestion(
+                rawOutput: output, context: context, scope: scope, tuning: tuning
+            )
+            DebugLog.log(
+                "raw \(raw.debugDescription) tail \(context.suffix(40).debugDescription) "
+                    + "scope \(scope) -> \(suggestion.remaining.debugDescription)",
+                at: .verbose
+            )
             guard !suggestion.isEmpty else {
                 DebugLog.log("response empty")
                 return
@@ -270,32 +313,67 @@ final class AutocompleteCoordinator: ObservableObject {
             activeSuggestion = suggestion
             activeElement = element
             acceptedFromCurrentSuggestion = ""
-            showOverlay(for: suggestion, at: caretPoint)
+            showOverlay(for: suggestion, at: caret)
             updateActivity()
         } catch {
             // Completion failures stay silent: autocomplete must never interrupt typing.
-            DebugLog.log("request failed: \(error.localizedDescription)")
+            DebugLog.log("request failed: \(error.localizedDescription)", at: .quiet)
         }
     }
 
-    private func showOverlay(for suggestion: CompletionSuggestion, at point: CGPoint? = nil) {
+    private func showOverlay(for suggestion: CompletionSuggestion, at knownCaret: CaretGeometry? = nil) {
         guard !suggestion.isEmpty else {
             dismissSuggestion()
             return
         }
+        guard let element = activeElement else { return }
 
         let display = boundaryPrefix(
             prefix: lastSnapshotPrefix ?? "", accepted: suggestion.remaining
         ) + suggestion.remaining
 
-        if let point {
-            overlay.show(text: display, atTopLeftPoint: point, from: .autocomplete)
-        } else if let element = activeElement, let point = currentCaretPoint(for: element) {
-            overlay.show(text: display, atTopLeftPoint: point, from: .autocomplete)
-        } else {
-            DebugLog.log("caret bounds unavailable; overlay at mouse")
-            overlay.show(text: display, atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint(), from: .autocomplete)
+        let caret = knownCaret ?? currentCaret(for: element)
+        if inlineSuggestions, let caret, ghostEligibility.allows(caret) {
+            overlay.show(
+                .ghost(
+                    text: display,
+                    caret: caret,
+                    style: .suggestion,
+                    fieldFrame: FocusedFieldTracker.frame(of: element)
+                ),
+                from: .autocomplete
+            )
+            return
         }
+
+        // The chip sits just below the caret's line, so it covers nothing the
+        // writer has already put down — which is what lets it appear anywhere in
+        // a line rather than only at the end of one, and what lets it work in
+        // apps that cannot report the geometry drawing inline would need.
+        let anchor = caret.map { CGPoint(x: $0.rect.minX, y: $0.rect.maxY + 4) }
+            ?? FocusedFieldTracker.fieldEdgeAnchor(for: element)
+        guard let anchor else {
+            DebugLog.log("no caret and no usable field frame; suggestion not shown")
+            return
+        }
+        // Detached from the writer's line, a completion has to read as a word.
+        // Inline, "documenta" followed by "tion" is obvious; on a chip below the
+        // line, a lone "tion" is a puzzle — so the chip shows the whole word and
+        // still inserts only the part that is missing.
+        overlay.show(
+            .suggestionChip(text: chipText(for: suggestion), anchor: anchor),
+            from: .autocomplete
+        )
+    }
+
+    private func chipText(for suggestion: CompletionSuggestion) -> String {
+        let prefix = lastSnapshotPrefix ?? ""
+        let partial = trailingWord(prefix)
+        guard !partial.isEmpty, endsMidWord(prefix) else {
+            return boundaryPrefix(prefix: prefix, accepted: suggestion.remaining)
+                + suggestion.remaining
+        }
+        return partial + suggestion.remaining
     }
 
     // Returns " " when the accepted text needs a separating space from the
@@ -312,8 +390,7 @@ final class AutocompleteCoordinator: ObservableObject {
         else { return "" }
 
         if last.isLetter {
-            let trailing = String(prefix.reversed().prefix(while: \.isLetter).reversed())
-            return isCompleteWord(trailing) ? " " : ""
+            return endsMidWord(prefix) ? "" : " "
         }
         if ".!?…".contains(last) {
             return " "
@@ -321,12 +398,25 @@ final class AutocompleteCoordinator: ObservableObject {
         return ""
     }
 
+    // Whether the writer is partway through a word. The spell checker is the
+    // only thing on hand that can tell "execu" from "digging" — both are just
+    // letters up against the caret.
+    private func endsMidWord(_ prefix: String) -> Bool {
+        guard let last = prefix.last, last.isLetter else { return false }
+        let trailing = String(prefix.reversed().prefix(while: \.isLetter).reversed())
+        return !isCompleteWord(trailing)
+    }
+
+    // The checker's own language, never nil. Automatic detection matches partial
+    // English words against other languages — "documenta", "investiga" and
+    // "recei" all pass as real words — which made every half-typed word look
+    // finished.
     private func isCompleteWord(_ word: String) -> Bool {
         guard !word.isEmpty else { return false }
         let misspelled = NSSpellChecker.shared.checkSpelling(
             of: word,
             startingAt: 0,
-            language: nil,
+            language: NSSpellChecker.shared.language(),
             wrap: false,
             inSpellDocumentWithTag: 0,
             wordCount: nil
@@ -334,7 +424,21 @@ final class AutocompleteCoordinator: ObservableObject {
         return misspelled.location == NSNotFound
     }
 
-    private func currentCaretPoint(for element: AXUIElement) -> CGPoint? {
+    private func trailingWord(_ prefix: String) -> String {
+        String(prefix.reversed().prefix(while: \.isLetter).reversed())
+    }
+
+    private func spellCompletions(for partial: String) -> [String] {
+        guard !partial.isEmpty else { return [] }
+        return NSSpellChecker.shared.completions(
+            forPartialWordRange: NSRange(location: 0, length: (partial as NSString).length),
+            in: partial,
+            language: NSSpellChecker.shared.language(),
+            inSpellDocumentWithTag: 0
+        ) ?? []
+    }
+
+    private func currentCaret(for element: AXUIElement) -> CaretGeometry? {
         var rangeValue: CFTypeRef?
         guard
             AXUIElementCopyAttributeValue(
@@ -346,7 +450,7 @@ final class AutocompleteCoordinator: ObservableObject {
 
         var selection = CFRange()
         guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &selection) else { return nil }
-        return FocusedFieldTracker.caretPoint(for: element, location: selection.location)
+        return FocusedFieldTracker.caretGeometry(for: element, location: selection.location)
     }
 
     private func dismissSuggestion() {
@@ -412,7 +516,7 @@ final class AutocompleteCoordinator: ObservableObject {
         debounceTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(450))
             guard !Task.isCancelled else { return }
-            await self?.requestCompletion(prefix: prefix, element: element, caretPoint: nil)
+            await self?.requestCompletion(prefix: prefix, element: element, caret: nil)
         }
     }
 

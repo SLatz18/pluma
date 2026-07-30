@@ -61,6 +61,20 @@ struct AutocompleteView: View {
                 .dsCard()
             }
 
+            VStack(alignment: .leading, spacing: 12) {
+                DSEyebrow(trigger: "Appearance")
+
+                VStack(spacing: 0) {
+                    DSToggleRow(
+                        title: "Draw suggestions in the line",
+                        detail: "Grey text continuing your sentence at the caret, instead of a chip below it. Needs the app to report its font and caret precisely — native apps do, most browsers and Electron apps don't, and there it will sit off the line.",
+                        isOn: $coordinator.inlineSuggestions,
+                        disabled: !coordinator.isPermissionGranted
+                    )
+                }
+                .dsCard()
+            }
+
             Text("Uses your selected writing model (Apple Intelligence on-device, or Ollama on loopback). macOS never shares password fields. Manage memory and import a style profile in Settings → Advanced.")
                 .font(DS.meta)
                 .foregroundStyle(.tertiary)
