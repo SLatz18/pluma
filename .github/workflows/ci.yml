@@ -9,6 +9,12 @@ on:
 permissions:
   contents: read
 
+# A newer commit on the same ref makes the in-flight run obsolete. Without this
+# two quick pushes burn two full macOS runners.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: macos-26
@@ -33,12 +39,25 @@ jobs:
             fi
           done
           xcodebuild -version
+          xcodebuild -showsdks
 
       - name: Install XcodeGen
+        # bootstrap.sh pins the expected version and fails loudly on a mismatch,
+        # so a Homebrew bump surfaces here rather than as pbxproj diff noise.
         run: brew install xcodegen
 
       - name: Generate project and assets
         run: ./scripts/bootstrap.sh
+
+      - name: Check the committed project matches project.yml
+        # Pluma.xcodeproj is generated but tracked. bootstrap.sh just
+        # regenerated it, so any diff means the committed project drifted from
+        # project.yml and needs regenerating in the PR.
+        run: |
+          if ! git diff --exit-code -- Pluma.xcodeproj; then
+            echo "::error::Pluma.xcodeproj is out of date. Run ./scripts/bootstrap.sh and commit the result."
+            exit 1
+          fi
 
       - name: Check design-system reuse
         run: ./scripts/check-design-system.sh
@@ -75,7 +94,12 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
-      - name: Verify packaged privacy manifest
+      - name: Verify packaged resources
         run: |
           resources='DerivedData/Build/Products/Release/Pluma.app/Contents/Resources'
           test -f "$resources/PrivacyInfo.xcprivacy"
+          # A broken asset catalog (missing app icon) otherwise ships silently.
+          test -f "$resources/Assets.car"
+
+      - name: Validate shipping metadata
+        run: python3 scripts/validate-shipping.py
