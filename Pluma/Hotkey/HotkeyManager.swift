@@ -6,6 +6,9 @@ final class HotkeyManager {
     enum Slot: UInt32 {
         case rewriteSelection = 1
         case dictation = 2
+        // The clipboard fallback for apps where Accessibility insertion does not
+        // work (Google Docs, Electron): copy, press, paste. Issue #12.
+        case clipboardRewrite = 3
     }
 
     var onPress: ((Slot) -> Void)?
