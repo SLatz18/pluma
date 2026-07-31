@@ -123,11 +123,14 @@ enum RewriteRunner {
     // A model that returns only whitespace has told us nothing, and writing
     // that back would silently erase the writer's selection. Fail instead.
     static func validatedOutput(_ output: String) throws -> String {
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        // Chat-tuned models wrap an edit in commentary even when the prompt
+        // forbids it, so parse defensively before this reaches the writer's
+        // document (issue #39).
+        let cleaned = RewriteOutputSanitizer.sanitize(output)
+        guard !cleaned.isEmpty else {
             throw RewriteEngineError.invalidResponse
         }
-        return trimmed
+        return cleaned
     }
 
     static func complete(
