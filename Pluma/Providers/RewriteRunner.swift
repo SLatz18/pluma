@@ -120,6 +120,16 @@ enum RewriteRunner {
         }
     }
 
+    // A model that returns only whitespace has told us nothing, and writing
+    // that back would silently erase the writer's selection. Fail instead.
+    static func validatedOutput(_ output: String) throws -> String {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw RewriteEngineError.invalidResponse
+        }
+        return trimmed
+    }
+
     static func complete(
         provider: RewriteProviderChoice,
         context: String,
