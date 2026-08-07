@@ -719,13 +719,15 @@ final class AutocompleteCoordinator: ObservableObject {
     }
 
     // A single letter is a genuine, complete English word only as "a" or
-    // "I". The spell checker doesn't reliably flag other lone letters as
-    // misspelled (it's answering "is this spelled wrong", not "is this a
-    // word"), which made every other one-letter head start ("y" toward
-    // "you", "b" toward "be") look like a finished word already.
+    // "I" (either case). The spell checker doesn't reliably flag other lone
+    // letters as misspelled (it's answering "is this spelled wrong", not "is
+    // this a word"), which made every other one-letter head start ("y"
+    // toward "you", "b" toward "be") look like a finished word already.
     nonisolated static func isStandaloneSingleLetterWord(_ letter: Character) -> Bool {
-        let lowered = String(letter).lowercased()
-        return lowered == "a" || lowered == "i"
+        switch letter {
+        case "a", "A", "i", "I": true
+        default: false
+        }
     }
 
     private func showOverlay(
