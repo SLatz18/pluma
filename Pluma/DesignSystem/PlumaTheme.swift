@@ -16,7 +16,6 @@ enum PlumaTheme {
         static let inset: CGFloat = 10
         static let tile: CGFloat = 11
         static let card: CGFloat = 14
-        static let capsule: CGFloat = 999
     }
 
     enum Control {
@@ -58,15 +57,6 @@ enum PlumaTheme {
             case .shortcut: .mint
             }
         }
-
-        var nsColor: NSColor {
-            switch self {
-            case .rewrite: .controlAccentColor
-            case .autocomplete: .systemIndigo
-            case .dictation: .systemPink
-            case .shortcut: .systemMint
-            }
-        }
     }
 
     enum Tone: String, CaseIterable, Sendable {
@@ -84,22 +74,12 @@ enum PlumaTheme {
             case .recording, .failure: .red
             }
         }
-
-        var nsColor: NSColor {
-            switch self {
-            case .neutral: .secondaryLabelColor
-            case .success: .systemGreen
-            case .attention: .systemOrange
-            case .recording, .failure: .systemRed
-            }
-        }
     }
 
     static let pageBackground = Color(nsColor: .windowBackgroundColor)
     static let cardBackground = Color(nsColor: .controlBackgroundColor)
     static let insetBackground = Color(nsColor: .textBackgroundColor)
     static let hairline = Color.primary.opacity(0.07)
-    static let strongHairline = Color.primary.opacity(0.14)
 
     static let pageTitle = Font.system(size: 28, weight: .bold, design: .rounded)
     static let cardTitle = Font.headline

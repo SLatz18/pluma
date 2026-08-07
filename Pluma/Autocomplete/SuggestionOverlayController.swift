@@ -353,6 +353,20 @@ final class SuggestionOverlayController {
         }
     }
 
+    // Most flashes anchor at the pointer — the one place the writer is
+    // guaranteed to be looking right after a hotkey press.
+    func flashAtMouse(
+        systemImage: String,
+        message: String,
+        tone: OverlayTone = .warning,
+        from owner: Owner
+    ) {
+        flash(
+            systemImage: systemImage, message: message, tone: tone,
+            atTopLeftPoint: Self.mouseTopLeftPoint(), from: owner
+        )
+    }
+
     private func ensurePanel() {
         guard panel == nil else { return }
         let pill = OverlayPillRenderer(frame: .zero)
