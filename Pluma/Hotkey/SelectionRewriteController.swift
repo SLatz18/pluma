@@ -66,7 +66,8 @@ final class SelectionRewriteController: ObservableObject {
         isWorking = true
         defer { isWorking = false }
 
-        let anchor = Self.selectionAnchor(of: element) ?? Self.mouseAnchor()
+        let anchor = Self.selectionAnchor(of: element)
+            ?? SuggestionOverlayController.mouseTopLeftPoint()
         overlay.show(
             .status(
                 systemImage: "sparkles",
@@ -122,10 +123,7 @@ final class SelectionRewriteController: ObservableObject {
         message: String,
         tone: OverlayTone = .warning
     ) {
-        overlay.flash(
-            systemImage: systemImage, message: message, tone: tone,
-            atTopLeftPoint: Self.mouseAnchor(), from: .rewrite
-        )
+        overlay.flashAtMouse(systemImage: systemImage, message: message, tone: tone, from: .rewrite)
     }
 
     private static func selectedText(of element: AXUIElement) -> String? {
@@ -157,9 +155,5 @@ final class SelectionRewriteController: ObservableObject {
             let caret = FocusedFieldTracker.caretGeometry(for: element, location: selection.location)
         else { return FocusedFieldTracker.fieldEdgeAnchor(for: element) }
         return CGPoint(x: caret.rect.minX, y: caret.rect.maxY + 6)
-    }
-
-    private static func mouseAnchor() -> CGPoint {
-        SuggestionOverlayController.mouseTopLeftPoint()
     }
 }

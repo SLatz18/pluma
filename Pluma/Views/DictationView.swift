@@ -127,7 +127,7 @@ struct DictationView: View {
                     disabled: !controller.isEnabled
                 )
 
-                rowDivider
+                DSRowDivider()
 
                 HStack(spacing: 8) {
                     Text("Transcribe with")
@@ -147,7 +147,7 @@ struct DictationView: View {
                     Spacer()
                 }
 
-                rowDivider
+                DSRowDivider()
 
                 HStack(spacing: 8) {
                     Text("Clean up with")
@@ -194,7 +194,7 @@ struct DictationView: View {
                 }
 
                 if usesOpenAI {
-                    rowDivider
+                    DSRowDivider()
 
                     HStack(spacing: 10) {
                         Image(systemName: hasKey ? "key.fill" : "key")
@@ -232,11 +232,6 @@ struct DictationView: View {
             }
             .dsCard()
         }
-    }
-
-    private var rowDivider: some View {
-        Divider()
-            .padding(.vertical, 10)
     }
 
     // MARK: Logic carried from the old card
