@@ -17,13 +17,7 @@ struct DSCard<Content: View>: View {
     }
 
     var body: some View {
-        content
-            .padding(DS.cardPadding)
-            .background(DS.cardBackground, in: RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
-                    .strokeBorder(DS.hairline)
-            }
+        content.dsCard()
     }
 }
 
@@ -55,7 +49,7 @@ extension View {
 struct DSIconTile: View {
     let systemImage: String
     let tint: Color
-    var size: CGFloat = 42
+    var size: CGFloat = DS.Control.iconTile
     var symbolSize: CGFloat = 19
 
     var body: some View {
@@ -64,6 +58,16 @@ struct DSIconTile: View {
             .foregroundStyle(tint)
             .frame(width: size, height: size)
             .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: DS.tileRadius, style: .continuous))
+    }
+}
+
+// MARK: - Row divider
+
+/// The padded divider between setting rows inside a card.
+struct DSRowDivider: View {
+    var body: some View {
+        Divider()
+            .padding(.vertical, 10)
     }
 }
 

@@ -183,9 +183,6 @@ final class ClipboardRewriteController: ObservableObject {
         message: String,
         tone: OverlayTone = .warning
     ) {
-        overlay.flash(
-            systemImage: systemImage, message: message, tone: tone,
-            atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint(), from: .rewrite
-        )
+        overlay.flashAtMouse(systemImage: systemImage, message: message, tone: tone, from: .rewrite)
     }
 }
