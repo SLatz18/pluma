@@ -11,7 +11,8 @@ else
   base="HEAD^"
 fi
 
-added_lines="$(mktemp -t pluma-design-system)"
+# Template form works with both BSD (macOS) and GNU (Linux) mktemp; -t does not.
+added_lines="$(mktemp "${TMPDIR:-/tmp}/pluma-design-system.XXXXXX")"
 trap 'rm -f "$added_lines"' EXIT
 
 git diff --unified=0 "$base" -- Pluma '*.swift' |
