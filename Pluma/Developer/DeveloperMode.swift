@@ -94,11 +94,10 @@ final class DeveloperMode: ObservableObject {
             logLevel = .normal
         }
 
-        overlay.flash(
+        overlay.flashAtMouse(
             systemImage: unlocked ? "hammer.fill" : "lock.fill",
             message: unlocked ? "Developer mode unlocked" : "Developer mode locked",
             tone: .accent,
-            atTopLeftPoint: SuggestionOverlayController.mouseTopLeftPoint(),
             from: .developer
         )
     }

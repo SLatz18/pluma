@@ -42,7 +42,6 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
     private var finalTranscript: String?
     private var keywords: [String] = []
     private var socketFailed = false
-    private var usedFallback = false
 
     // How long to wait for the final transcript after committing the turn. The
     // fallback covers anything slower, so this only needs to outlast a healthy
@@ -72,7 +71,6 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
         liveText = ""
         finalTranscript = nil
         socketFailed = false
-        usedFallback = false
 
         // The microphone opens before the socket is configured for the same
         // reason it opens before OCR runs: the stream buffers, so nothing spoken
@@ -204,7 +202,6 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
 
     private func transcribeRecording() async -> String? {
         guard !recordedSamples.isEmpty else { return nil }
-        usedFallback = true
         do {
             return try await OpenAIFileTranscriber.transcribe(
                 wav: PCM16Audio.wav(from: recordedSamples),
