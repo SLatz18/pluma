@@ -28,6 +28,7 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @EnvironmentObject private var model: RewriteViewModel
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
+    @EnvironmentObject private var clipboardRewrite: ClipboardRewriteController
     @EnvironmentObject private var dictation: DictationController
     @EnvironmentObject private var memory: MemoryStore
     @EnvironmentObject private var spellMemory: SpellMemoryStore
@@ -137,8 +138,102 @@ struct SettingsView: View {
         .background(DS.pageBackground)
     }
 
+    // #47: the clipboard fallback is the path that works in Google Docs and
+    // Electron apps, so its state and its permission have to be visible rather
+    // than something the writer discovers by pressing a key and seeing nothing.
+    private var clipboardFallbackSection: some View {
+        DSSection("Clipboard fallback") {
+            VStack(spacing: 0) {
+                DSToggleRow(
+                    title: "Rewrite what I copy",
+                    detail: "For apps where selecting text does not work, like Google Docs "
+                        + "and Discord. Copy, press \(clipboardRewrite.shortcut.display), then paste.",
+                    isOn: Binding(
+                        get: { clipboardRewrite.isEnabled },
+                        set: { clipboardRewrite.setEnabled($0) }
+                    )
+                )
+
+                if clipboardRewrite.isEnabled {
+                    Divider().padding(.vertical, DS.Spacing.medium)
+
+                    DSSettingRow(
+                        "Shortcut",
+                        detail: "Press this after copying. Rewrites the clipboard in place."
+                    ) {
+                        DSBadge(
+                            text: clipboardRewrite.shortcut.display,
+                            tone: .neutral,
+                            systemImage: "keyboard"
+                        )
+                    }
+
+                    Divider().padding(.vertical, DS.Spacing.medium)
+
+                    DSSettingRow(
+                        "Paste from Other Apps",
+                        detail: pasteboardPermissionDetail
+                    ) {
+                        DSBadge(
+                            text: pasteboardPermissionLabel,
+                            tone: pasteboardPermissionTone,
+                            systemImage: pasteboardPermissionSymbol
+                        )
+                    }
+
+                    if let conflict = clipboardRewrite.shortcutConflict {
+                        Divider().padding(.vertical, DS.Spacing.medium)
+                        DSNoticeRow(
+                            systemImage: "exclamationmark.triangle",
+                            tint: .red,
+                            text: conflict
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var pasteboardPermissionDetail: String {
+        switch PasteboardAccess.accessBehavior {
+        case .alwaysDeny:
+            "macOS is blocking clipboard reads, so this shortcut cannot work. "
+                + "Allow pluma under Privacy & Security."
+        case .alwaysAllow:
+            "pluma can read the clipboard without prompting."
+        default:
+            "macOS may ask once the first time pluma reads your clipboard."
+        }
+    }
+
+    private var pasteboardPermissionLabel: String {
+        switch PasteboardAccess.accessBehavior {
+        case .alwaysDeny: "Denied"
+        case .alwaysAllow: "Allowed"
+        default: "Asks once"
+        }
+    }
+
+    private var pasteboardPermissionTone: DS.Tone {
+        switch PasteboardAccess.accessBehavior {
+        case .alwaysDeny: .attention
+        case .alwaysAllow: .success
+        default: .neutral
+        }
+    }
+
+    private var pasteboardPermissionSymbol: String {
+        switch PasteboardAccess.accessBehavior {
+        case .alwaysDeny: "hand.raised"
+        case .alwaysAllow: "checkmark.shield"
+        default: "questionmark.circle"
+        }
+    }
+
     private var generalContent: some View {
         Group {
+            clipboardFallbackSection
+
             DSSection("App behavior") {
                 VStack(spacing: 0) {
                     DSToggleRow(
