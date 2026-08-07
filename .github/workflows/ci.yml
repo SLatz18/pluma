@@ -27,7 +27,13 @@ jobs:
           fetch-depth: 0
 
       - name: Check design-system reuse
-        run: ./scripts/check-design-system.sh
+        # The script greps with ripgrep, present on macOS runners but not
+        # guaranteed on ubuntu images.
+        run: |
+          if ! command -v rg >/dev/null; then
+            sudo apt-get update -q && sudo apt-get install -y -q ripgrep
+          fi
+          ./scripts/check-design-system.sh
 
       - name: Validate property lists
         # plutil is macOS-only; plistlib parses the same XML plists.
