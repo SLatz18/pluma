@@ -6,7 +6,7 @@ final class AccessibilityPermission {
     static let shared = AccessibilityPermission()
 
     private(set) var isTrusted: Bool
-    private var monitorTask: Task<Void, Never>?
+    private let poller = PermissionPoller()
 
     var onChange: ((Bool) -> Void)?
 
@@ -34,22 +34,10 @@ final class AccessibilityPermission {
     }
 
     func openSystemSettings() {
-        guard
-            let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-            )
-        else { return }
-        NSWorkspace.shared.open(url)
+        PrivacySettingsPane.open("Privacy_Accessibility")
     }
 
     func startMonitoring() {
-        guard monitorTask == nil else { return }
-        monitorTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
-                guard !Task.isCancelled else { return }
-                self?.refresh()
-            }
-        }
+        poller.start { [weak self] in self?.refresh() }
     }
 }

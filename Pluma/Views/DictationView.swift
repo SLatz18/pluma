@@ -35,7 +35,7 @@ struct DictationView: View {
                 .foregroundStyle(.tertiary)
         }
         .task {
-            ollamaModels = (try? await OllamaEngine().availableModels()) ?? []
+            ollamaModels = (try? await OllamaModelCatalog.shared.models()) ?? []
             if controller.ollamaModel.isEmpty, let first = ollamaModels.first {
                 controller.ollamaModel = first
             }
