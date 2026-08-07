@@ -362,7 +362,9 @@ struct CompletionSuggestion: Equatable, Sendable {
         if typed == " ", !remaining.hasPrefix(" ") {
             return true
         }
-        let lowered = remaining.lowercased()
+        // Only the leading slice can possibly match, so fold just that much
+        // instead of the whole (up to ~14-word) suggestion on every keystroke.
+        let lowered = remaining.prefix(typed.count + 1).lowercased()
         let typedLower = typed.lowercased()
 
         if lowered.hasPrefix(typedLower) {

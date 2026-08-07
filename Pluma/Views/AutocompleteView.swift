@@ -18,14 +18,14 @@ struct AutocompleteView: View {
                         isOn: $coordinator.inlineSuggestions,
                         disabled: !coordinator.isPermissionGranted
                     )
-                    rowDivider
+                    DSRowDivider()
                     DSToggleRow(
                         title: "Correct misspellings",
                         detail: "When you finish a misspelled word — or pause mid-word — offer a fix on the chip before suggesting what comes next. Tab replaces the word. Uses Apple Intelligence on-device by default; Developer can switch to the Mac spelling dictionary.",
                         isOn: $coordinator.spellCorrectionEnabled,
                         disabled: !coordinator.isPermissionGranted
                     )
-                    rowDivider
+                    DSRowDivider()
                     DSToggleRow(
                         title: "Remember corrections",
                         detail: "When you accept a fix, store that misspelling locally so the next time is instant — no dictionary wait, no model call. Clear anytime in Settings → Privacy.",
@@ -86,11 +86,6 @@ struct AutocompleteView: View {
             }
         }
         .dsCard()
-    }
-
-    private var rowDivider: some View {
-        Divider()
-            .padding(.vertical, 10)
     }
 
     private var statusColor: Color {
