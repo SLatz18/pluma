@@ -718,6 +718,40 @@ final class AutocompleteCoordinator: ObservableObject {
         return String(currentPrefix.dropFirst(requestPrefix.count))
     }
 
+    // A single letter is a genuine, complete English word only as "a" or
+    // "I" (either case). The spell checker doesn't reliably flag other lone
+    // letters as misspelled (it's answering "is this spelled wrong", not "is
+    // this a word"), which made every other one-letter head start ("y"
+    // toward "you", "b" toward "be") look like a finished word already.
+    nonisolated static func isStandaloneSingleLetterWord(_ letter: Character) -> Bool {
+        switch letter {
+        case "a", "A", "i", "I": true
+        default: false
+        }
+    }
+
+    // The trailing run of word characters before the caret. Apostrophes count
+    // when they sit inside the run — the spell checker judges "don't" as one
+    // word, and a scan that stopped at the apostrophe handed it just "t",
+    // misreading every contraction as an unfinished word (and the
+    // single-letter rule above then offered completions of "t"). Apostrophes
+    // at the run's edges are quotation marks, not word characters, so they
+    // are trimmed. Covers the typographic apostrophe smart quotes insert.
+    nonisolated static func trailingWordFragment(_ prefix: String) -> String {
+        var fragment = String(
+            prefix.reversed()
+                .prefix(while: { $0.isLetter || $0 == "'" || $0 == "’" })
+                .reversed()
+        )
+        while let first = fragment.first, !first.isLetter {
+            fragment.removeFirst()
+        }
+        while let last = fragment.last, !last.isLetter {
+            fragment.removeLast()
+        }
+        return fragment
+    }
+
     private func showOverlay(
         for suggestion: CompletionSuggestion,
         at knownCaret: CaretGeometry? = nil,
@@ -826,7 +860,10 @@ final class AutocompleteCoordinator: ObservableObject {
     // letters up against the caret.
     private func endsMidWord(_ prefix: String) -> Bool {
         guard let last = prefix.last, last.isLetter else { return false }
-        let trailing = String(prefix.reversed().prefix(while: \.isLetter).reversed())
+        let trailing = Self.trailingWordFragment(prefix)
+        if let onlyLetter = trailing.first, trailing.count == 1 {
+            return !Self.isStandaloneSingleLetterWord(onlyLetter)
+        }
         return !isCompleteWord(trailing)
     }
 
@@ -848,7 +885,7 @@ final class AutocompleteCoordinator: ObservableObject {
     }
 
     private func trailingWord(_ prefix: String) -> String {
-        String(prefix.reversed().prefix(while: \.isLetter).reversed())
+        Self.trailingWordFragment(prefix)
     }
 
     private func spellCompletions(for partial: String) -> [String] {

@@ -19,6 +19,10 @@ enum Preferences {
     static let dictationProviderKey = "pluma.dictationProvider"
     static let cleanupProviderKey = "pluma.dictationCleanupProvider"
     static let openAICleanupModelKey = "pluma.openAICleanupModel"
+    static let clipboardFallbackEnabledKey = "pluma.clipboardFallbackEnabled"
+    static let clipboardShortcutKeyCodeKey = "pluma.clipboardShortcut.keyCode"
+    static let clipboardShortcutModifiersKey = "pluma.clipboardShortcut.modifiers"
+    static let clipboardShortcutDisplayKey = "pluma.clipboardShortcut.display"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
@@ -267,6 +271,40 @@ enum Preferences {
         defaults.set(Int(shortcut.keyCode), forKey: dictationShortcutKeyCodeKey)
         defaults.set(Int(shortcut.carbonModifiers), forKey: dictationShortcutModifiersKey)
         defaults.set(shortcut.display, forKey: dictationShortcutDisplayKey)
+    }
+
+    // The clipboard fallback is opt-in: it reads the general pasteboard, which
+    // can prompt under Paste from Other Apps, so it never turns itself on.
+    static func clipboardFallbackEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: clipboardFallbackEnabledKey)
+    }
+
+    static func setClipboardFallbackEnabled(
+        _ enabled: Bool, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(enabled, forKey: clipboardFallbackEnabledKey)
+    }
+
+    static func clipboardShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
+        guard
+            defaults.object(forKey: clipboardShortcutKeyCodeKey) != nil,
+            let display = defaults.string(forKey: clipboardShortcutDisplayKey)
+        else {
+            return .clipboardDefault
+        }
+        return GlobalShortcut(
+            keyCode: UInt32(defaults.integer(forKey: clipboardShortcutKeyCodeKey)),
+            carbonModifiers: UInt32(defaults.integer(forKey: clipboardShortcutModifiersKey)),
+            display: display
+        )
+    }
+
+    static func saveClipboardShortcut(
+        _ shortcut: GlobalShortcut, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(Int(shortcut.keyCode), forKey: clipboardShortcutKeyCodeKey)
+        defaults.set(Int(shortcut.carbonModifiers), forKey: clipboardShortcutModifiersKey)
+        defaults.set(shortcut.display, forKey: clipboardShortcutDisplayKey)
     }
 
     static let shortcutsVersionKey = "pluma.shortcutsVersion"
