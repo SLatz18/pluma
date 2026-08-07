@@ -1,0 +1,48 @@
+name: Build and test
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer commit on the same ref makes the in-flight run obsolete.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The full build-and-test suite runs locally before every push (commands in
+  # CLAUDE.md). This job keeps only the cheap text-level checks and exists
+  # mostly to satisfy the "test" status check the Protect main ruleset
+  # requires — on a Linux runner at the 1x minutes multiplier, not a macOS
+  # runner at 10x. Renaming the job breaks merging until the ruleset is
+  # updated to match.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check design-system reuse
+        run: ./scripts/check-design-system.sh
+
+      - name: Validate property lists
+        # plutil is macOS-only; plistlib parses the same XML plists.
+        run: |
+          python3 - <<'PY'
+          import plistlib
+          for path in [
+              "Pluma/Info.plist",
+              "Pluma/PrivacyInfo.xcprivacy",
+              "Pluma/Pluma.entitlements",
+          ]:
+              with open(path, "rb") as handle:
+                  plistlib.load(handle)
+              print(f"ok {path}")
+          PY
+
+      - name: Validate shipping metadata
+        run: python3 scripts/validate-shipping.py
