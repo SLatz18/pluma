@@ -718,6 +718,16 @@ final class AutocompleteCoordinator: ObservableObject {
         return String(currentPrefix.dropFirst(requestPrefix.count))
     }
 
+    // A single letter is a genuine, complete English word only as "a" or
+    // "I". The spell checker doesn't reliably flag other lone letters as
+    // misspelled (it's answering "is this spelled wrong", not "is this a
+    // word"), which made every other one-letter head start ("y" toward
+    // "you", "b" toward "be") look like a finished word already.
+    nonisolated static func isStandaloneSingleLetterWord(_ letter: Character) -> Bool {
+        let lowered = String(letter).lowercased()
+        return lowered == "a" || lowered == "i"
+    }
+
     private func showOverlay(
         for suggestion: CompletionSuggestion,
         at knownCaret: CaretGeometry? = nil,
@@ -827,6 +837,9 @@ final class AutocompleteCoordinator: ObservableObject {
     private func endsMidWord(_ prefix: String) -> Bool {
         guard let last = prefix.last, last.isLetter else { return false }
         let trailing = String(prefix.reversed().prefix(while: \.isLetter).reversed())
+        if let onlyLetter = trailing.first, trailing.count == 1 {
+            return !Self.isStandaloneSingleLetterWord(onlyLetter)
+        }
         return !isCompleteWord(trailing)
     }
 
