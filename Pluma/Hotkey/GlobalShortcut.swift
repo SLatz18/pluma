@@ -25,6 +25,14 @@ struct GlobalShortcut: Equatable, Sendable {
         display: "⇪Space"
     )
 
+    // The clipboard fallback rides the same Caps Lock modifier: R for "rewrite
+    // what I copied". Distinct from ⇪E so both paths can be bound at once.
+    static let clipboardDefault = GlobalShortcut(
+        keyCode: UInt32(kVK_ANSI_R),
+        carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
+        display: "⇪R"
+    )
+
     private static let hyperChords: Set<UInt32> = [
         UInt32(controlKey | optionKey | cmdKey),
         UInt32(controlKey | optionKey | shiftKey | cmdKey)

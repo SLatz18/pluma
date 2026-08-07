@@ -6,6 +6,7 @@ struct PlumaApp: App {
     @StateObject private var model: RewriteViewModel
     @StateObject private var autocomplete: AutocompleteCoordinator
     @StateObject private var selectionRewrite: SelectionRewriteController
+    @StateObject private var clipboardRewrite: ClipboardRewriteController
     @StateObject private var dictation: DictationController
     @StateObject private var developer: DeveloperMode
 
@@ -18,6 +19,7 @@ struct PlumaApp: App {
         _model = StateObject(wrappedValue: RewriteViewModel())
         _autocomplete = StateObject(wrappedValue: AutocompleteCoordinator(overlay: overlay))
         _selectionRewrite = StateObject(wrappedValue: SelectionRewriteController(overlay: overlay))
+        _clipboardRewrite = StateObject(wrappedValue: ClipboardRewriteController(overlay: overlay))
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
     }
@@ -28,6 +30,7 @@ struct PlumaApp: App {
                 .environmentObject(model)
                 .environmentObject(autocomplete)
                 .environmentObject(selectionRewrite)
+                .environmentObject(clipboardRewrite)
                 .environmentObject(dictation)
                 .environmentObject(developer)
         }
@@ -46,6 +49,7 @@ struct PlumaApp: App {
             SettingsView()
                 .environmentObject(model)
                 .environmentObject(autocomplete)
+                .environmentObject(clipboardRewrite)
                 .environmentObject(dictation)
                 .environmentObject(developer)
                 .environmentObject(MemoryStore.shared)
