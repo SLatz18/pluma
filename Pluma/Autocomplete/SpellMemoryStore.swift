@@ -88,7 +88,7 @@ final class SpellMemoryStore: ObservableObject {
         if first.isUppercase {
             let lower = replacement.lowercased()
             guard let head = lower.first else { return replacement }
-            return String(head).uppercased() + lower.dropFirst()
+            return head.uppercased() + lower.dropFirst()
         }
         return replacement.lowercased()
     }
