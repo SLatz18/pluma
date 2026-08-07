@@ -85,6 +85,7 @@
 		AA5636A7ED1F08E53956AA78 /* OpenAIFileTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 149523C331CAAD2059DDE1E1 /* OpenAIFileTranscriber.swift */; };
 		B81A6789BD67ADCA98BAEFAA /* OpenAIChatEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAA05E33B013937A4459EF73 /* OpenAIChatEngine.swift */; };
 		B88DC6EBC46F63F1A087B869 /* CleanupProviderChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE486B59BC5961CEBAAF829 /* CleanupProviderChoice.swift */; };
+		BB5B3FC85791F64D0F396086 /* AutocompleteCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33517DE6D4706C2241EEFCE4 /* AutocompleteCoordinatorTests.swift */; };
 		BB8BE8CD45203B57BC43670E /* PromptComposerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862C9C8BA2AC430416228D6D /* PromptComposerTests.swift */; };
 		BEB1D9B2B46D12545FFC0D5B /* OverlayPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E9FF6EF58C2D5B00F12E4A8 /* OverlayPresentation.swift */; };
 		C30BA1A37F867EF9AD0926D8 /* RewriteRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47BF492D06B629AE1ECA498A /* RewriteRunnerTests.swift */; };
@@ -152,6 +153,7 @@
 		2BB3463F91A697094417BACD /* AutocompleteCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutocompleteCoordinator.swift; sourceTree = "<group>"; };
 		2C650CAB63A0A8CB8B8C1354 /* SpellCorrectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpellCorrectionTests.swift; sourceTree = "<group>"; };
 		2CC79CB7436BA6C5530269A2 /* AutocompleteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutocompleteView.swift; sourceTree = "<group>"; };
+		33517DE6D4706C2241EEFCE4 /* AutocompleteCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutocompleteCoordinatorTests.swift; sourceTree = "<group>"; };
 		33540925037198A27BC4636B /* AccessibilityPrompt-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AccessibilityPrompt-Bridging-Header.h"; sourceTree = "<group>"; };
 		34195B97923B3C8D50843C71 /* OpenAIChatModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIChatModel.swift; sourceTree = "<group>"; };
 		37B5D69F8213977909E48047 /* FeatureDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureDefinition.swift; sourceTree = "<group>"; };
@@ -316,6 +318,7 @@
 		4AE0911FD1EAEAFDEB284566 /* PlumaTests */ = {
 			isa = PBXGroup;
 			children = (
+				33517DE6D4706C2241EEFCE4 /* AutocompleteCoordinatorTests.swift */,
 				F92FBCC3A833E5AB79844979 /* CaretResolverTests.swift */,
 				C8EBE2A7C63BCB415CF9433A /* CheatCodeRecognizerTests.swift */,
 				F809A0572BC8D715517B5C96 /* CompletionSuggestionTests.swift */,
@@ -588,6 +591,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB5B3FC85791F64D0F396086 /* AutocompleteCoordinatorTests.swift in Sources */,
 				CFA394DE522D9A0A343E4232 /* CaretResolverTests.swift in Sources */,
 				5D2D985DC9B8E15CCD95F223 /* CheatCodeRecognizerTests.swift in Sources */,
 				34B8D7CB6633F34C4840E2B5 /* CompletionSuggestionTests.swift in Sources */,
