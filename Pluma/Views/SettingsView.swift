@@ -376,6 +376,11 @@ struct SettingsView: View {
                     )
                     Divider().padding(.vertical, DS.Spacing.medium)
                     processingRow(
+                        title: "Reader",
+                        value: "Spoken on this Mac. Text is not stored."
+                    )
+                    Divider().padding(.vertical, DS.Spacing.medium)
+                    processingRow(
                         title: "Transcript cleanup",
                         value: cleanupPath
                     )
@@ -388,7 +393,7 @@ struct SettingsView: View {
                     permissionRow(
                         title: "Accessibility",
                         granted: autocomplete.isPermissionGranted,
-                        detail: "Reads focused text fields and inserts results."
+                        detail: "Reads focused text fields, speaks or rewrites the selection, and inserts results."
                     ) {
                         autocomplete.requestPermission()
                     }

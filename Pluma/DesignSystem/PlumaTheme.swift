@@ -47,6 +47,7 @@ enum PlumaTheme {
         case rewrite
         case autocomplete
         case dictation
+        case reader
         case shortcut
 
         var color: Color {
@@ -54,6 +55,7 @@ enum PlumaTheme {
             case .rewrite: .accentColor
             case .autocomplete: .indigo
             case .dictation: .pink
+            case .reader: .teal
             case .shortcut: .mint
             }
         }
@@ -96,7 +98,7 @@ enum PlumaTheme {
 
     enum Feature {
         case improve, shorten, grammar, professional
-        case autocomplete, dictation, shortcut
+        case autocomplete, dictation, reader, shortcut
 
         var color: Color {
             switch self {
@@ -106,6 +108,7 @@ enum PlumaTheme {
             case .professional: .orange
             case .autocomplete: FeatureColor.autocomplete.color
             case .dictation: FeatureColor.dictation.color
+            case .reader: FeatureColor.reader.color
             case .shortcut: FeatureColor.shortcut.color
             }
         }

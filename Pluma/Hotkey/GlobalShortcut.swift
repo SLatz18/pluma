@@ -33,6 +33,14 @@ struct GlobalShortcut: Equatable, Sendable {
         display: "⇪R"
     )
 
+    // L for listen. Distinct from ⇪E / ⇪Space / ⇪R so all four factory chords
+    // can be bound at once.
+    static let readerDefault = GlobalShortcut(
+        keyCode: UInt32(kVK_ANSI_L),
+        carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
+        display: "⇪L"
+    )
+
     private static let hyperChords: Set<UInt32> = [
         UInt32(controlKey | optionKey | cmdKey),
         UInt32(controlKey | optionKey | shiftKey | cmdKey)

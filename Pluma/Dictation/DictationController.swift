@@ -188,17 +188,18 @@ final class DictationController: ObservableObject {
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
-        let rewriteShortcut = Preferences.globalShortcut(from: defaults)
-        guard !newShortcut.conflicts(with: rewriteShortcut) else {
-            shortcutConflict = "\(newShortcut.display) is already used by Rewrite Selection."
+        guard let conflict = Preferences.conflictMessage(
+            for: newShortcut, ignoring: .dictation, from: defaults
+        ) else {
+            shortcutConflict = nil
+            shortcut = newShortcut
+            Preferences.saveDictationShortcut(newShortcut, to: defaults)
+            if isEnabled {
+                hotkey.register(newShortcut, in: .dictation)
+            }
             return
         }
-        shortcutConflict = nil
-        shortcut = newShortcut
-        Preferences.saveDictationShortcut(newShortcut, to: defaults)
-        if isEnabled {
-            hotkey.register(newShortcut, in: .dictation)
-        }
+        shortcutConflict = conflict
     }
 
     func requestMicrophonePermission() async {

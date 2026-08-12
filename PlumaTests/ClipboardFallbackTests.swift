@@ -95,6 +95,19 @@ final class ClipboardFallbackTests: XCTestCase {
         )
     }
 
+    func testConflictIsReportedAgainstTheReaderShortcut() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let conflict = ClipboardRewriteController.conflict(
+            for: .readerDefault,
+            defaults: defaults
+        )
+
+        XCTAssertNotNil(conflict)
+        XCTAssertTrue(conflict?.contains("Reader") == true)
+    }
+
     // MARK: - PasteboardAccess
 
     func testPreflightIsFalseForAnEmptyPasteboard() {

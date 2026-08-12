@@ -9,6 +9,8 @@ final class HotkeyManager {
         // The clipboard fallback for apps where Accessibility insertion does not
         // work (Google Docs, Electron): copy, press, paste. Issue #12.
         case clipboardRewrite = 3
+        // Speak the selection (or the clipboard if nothing is selected).
+        case readSelection = 4
     }
 
     var onPress: ((Slot) -> Void)?

@@ -3,7 +3,7 @@
 **pluma** is a native macOS writing layer — on-device by default, cross-app by design.
 
 Select text anywhere and rewrite it. Get ghost-text completions as you type.
-Hold a shortcut and dictate at the caret. Built in Swift 6 for macOS 26 with
+Hold a shortcut and dictate at the caret. Select text and hear it read aloud. Built in Swift 6 for macOS 26 with
 Apple Intelligence first, optional local Ollama, and an optional OpenAI path
 for dictation only.
 
@@ -32,11 +32,12 @@ and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 | **Rewrite** | Stack recipes (Improve, Shorten, Fix Grammar, Professional) into a pipeline. Run it from a global hotkey or the in-app playground. |
 | **Autocomplete** | Debounced ghost text at the caret in other apps. Tab = next word, Shift-Tab = all, Escape dismisses. |
 | **Dictation** | Push-to-talk at the caret. On-device speech by default; optional cleanup; optional OpenAI transcription. |
+| **Reader** | Speak the selection (or the clipboard if nothing is selected). On-device voices. Press again to stop. |
 | **Screen context** | Opt-in OCR of the frontmost window so names on screen bias dictation and completions. Nothing stored. |
 | **Style memory** | Opt-in local phrases from accepted suggestions (capped). Clear anytime. |
 
 Default hotkeys use Caps Lock chords via [Hyperkey](https://hyperkey.app)
-(⇪E rewrite, ⇪Space dictate). Without Hyperkey, record any ordinary shortcut
+(⇪E rewrite, ⇪Space dictate, ⇪L read). Without Hyperkey, record any ordinary shortcut
 in-app with **Change…**.
 
 ## Privacy in one screen
@@ -46,6 +47,7 @@ in-app with **Change…**.
 | Apple Intelligence rewrite / complete / cleanup | No |
 | Ollama at `127.0.0.1` | No (loopback only) |
 | Apple Speech dictation | No |
+| Apple speech synthesis (Reader) | No |
 | OpenAI dictation / cleanup (opt-in) | **Yes — only when you choose it** |
 | Analytics / accounts / pluma servers | None |
 
@@ -127,7 +129,7 @@ should use Developer ID + hardened runtime + notarization — see
 1. Build and open pluma; grant Accessibility when asked.
 2. Pick a recipe pipeline on the Rewrite page; try it in the playground.
 3. Select text in another app → **Caps Lock E** (or your shortcut).
-4. Enable Autocomplete / Dictation from their sidebar pages as needed.
+4. Enable Autocomplete / Dictation / Reader from their sidebar pages as needed.
 
 **Edit with pluma** remains available as a macOS Service (right-click →
 Services) for apps where Accessibility insertion misbehaves.
@@ -139,6 +141,7 @@ Services) for apps where Accessibility insertion misbehaves.
 | `Providers/` | Apple Intelligence, Ollama, OpenAI chat; shared `RewriteRunner` |
 | `Autocomplete/` | Focused-field tracking, caret probing, ghost-text overlay (AppKit) |
 | `Dictation/` | Push-to-talk capture, Apple / OpenAI transcription, cleanup |
+| `Reader/` | On-device speech synthesis of the selection or clipboard |
 | `Hotkey/` | Slot-based Carbon hotkeys; Hyperkey-aware chord display |
 | `Developer/` | Cheat-code unlock, caret inspector, trace panel, log viewer |
 | `DesignSystem/` | Shared tokens, WHEN → THEN → RESULT grammar, components, and overlay presentations |

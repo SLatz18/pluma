@@ -83,13 +83,7 @@ final class ClipboardRewriteController: ObservableObject {
         for shortcut: GlobalShortcut,
         defaults: UserDefaults
     ) -> String? {
-        if shortcut.conflicts(with: Preferences.globalShortcut(from: defaults)) {
-            return "\(shortcut.display) is already used by Rewrite Selection."
-        }
-        if shortcut.conflicts(with: Preferences.dictationShortcut(from: defaults)) {
-            return "\(shortcut.display) is already used by Dictation."
-        }
-        return nil
+        Preferences.conflictMessage(for: shortcut, ignoring: .clipboard, from: defaults)
     }
 
     private func rewriteClipboard() async {

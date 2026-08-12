@@ -8,19 +8,21 @@ struct PlumaApp: App {
     @StateObject private var selectionRewrite: SelectionRewriteController
     @StateObject private var clipboardRewrite: ClipboardRewriteController
     @StateObject private var dictation: DictationController
+    @StateObject private var reader: ReaderController
     @StateObject private var developer: DeveloperMode
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
 
-        // One overlay panel for ghost text, rewrite status, and the dictation
-        // HUD, so they can never stack on top of each other at the caret.
+        // One overlay panel for ghost text, rewrite status, dictation, and
+        // reader, so they can never stack on top of each other at the caret.
         let overlay = SuggestionOverlayController()
         _model = StateObject(wrappedValue: RewriteViewModel())
         _autocomplete = StateObject(wrappedValue: AutocompleteCoordinator(overlay: overlay))
         _selectionRewrite = StateObject(wrappedValue: SelectionRewriteController(overlay: overlay))
         _clipboardRewrite = StateObject(wrappedValue: ClipboardRewriteController(overlay: overlay))
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
+        _reader = StateObject(wrappedValue: ReaderController(overlay: overlay))
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
     }
 
@@ -32,6 +34,7 @@ struct PlumaApp: App {
                 .environmentObject(selectionRewrite)
                 .environmentObject(clipboardRewrite)
                 .environmentObject(dictation)
+                .environmentObject(reader)
                 .environmentObject(developer)
         }
         .defaultSize(width: 980, height: 700)
@@ -42,6 +45,7 @@ struct PlumaApp: App {
             AutocompleteMenuBarView()
                 .environmentObject(autocomplete)
                 .environmentObject(dictation)
+                .environmentObject(reader)
         }
         .menuBarExtraStyle(.menu)
 
@@ -51,6 +55,7 @@ struct PlumaApp: App {
                 .environmentObject(autocomplete)
                 .environmentObject(clipboardRewrite)
                 .environmentObject(dictation)
+                .environmentObject(reader)
                 .environmentObject(developer)
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(SpellMemoryStore.shared)
@@ -62,6 +67,7 @@ struct PlumaApp: App {
 private struct AutocompleteMenuBarView: View {
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
     @EnvironmentObject private var dictation: DictationController
+    @EnvironmentObject private var reader: ReaderController
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -76,6 +82,9 @@ private struct AutocompleteMenuBarView: View {
             .toggleStyle(.checkbox)
 
         Toggle("Dictate with \(dictation.shortcut.display)", isOn: $dictation.isEnabled)
+            .toggleStyle(.checkbox)
+
+        Toggle("Read selection with \(reader.shortcut.display)", isOn: $reader.isEnabled)
             .toggleStyle(.checkbox)
 
         Divider()

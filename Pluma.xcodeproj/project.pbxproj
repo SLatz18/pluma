@@ -117,6 +117,13 @@
 		F5B6C88FA2EE610CD22427AA /* ProviderStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3CC066C6582F706FA60D02 /* ProviderStatus.swift */; };
 		F7DDF7526B4333FB17428F3E /* DeveloperMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B10A4C7CBC5DAC3043998BC /* DeveloperMode.swift */; };
 		F8E4BF413AB855EE9D9944D9 /* DeveloperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0255A672ABFD82E8EDE4960 /* DeveloperView.swift */; };
+		15117AC22785AB5EEFE74714 /* ReaderTextSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1082013629119289A0BD547 /* ReaderTextSource.swift */; };
+		76BDF63701D64F1F899463F8 /* SpeechSpeaking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32DF988407E382E7BE4ECF7E /* SpeechSpeaking.swift */; };
+		D629F3615D0AF3E1444954A7 /* SystemSpeechEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3D9F66C5A447653A9166B7 /* SystemSpeechEngine.swift */; };
+		A1230D3C2E5BBBC452DF1886 /* LiveReaderTextProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E74714269ECFD16E078018E /* LiveReaderTextProvider.swift */; };
+		371846288EE2E335294B13F4 /* ReaderController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F171629EFE179119D06CBDBE /* ReaderController.swift */; };
+		83EDCE327C71FECD8DF16953 /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB80CD6DAC89B638CB5F4FDC /* ReaderView.swift */; };
+		91EB88F9AFA0505B3A55E3FB /* ReaderControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 481514DDC6AE55A9D181443D /* ReaderControllerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -252,6 +259,13 @@
 		F92FBCC3A833E5AB79844979 /* CaretResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaretResolverTests.swift; sourceTree = "<group>"; };
 		F9A5CC6ACFFA67545F78B6CB /* TextEnvelopeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEnvelopeTests.swift; sourceTree = "<group>"; };
 		FD04979C778D4EA3510846A6 /* AccessibilityPermission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityPermission.swift; sourceTree = "<group>"; };
+		A1082013629119289A0BD547 /* ReaderTextSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderTextSource.swift; sourceTree = "<group>"; };
+		32DF988407E382E7BE4ECF7E /* SpeechSpeaking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechSpeaking.swift; sourceTree = "<group>"; };
+		9A3D9F66C5A447653A9166B7 /* SystemSpeechEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSpeechEngine.swift; sourceTree = "<group>"; };
+		4E74714269ECFD16E078018E /* LiveReaderTextProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveReaderTextProvider.swift; sourceTree = "<group>"; };
+		F171629EFE179119D06CBDBE /* ReaderController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderController.swift; sourceTree = "<group>"; };
+		DB80CD6DAC89B638CB5F4FDC /* ReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderView.swift; sourceTree = "<group>"; };
+		481514DDC6AE55A9D181443D /* ReaderControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderControllerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -350,6 +364,7 @@
 				E5096D3D7034E13D4609AC79 /* PasteboardSnapshotTests.swift */,
 				E9A184B61C9300921E6B2BBF /* PreferencesTests.swift */,
 				862C9C8BA2AC430416228D6D /* PromptComposerTests.swift */,
+				481514DDC6AE55A9D181443D /* ReaderControllerTests.swift */,
 				61481581499C78E99D678D35 /* RecipeChainTests.swift */,
 				AC762D192D449FE288D14887 /* RewriteOutputSanitizerTests.swift */,
 				47BF492D06B629AE1ECA498A /* RewriteRunnerTests.swift */,
@@ -407,6 +422,7 @@
 				7F99AD499D63D5D594B51BF6 /* MainWindowView.swift */,
 				3B0C2A4E4E4364161FCADC18 /* OverviewView.swift */,
 				6B2CC21EB90F5074B9777382 /* PlaygroundView.swift */,
+				DB80CD6DAC89B638CB5F4FDC /* ReaderView.swift */,
 				7D626BF4CC67BB0E9C73E949 /* RecipeActionCard.swift */,
 				7E352249AF4E5E1540F6005E /* SettingsView.swift */,
 				D1126823183A0645FCC5A3B9 /* ShortcutRecorderView.swift */,
@@ -450,6 +466,7 @@
 				A268C97905B4B7A051DC096A /* Hotkey */,
 				AF2B263A23D9E0B2CE87F1B8 /* Models */,
 				00BCFDA2F51558DE569E4378 /* Providers */,
+				1B443EECF13A7E992BE26FC8 /* Reader */,
 				D1A1DB4B42424BAA8CEDE304 /* Resources */,
 				389F58894695B45BED79885D /* Services */,
 				A139FE796A2BC38DF2EE76A1 /* Views */,
@@ -494,6 +511,18 @@
 				204947E0D18D6B3322B24100 /* SpeechTranscriptionEngine.swift */,
 			);
 			path = Dictation;
+			sourceTree = "<group>";
+		};
+		1B443EECF13A7E992BE26FC8 /* Reader */ = {
+			isa = PBXGroup;
+			children = (
+				4E74714269ECFD16E078018E /* LiveReaderTextProvider.swift */,
+				F171629EFE179119D06CBDBE /* ReaderController.swift */,
+				A1082013629119289A0BD547 /* ReaderTextSource.swift */,
+				32DF988407E382E7BE4ECF7E /* SpeechSpeaking.swift */,
+				9A3D9F66C5A447653A9166B7 /* SystemSpeechEngine.swift */,
+			);
+			path = Reader;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -627,6 +656,7 @@
 				62E3C962FED6475A79B826A8 /* PasteboardSnapshotTests.swift in Sources */,
 				D6B632BD30222C66CC288B13 /* PreferencesTests.swift in Sources */,
 				BB8BE8CD45203B57BC43670E /* PromptComposerTests.swift in Sources */,
+				91EB88F9AFA0505B3A55E3FB /* ReaderControllerTests.swift in Sources */,
 				256E6E1067384D6695F96D24 /* RecipeChainTests.swift in Sources */,
 				387F78A206007BE0BD7DB141 /* RewriteOutputSanitizerTests.swift in Sources */,
 				C30BA1A37F867EF9AD0926D8 /* RewriteRunnerTests.swift in Sources */,
@@ -685,6 +715,7 @@
 				0CD573C264CAE0F04E172D09 /* HotkeyManager.swift in Sources */,
 				047238ABB5899EFF1B95DE81 /* KeychainStore.swift in Sources */,
 				994262054C6D6DF40E4112E4 /* LaunchAtLogin.swift in Sources */,
+				A1230D3C2E5BBBC452DF1886 /* LiveReaderTextProvider.swift in Sources */,
 				93409516FB0EF17F32D31FA0 /* LogViewerModel.swift in Sources */,
 				245D52E62237F29F26EF38EA /* MainWindowView.swift in Sources */,
 				F088CD1019E4440C93E568A7 /* MemoryStore.swift in Sources */,
@@ -707,6 +738,9 @@
 				66D4B42F784E41B1625815F4 /* Preferences.swift in Sources */,
 				32AA243409232CABE1F3B794 /* PromptComposer.swift in Sources */,
 				F5B6C88FA2EE610CD22427AA /* ProviderStatus.swift in Sources */,
+				371846288EE2E335294B13F4 /* ReaderController.swift in Sources */,
+				15117AC22785AB5EEFE74714 /* ReaderTextSource.swift in Sources */,
+				83EDCE327C71FECD8DF16953 /* ReaderView.swift in Sources */,
 				A587572DA8B3A2AE1BB2B56F /* RecipeActionCard.swift in Sources */,
 				7E0280DA8CCAF1E98433A3BE /* RewriteEngineError.swift in Sources */,
 				74640BAB7ACA642DF9575CC4 /* RewriteIntent.swift in Sources */,
@@ -720,11 +754,13 @@
 				A8F460257882317766A12FEC /* SelectionRewriteController.swift in Sources */,
 				3BB108A03F8B645D5BFE052F /* SettingsView.swift in Sources */,
 				7A025A4904004197EED62CDA /* ShortcutRecorderView.swift in Sources */,
+				76BDF63701D64F1F899463F8 /* SpeechSpeaking.swift in Sources */,
 				49657E11DD974D311ED44195 /* SpeechTranscriptionEngine.swift in Sources */,
 				31AEB14DF84BD766CA34AA65 /* SpellCorrection.swift in Sources */,
 				828534DB421A90136E8B1BB8 /* SpellMemoryStore.swift in Sources */,
 				D767400B9333A251DD14E7A2 /* StyleProfileStore.swift in Sources */,
 				7034325D8D55E97E0B73A909 /* SuggestionOverlayController.swift in Sources */,
+				D629F3615D0AF3E1444954A7 /* SystemSpeechEngine.swift in Sources */,
 				5CD37B181CD38C5625322D46 /* TextEnvelope.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

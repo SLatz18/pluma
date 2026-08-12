@@ -11,6 +11,7 @@ struct FeatureDefinition: Identifiable, Hashable, Sendable {
         case rewrite
         case autocomplete
         case dictation
+        case reader
     }
 
     let id: ID
@@ -59,5 +60,17 @@ struct FeatureDefinition: Identifiable, Hashable, Sendable {
         disabledStatus: "Dictation is off"
     )
 
-    static let all: [FeatureDefinition] = [.rewrite, .autocomplete, .dictation]
+    static let reader = FeatureDefinition(
+        id: .reader,
+        name: "Reader",
+        symbolName: "speaker.wave.2",
+        tint: .reader,
+        trigger: "Select text and press the shortcut",
+        action: "Speak it on this Mac",
+        result: "Press the shortcut again to stop",
+        enabledStatus: "Ready to read selected text",
+        disabledStatus: "Reader is off"
+    )
+
+    static let all: [FeatureDefinition] = [.rewrite, .autocomplete, .dictation, .reader]
 }

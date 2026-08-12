@@ -59,6 +59,26 @@ final class SuggestionPresentationTests: XCTestCase {
         XCTAssertEqual(overlay.owner, .dictation, "autocomplete must not interrupt dictation")
     }
 
+    @MainActor
+    func testReaderKeepsThePillWhileAutocompleteTriesToSpeak() {
+        let overlay = SuggestionOverlayController()
+        overlay.show(
+            .status(
+                systemImage: "speaker.wave.2.fill",
+                message: "Reading…",
+                tone: .accent,
+                pulses: true,
+                anchor: CGPoint(x: 100, y: 100)
+            ),
+            from: .reader
+        )
+        overlay.show(
+            .suggestion(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
+            from: .autocomplete
+        )
+        XCTAssertEqual(overlay.owner, .reader, "autocomplete must not interrupt reader")
+    }
+
     // A deliberate action still yields to the next deliberate action.
     @MainActor
     func testDeliberateOwnersStillPreemptEachOther() {

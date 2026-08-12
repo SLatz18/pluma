@@ -25,15 +25,16 @@ final class SelectionRewriteController: ObservableObject {
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
-        let dictationShortcut = Preferences.dictationShortcut(from: defaults)
-        guard !newShortcut.conflicts(with: dictationShortcut) else {
-            shortcutConflict = "\(newShortcut.display) is already used by Dictation."
+        guard let conflict = Preferences.conflictMessage(
+            for: newShortcut, ignoring: .rewrite, from: defaults
+        ) else {
+            shortcutConflict = nil
+            shortcut = newShortcut
+            Preferences.saveGlobalShortcut(newShortcut, to: defaults)
+            hotkey.register(newShortcut, in: .rewriteSelection)
             return
         }
-        shortcutConflict = nil
-        shortcut = newShortcut
-        Preferences.saveGlobalShortcut(newShortcut, to: defaults)
-        hotkey.register(newShortcut, in: .rewriteSelection)
+        shortcutConflict = conflict
     }
 
     private func rewriteSelection() async {
@@ -48,7 +49,7 @@ final class SelectionRewriteController: ObservableObject {
 
         guard
             let element = AXFocus.focusedElement(),
-            let selectedText = Self.selectedText(of: element),
+            let selectedText = AXFocus.selectedText(of: element),
             !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else {
             DebugLog.log("rewrite: no focused element with a text selection")
@@ -124,16 +125,6 @@ final class SelectionRewriteController: ObservableObject {
         tone: OverlayTone = .warning
     ) {
         overlay.flashAtMouse(systemImage: systemImage, message: message, tone: tone, from: .rewrite)
-    }
-
-    private static func selectedText(of element: AXUIElement) -> String? {
-        var selectedValue: CFTypeRef?
-        guard
-            AXUIElementCopyAttributeValue(
-                element, kAXSelectedTextAttribute as CFString, &selectedValue
-            ) == .success
-        else { return nil }
-        return selectedValue as? String
     }
 
     // Just below the start of the selection, so the progress chip never covers

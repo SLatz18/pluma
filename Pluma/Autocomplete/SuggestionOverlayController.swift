@@ -165,12 +165,12 @@ private final class OverlayPillRenderer: NSVisualEffectView {
 
 @MainActor
 final class SuggestionOverlayController {
-    // One panel is shared by autocomplete, selection rewrite, and dictation.
-    // Shows always preempt (last writer wins), but a hide only lands if the
+    // One panel is shared by autocomplete, selection rewrite, dictation, and
+    // reader. Shows always preempt (last writer wins), but a hide only lands if the
     // current presentation belongs to the caller — so a delayed hide (e.g. a
     // status flash's 2.5 s timer) can't kill a newer presentation.
     enum Owner {
-        case autocomplete, rewrite, dictation, developer
+        case autocomplete, rewrite, dictation, reader, developer
     }
 
     // Set only while developer-mode caret tracing is on, so the trace panel can
@@ -221,9 +221,9 @@ final class SuggestionOverlayController {
 
     func show(_ presentation: OverlayPresentation, from owner: Owner) {
         // Autocomplete is the only ambient speaker here — it offers things
-        // nobody asked for. Dictation, selection rewrite, and the developer
-        // trace all run because the writer is holding a key or pressed one, so
-        // they take the pill and keep it. Without this the two simply raced:
+        // nobody asked for. Dictation, selection rewrite, reader, and the
+        // developer trace all run because the writer is holding a key or pressed
+        // one, so they take the pill and keep it. Without this the two simply raced:
         // hold the dictation shortcut and the next completion would land on top
         // of "Listening…", then the transcript would land on top of that.
         // Ownership decides this, not visibility: presentation is deferred a run

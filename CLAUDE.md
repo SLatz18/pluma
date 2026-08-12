@@ -2,10 +2,10 @@
 
 Native macOS writing tool (**pluma** / formal **plumafina**): recipe pipelines
 (Rewrite page), ghost-text autocomplete, push-to-talk dictation,
-selection-rewrite hotkey. SwiftUI + AppKit, Swift 6 strict concurrency,
-macOS 26 target, xcodegen-generated project. Product principles: README.md.
-Privacy model: PRIVACY.md. Product language: native controls, generous
-spacing, trigger → action cards.
+selection-rewrite hotkey, on-device Reader. SwiftUI + AppKit, Swift 6 strict
+concurrency, macOS 26 target, xcodegen-generated project. Product principles:
+README.md. Privacy model: PRIVACY.md. Product language: native controls,
+generous spacing, trigger → action cards.
 
 ## Build, test, install
 
@@ -26,19 +26,22 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
 ## Architecture map
 
 - `App/PlumaApp.swift` — builds shared `SuggestionOverlayController` and
-  injects it into all three presenters. One overlay panel, owner-scoped hides.
+  injects it into all presenters. One overlay panel, owner-scoped hides.
 - `DesignSystem/` — semantic tokens, feature definitions, shared surfaces,
   WHEN → THEN → RESULT flow, and overlay presentations (`DS.*`).
 - `Views/MainWindowView.swift` — sidebar: Overview / Rewrite / Autocomplete /
-  Dictation.
+  Dictation / Reader.
 - `Providers/RewriteRunner.swift` — chain runner. The `@MainActor` variant
   reports progress; the nonisolated variant exists because the macOS Services
   handler blocks its thread on a semaphore (a MainActor hop would deadlock).
 - `Hotkey/HotkeyManager.swift` — slot-based Carbon hotkeys
-  (`.rewriteSelection`, `.dictation`), press+release for push-to-talk.
-- `Hotkey/GlobalShortcut.swift` — factory chords ⇪E / ⇪Space via Hyperkey's
+  (`.rewriteSelection`, `.dictation`, `.clipboardRewrite`, `.readSelection`),
+  press+release for push-to-talk.
+- `Hotkey/GlobalShortcut.swift` — factory chords ⇪E / ⇪Space / ⇪L via Hyperkey's
   ⌃⌥⌘ expansion; `conflicts(with:)` treats 3- and 4-modifier hyper chords as
   the same press.
+- `Reader/` — on-device `AVSpeechSynthesizer`; selection then clipboard;
+  never reads `AXSecureTextField`.
 - `Services/Preferences.swift` — all UserDefaults keys + one-time migrations.
 - Open issues: #23 (Caps Lock expander post-mortem), #24 (developer mode,
   cheat-code unlock).
