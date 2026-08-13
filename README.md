@@ -29,16 +29,19 @@ and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 
 | | |
 |---|---|
-| **Rewrite** | Stack recipes (Improve, Shorten, Fix Grammar, Professional) into a pipeline. Run it from a global hotkey or the in-app playground. |
+| **Rewrite** | Stack recipes (Improve, Shorten, Fix Grammar, Professional) into a pipeline. Run it from a global hotkey, the in-app playground, or the clipboard fallback (copy, press ⇪R, paste) for apps where selection fails, like Google Docs. |
 | **Autocomplete** | Debounced ghost text at the caret in other apps. Tab = next word, Shift-Tab = all, Escape dismisses. |
-| **Dictation** | Push-to-talk at the caret. On-device speech by default; optional cleanup; optional OpenAI transcription. |
+| **Dictation** | Push-to-talk at the caret. On-device speech by default; optional cleanup; optional OpenAI transcription. Hold ⇪D and speak an intent to draft a reply from the visible conversation. |
 | **Reader** | Speak the selection verbatim, or summarize it with the configured writing model first. Apple on-device voices (with Premium setup help) by default; optional OpenAI TTS. Press again to stop. |
 | **Screen context** | Opt-in OCR of the frontmost window so names on screen bias dictation and completions. Nothing stored. |
 | **Style memory** | Opt-in local phrases from accepted suggestions (capped). Clear anytime. |
 
-Default hotkeys use Caps Lock chords (⇪E rewrite, ⇪Space dictate, ⇪L read). Turn on
-**Use Caps Lock for shortcuts** in Settings, or keep using [Hyperkey](https://hyperkey.app),
-or record any ordinary shortcut in-app with **Change…**.
+Default hotkeys use Caps Lock chords (⇪E rewrite, ⇪R rewrite what I copied,
+⇪Space dictate, ⇪D draft a reply, ⇪L read). Turn on
+**Use Caps Lock for shortcuts** in Settings → General, or keep using
+[Hyperkey](https://hyperkey.app), or record any ordinary shortcut in-app with
+**Change…**. Settings live in the sidebar of the one pluma window — ⌘, or the
+menu bar icon takes you there.
 
 ## Privacy in one screen
 
