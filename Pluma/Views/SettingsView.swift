@@ -35,6 +35,7 @@ struct SettingsView: View {
     @EnvironmentObject private var spellMemory: SpellMemoryStore
     @EnvironmentObject private var styleProfile: StyleProfileStore
     @EnvironmentObject private var developer: DeveloperMode
+    @EnvironmentObject private var capsLock: CapsLockExpander
 
     @State private var selection: SettingsDestination = .general
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
@@ -227,6 +228,53 @@ struct SettingsView: View {
         Group {
             clipboardFallbackSection
 
+            DSSection(
+                "Caps Lock",
+                detail: "Use Caps Lock as pluma’s shortcut modifier (⇪E rewrite, ⇪Space dictate, and the other factory chords). Hold Caps with a letter for the chord; tap Caps alone for real Caps Lock."
+            ) {
+                VStack(spacing: 0) {
+                    DSToggleRow(
+                        title: "Use Caps Lock for shortcuts",
+                        detail: "Hold Caps Lock with a letter instead of installing Hyperkey. Off restores normal Caps Lock on a clean quit; use Restore if Caps feels stuck after a crash.",
+                        isOn: capsShortcutsBinding
+                    )
+
+                    if Preferences.capsShortcutsEnabled() {
+                        DSRowDivider()
+                        DSSettingRow("Caps chord") {
+                            Picker("Caps chord", selection: capsChordBinding) {
+                                Text("⌃⌥⌘").tag(false)
+                                Text("⌃⌥⌘⇧").tag(true)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .frame(width: 160)
+                        }
+
+                        DSRowDivider()
+                        DSToggleRow(
+                            title: "Tap Caps for Caps Lock",
+                            detail: "A quick Caps tap toggles real Caps Lock (LED included). Off makes Caps modifier-only.",
+                            isOn: capsTapTogglesBinding
+                        )
+
+                        DSRowDivider()
+                        capsStatusRow
+
+                        DSRowDivider()
+                        HStack {
+                            Spacer()
+                            Button("Restore Caps Lock") {
+                                capsLock.restoreCapsLock()
+                            }
+                        }
+                        .padding(.horizontal, DS.Spacing.medium)
+                        .padding(.vertical, DS.Spacing.small)
+                    }
+                }
+                .dsCard()
+            }
+
             DSSection("App behavior") {
                 VStack(spacing: 0) {
                     DSToggleRow(
@@ -256,6 +304,57 @@ struct SettingsView: View {
             }
         }
         .accessibilityIdentifier("settings-general")
+    }
+
+    @ViewBuilder
+    private var capsStatusRow: some View {
+        switch capsLock.status {
+        case .active:
+            DSStatusIndicator(tone: .success, text: "Active — Caps Lock is the shortcut modifier")
+        case .pausedHyperkeyRunning:
+            DSStatusIndicator(
+                tone: .neutral,
+                text: "Paused — Hyperkey or Superkey is running"
+            )
+        case .needsPermission:
+            DSStatusIndicator(
+                tone: .attention,
+                text: capsLock.lastError
+                    ?? "Needs Accessibility permission in System Settings"
+            )
+        case .off:
+            DSStatusIndicator(tone: .neutral, text: "Off")
+        }
+    }
+
+    private var capsShortcutsBinding: Binding<Bool> {
+        Binding(
+            get: { Preferences.capsShortcutsEnabled() },
+            set: { newValue in
+                Preferences.setCapsShortcutsEnabled(newValue)
+                capsLock.applySettingsChange()
+            }
+        )
+    }
+
+    private var capsChordBinding: Binding<Bool> {
+        Binding(
+            get: { Preferences.capsChordIncludesShift() },
+            set: { newValue in
+                Preferences.setCapsChordIncludesShift(newValue)
+                capsLock.applySettingsChange()
+            }
+        )
+    }
+
+    private var capsTapTogglesBinding: Binding<Bool> {
+        Binding(
+            get: { Preferences.capsTapTogglesCapsLock() },
+            set: { newValue in
+                Preferences.setCapsTapTogglesCapsLock(newValue)
+                capsLock.applySettingsChange()
+            }
+        )
     }
 
     private var writingContent: some View {

@@ -6,13 +6,12 @@ struct GlobalShortcut: Equatable, Sendable {
     var carbonModifiers: UInt32
     var display: String
 
-    // Both factory chords ride Caps Lock via Hyperkey: Caps Lock is pluma's
-    // one modifier, and the letter picks the verb — E for edit, Space for
-    // speech. Hyperkey expands Caps Lock into a modifier chord before any app
-    // sees the event, so this is what those presses arrive as. It ships ⌃⌥⌘
-    // (its hyperFlags default of 0x1C0000) and notably leaves Shift out,
-    // though it is configurable — so both the three- and four-modifier chords
-    // are treated as Caps Lock when deciding how to draw a shortcut.
+    // Factory chords ride Caps Lock: Caps is pluma's one modifier, and the
+    // letter picks the verb — E for edit, Space for speech. When Caps shortcuts
+    // are enabled, pluma expands Caps into ⌃⌥⌘ (or ⌃⌥⌘⇧ if the user opts in).
+    // Without that, Hyperkey (or a recorded chord) can still deliver the same
+    // modifiers. Both three- and four-modifier Caps chords count as the same
+    // physical press for display and conflict checks.
     static let `default` = GlobalShortcut(
         keyCode: UInt32(kVK_ANSI_E),
         carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
@@ -49,10 +48,33 @@ struct GlobalShortcut: Equatable, Sendable {
         display: "⇪D"
     )
 
-    private static let hyperChords: Set<UInt32> = [
+    static let capsChords: Set<UInt32> = [
         UInt32(controlKey | optionKey | cmdKey),
         UInt32(controlKey | optionKey | shiftKey | cmdKey)
     ]
+
+    static func capsChordModifiers(includesShift: Bool) -> UInt32 {
+        var modifiers = UInt32(controlKey | optionKey | cmdKey)
+        if includesShift {
+            modifiers |= UInt32(shiftKey)
+        }
+        return modifiers
+    }
+
+    var isCapsChord: Bool {
+        Self.capsChords.contains(carbonModifiers)
+    }
+
+    /// When the Caps chord with/without Shift setting flips, rewrite stored
+    /// Caps chords to the active modifier set. Custom non-Caps shortcuts pass through.
+    func aligningCapsChord(includesShift: Bool) -> GlobalShortcut {
+        guard isCapsChord else { return self }
+        return GlobalShortcut(
+            keyCode: keyCode,
+            carbonModifiers: Self.capsChordModifiers(includesShift: includesShift),
+            display: display
+        )
+    }
 
     init(keyCode: UInt32, carbonModifiers: UInt32, display: String) {
         self.keyCode = keyCode
@@ -61,13 +83,13 @@ struct GlobalShortcut: Equatable, Sendable {
     }
 
     // Carbon refuses to register the same chord twice in one process, so two
-    // features on the same chord would leave one silently dead. Hyperkey's
-    // three- and four-modifier variants are the same physical press.
+    // features on the same chord would leave one silently dead. Caps three-
+    // and four-modifier variants are the same physical press.
     func conflicts(with other: GlobalShortcut) -> Bool {
         guard keyCode == other.keyCode else { return false }
         if carbonModifiers == other.carbonModifiers { return true }
-        return Self.hyperChords.contains(carbonModifiers)
-            && Self.hyperChords.contains(other.carbonModifiers)
+        return Self.capsChords.contains(carbonModifiers)
+            && Self.capsChords.contains(other.carbonModifiers)
     }
 
     init?(event: NSEvent) {
@@ -99,9 +121,9 @@ struct GlobalShortcut: Equatable, Sendable {
 
         keyCode = UInt32(event.keyCode)
         carbonModifiers = carbon
-        // A full hyper chord almost certainly came from Caps Lock via Hyperkey;
-        // showing "⇪E" beats glyphs for modifiers the user never pressed.
+        // A full Caps chord almost certainly came from Caps Lock; showing
+        // "⇪E" beats glyphs for modifiers the user never pressed.
         let keyName = characters == " " ? "Space" : characters
-        display = (Self.hyperChords.contains(carbon) ? "⇪" : symbols) + keyName
+        display = (Self.capsChords.contains(carbon) ? "⇪" : symbols) + keyName
     }
 }

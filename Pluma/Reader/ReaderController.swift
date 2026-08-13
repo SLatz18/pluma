@@ -179,6 +179,23 @@ final class ReaderController: ObservableObject {
         if enabled {
             hotkey.register(savedShortcut, in: .readSelection)
         }
+        NotificationCenter.default.addObserver(
+            forName: .capsShortcutsSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.reloadShortcutFromPreferences()
+            }
+        }
+    }
+
+    private func reloadShortcutFromPreferences() {
+        let updated = Preferences.readerShortcut(from: defaults)
+        shortcut = updated
+        if isEnabled {
+            hotkey.register(updated, in: .readSelection)
+        }
     }
 
     func setEnabled(_ enabled: Bool) {

@@ -28,6 +28,21 @@ final class SelectionRewriteController: ObservableObject {
             }
         }
         hotkey.register(shortcut, in: .rewriteSelection)
+        NotificationCenter.default.addObserver(
+            forName: .capsShortcutsSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.reloadShortcutFromPreferences()
+            }
+        }
+    }
+
+    private func reloadShortcutFromPreferences() {
+        let updated = Preferences.globalShortcut(from: defaults)
+        shortcut = updated
+        hotkey.register(updated, in: .rewriteSelection)
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {

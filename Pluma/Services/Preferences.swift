@@ -48,6 +48,14 @@ enum Preferences {
     static let draftShortcutKeyCodeKey = "pluma.draftShortcut.keyCode"
     static let draftShortcutModifiersKey = "pluma.draftShortcut.modifiers"
     static let draftShortcutDisplayKey = "pluma.draftShortcut.display"
+    /// Opt-in: Caps Lock becomes pluma's shortcut modifier (default off).
+    static let capsShortcutsEnabledKey = "pluma.capsShortcutsEnabled"
+    /// When Caps shortcuts are on, include Shift in the Caps chord (⌃⌥⌘⇧).
+    static let capsChordIncludesShiftKey = "pluma.capsChordIncludesShift"
+    /// Lone Caps tap toggles real Caps Lock (default on).
+    static let capsTapTogglesCapsLockKey = "pluma.capsTapTogglesCapsLock"
+    /// Max Caps press duration still counted as a tap (seconds).
+    static let capsTapThresholdKey = "pluma.capsTapThreshold"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -148,6 +156,69 @@ enum Preferences {
 
     static func dictationEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: dictationEnabledKey)
+    }
+
+    /// Default off until Caps Lock ownership is proven reliable on this Mac.
+    static func capsShortcutsEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: capsShortcutsEnabledKey)
+    }
+
+    static func setCapsShortcutsEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: capsShortcutsEnabledKey)
+    }
+
+    static func capsChordIncludesShift(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: capsChordIncludesShiftKey)
+    }
+
+    static func setCapsChordIncludesShift(_ includesShift: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(includesShift, forKey: capsChordIncludesShiftKey)
+    }
+
+    /// Default on — matches CapsSpike dual-role proof. Missing key → true.
+    static func capsTapTogglesCapsLock(from defaults: UserDefaults = .standard) -> Bool {
+        if defaults.object(forKey: capsTapTogglesCapsLockKey) == nil { return true }
+        return defaults.bool(forKey: capsTapTogglesCapsLockKey)
+    }
+
+    static func setCapsTapTogglesCapsLock(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: capsTapTogglesCapsLockKey)
+    }
+
+    /// Default 0.3s. Clamped to a sane range.
+    static func capsTapThreshold(from defaults: UserDefaults = .standard) -> TimeInterval {
+        let raw = defaults.double(forKey: capsTapThresholdKey)
+        if raw == 0 { return CapsLockStateMachine.defaultTapThreshold }
+        return min(0.6, max(0.15, raw))
+    }
+
+    static func setCapsTapThreshold(_ seconds: TimeInterval, to defaults: UserDefaults = .standard) {
+        defaults.set(min(0.6, max(0.15, seconds)), forKey: capsTapThresholdKey)
+    }
+
+    /// Rewrite stored Caps-chord shortcuts to match the current Caps chord setting.
+    static func syncCapsChordShortcuts(to defaults: UserDefaults = .standard) {
+        let includesShift = capsChordIncludesShift(from: defaults)
+        let aligned = globalShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if aligned != globalShortcut(from: defaults) {
+            saveGlobalShortcut(aligned, to: defaults)
+        }
+        let dictation = dictationShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if dictation != dictationShortcut(from: defaults) {
+            saveDictationShortcut(dictation, to: defaults)
+        }
+        let clipboard = clipboardShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if clipboard != clipboardShortcut(from: defaults) {
+            saveClipboardShortcut(clipboard, to: defaults)
+        }
+        let reader = readerShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if reader != readerShortcut(from: defaults) {
+            saveReaderShortcut(reader, to: defaults)
+        }
+        let draft = draftShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if draft != draftShortcut(from: defaults) {
+            saveDraftShortcut(draft, to: defaults)
+        }
     }
 
     // Rides behind the screen-context switch: conversation reading is a richer

@@ -83,7 +83,7 @@ struct DictationView: View {
             title: "Hold to talk",
             detail: isRecording
                 ? "Press and hold the new shortcut. Esc cancels."
-                : "Hyperkey maps Caps Lock to ⌃⌥⌘, so Caps Lock Space works.",
+                : "Hold Caps Lock Space when Caps shortcuts are on in Settings, or record any shortcut.",
             shortcut: controller.shortcut,
             isRecording: $isRecording,
             conflict: controller.shortcutConflict
