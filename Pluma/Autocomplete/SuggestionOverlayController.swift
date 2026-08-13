@@ -203,7 +203,7 @@ final class SuggestionOverlayController {
     var owner: Owner? { currentOwner }
 
     private var reduceMotion: Bool {
-        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        DS.Motion.reduceMotion
     }
 
     // The last-resort anchor, and deliberately the only place the mouse is

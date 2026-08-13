@@ -3,6 +3,7 @@ import SwiftUI
 struct DictationView: View {
     @EnvironmentObject private var controller: DictationController
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isRecording = false
     @State private var apiKeyDraft = ""
@@ -163,8 +164,8 @@ struct DictationView: View {
                     }
                 }
             }
-            .animation(DS.Motion.spring, value: showAdvanced)
-            .animation(DS.Motion.spring, value: controller.cleanupEnabled)
+            .animation(DS.Motion.reveal(reduceMotion: reduceMotion), value: showAdvanced)
+            .animation(DS.Motion.reveal(reduceMotion: reduceMotion), value: controller.cleanupEnabled)
             .dsCard()
         }
     }

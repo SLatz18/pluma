@@ -46,6 +46,10 @@ component. The hidden Developer page is intentionally utilitarian and exempt.
 
 Check each changed surface in light and dark appearance, increased contrast,
 reduced motion, keyboard navigation, and the minimum supported window size.
+SwiftUI reveal animations must use `DS.Motion.reveal(reduceMotion:)` with the
+view's `@Environment(\.accessibilityReduceMotion)` value; AppKit overlays
+consult `DS.Motion.reduceMotion` so both go instant when the user turns
+motion effects off.
 Add a preview or Developer-gallery state when a shared component gains a new
 normal, selected, disabled, loading, permission, error, or destructive state.
 The `PlumaUITests` target covers real-window navigation and keyboard paths; it

@@ -33,6 +33,21 @@ enum PlumaTheme {
         /// The one spring for revealing/hiding rows and disclosures, so every
         /// surface settles with the same character.
         static let spring = Animation.spring(response: 0.32, dampingFraction: 0.85)
+
+        /// Whether the user has asked macOS to reduce motion. Non-SwiftUI
+        /// surfaces (AppKit panels, overlay controllers) should consult this;
+        /// SwiftUI views should prefer `@Environment(\.accessibilityReduceMotion)`
+        /// so they re-render when the setting changes.
+        static var reduceMotion: Bool {
+            NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        }
+
+        /// The shared reveal spring, or `nil` (instant transitions) when the
+        /// user has Reduce Motion enabled. Pass the view's
+        /// `@Environment(\.accessibilityReduceMotion)` value.
+        static func reveal(reduceMotion: Bool) -> Animation? {
+            reduceMotion ? nil : spring
+        }
     }
 
     enum Overlay {

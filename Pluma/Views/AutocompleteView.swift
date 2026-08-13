@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AutocompleteView: View {
     @EnvironmentObject private var coordinator: AutocompleteCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         DSFeaturePage(
@@ -37,7 +38,7 @@ struct AutocompleteView: View {
                         disabled: !coordinator.isPermissionGranted
                     )
                 }
-                .animation(DS.Motion.spring, value: coordinator.spellCorrectionEnabled)
+                .animation(DS.Motion.reveal(reduceMotion: reduceMotion), value: coordinator.spellCorrectionEnabled)
                 .dsCard()
             }
 
