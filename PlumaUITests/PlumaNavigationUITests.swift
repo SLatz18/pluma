@@ -14,7 +14,7 @@ final class PlumaNavigationUITests: XCTestCase {
     func testOverviewNavigatesToAllAutomationFlows() {
         XCTAssertTrue(app.descendants(matching: .any)["overview-page"].waitForExistence(timeout: 5))
 
-        for feature in ["rewrite", "autocomplete", "dictation"] {
+        for feature in ["rewrite", "autocomplete", "dictation", "reader"] {
             let overviewCard = app.descendants(matching: .any)["overview-\(feature)"]
             XCTAssertTrue(overviewCard.waitForExistence(timeout: 2))
             overviewCard.click()

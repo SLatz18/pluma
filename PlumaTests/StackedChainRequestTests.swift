@@ -76,6 +76,7 @@ final class StackedChainRequestTests: XCTestCase {
             provider: .appleIntelligence,
             context: "The meeting is scheduled for",
             surrounding: nil,
+            conversation: nil,
             memory: nil,
             styleProfile: nil,
             ollamaModel: "llama3",
