@@ -66,8 +66,8 @@ struct FeatureDefinition: Identifiable, Hashable, Sendable {
         symbolName: "speaker.wave.2",
         tint: .reader,
         trigger: "Select text and press the shortcut",
-        action: "Speak it on this Mac",
-        result: "Press the shortcut again to stop",
+        action: "Read it verbatim or summarize it",
+        result: "Speak it on this Mac",
         enabledStatus: "Ready to read selected text",
         disabledStatus: "Reader is off"
     )

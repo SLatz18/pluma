@@ -116,6 +116,7 @@ struct OverviewView: View {
         case .reader:
             switch reader.activity {
             case .reading: .recording
+            case .processing: .attention
             case .idle: .success
             case .off: .neutral
             }
@@ -150,6 +151,7 @@ struct OverviewView: View {
             return switch reader.activity {
             case .off: feature.disabledStatus
             case .idle: feature.enabledStatus
+            case .processing: "Summarizing for listening"
             case .reading: "Reading"
             }
         }

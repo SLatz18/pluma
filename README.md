@@ -32,7 +32,7 @@ and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 | **Rewrite** | Stack recipes (Improve, Shorten, Fix Grammar, Professional) into a pipeline. Run it from a global hotkey or the in-app playground. |
 | **Autocomplete** | Debounced ghost text at the caret in other apps. Tab = next word, Shift-Tab = all, Escape dismisses. |
 | **Dictation** | Push-to-talk at the caret. On-device speech by default; optional cleanup; optional OpenAI transcription. |
-| **Reader** | Speak the selection (or the clipboard if nothing is selected). On-device voices. Press again to stop. |
+| **Reader** | Speak the selection verbatim, or summarize it with the configured writing model first. On-device voices. Press again to stop. |
 | **Screen context** | Opt-in OCR of the frontmost window so names on screen bias dictation and completions. Nothing stored. |
 | **Style memory** | Opt-in local phrases from accepted suggestions (capped). Clear anytime. |
 

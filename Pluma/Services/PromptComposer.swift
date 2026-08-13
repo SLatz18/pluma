@@ -27,6 +27,10 @@ enum PromptComposer {
         """
     }
 
+    static let readerSummaryDirective = """
+    Prepare this text for listening. When the source is long or detailed, summarize it in concise, natural spoken prose. Preserve the important meaning, names, numbers, dates, deadlines, decisions, and action items. When the source is already short and clear, keep it nearly verbatim instead of forcing a summary. Do not add facts, a heading, or an introduction such as "summary" or "the text says."
+    """
+
     // Spoken-to-written cleanup. Deliberately conservative: a dictation pass
     // that rephrases is worse than one that does nothing, because the speaker
     // already said what they meant.

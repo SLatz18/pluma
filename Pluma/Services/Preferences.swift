@@ -29,6 +29,7 @@ enum Preferences {
     static let readerShortcutDisplayKey = "pluma.readerShortcut.display"
     static let readerVoiceIdentifierKey = "pluma.readerVoiceIdentifier"
     static let readerRateKey = "pluma.readerRate"
+    static let readerDeliveryModeKey = "pluma.readerDeliveryMode"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
@@ -367,6 +368,25 @@ enum Preferences {
 
     static func setReaderRate(_ rate: Double, to defaults: UserDefaults = .standard) {
         defaults.set(clampedReaderRate(rate), forKey: readerRateKey)
+    }
+
+    static func readerDeliveryMode(
+        from defaults: UserDefaults = .standard
+    ) -> ReaderDeliveryMode {
+        guard
+            let rawValue = defaults.string(forKey: readerDeliveryModeKey),
+            let mode = ReaderDeliveryMode(rawValue: rawValue)
+        else {
+            return .verbatim
+        }
+        return mode
+    }
+
+    static func setReaderDeliveryMode(
+        _ mode: ReaderDeliveryMode,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(mode.rawValue, forKey: readerDeliveryModeKey)
     }
 
     /// Carbon refuses the same chord twice in one process, so a collision would

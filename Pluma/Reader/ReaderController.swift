@@ -6,6 +6,7 @@ import Foundation
 enum ReaderActivity: Equatable {
     case off
     case idle
+    case processing
     case reading
 }
 
@@ -15,6 +16,7 @@ final class ReaderController: ObservableObject {
     @Published private(set) var activity: ReaderActivity = .off
     @Published private(set) var shortcutConflict: String?
     @Published private(set) var isSpeaking = false
+    @Published private(set) var errorMessage: String?
 
     @Published var isEnabled: Bool {
         didSet {
@@ -50,6 +52,17 @@ final class ReaderController: ObservableObject {
         }
     }
 
+    @Published var deliveryMode: ReaderDeliveryMode {
+        didSet {
+            guard deliveryMode != oldValue else { return }
+            Preferences.setReaderDeliveryMode(deliveryMode, to: defaults)
+            errorMessage = nil
+            if activity == .processing || activity == .reading {
+                stopSpeaking()
+            }
+        }
+    }
+
     var voices: [AVSpeechSynthesisVoice] {
         let code = Locale.current.language.languageCode?.identifier ?? "en"
         let all = AVSpeechSynthesisVoice.speechVoices()
@@ -63,7 +76,9 @@ final class ReaderController: ObservableObject {
     private let overlay: SuggestionOverlayController
     private let speech: any SpeechSpeaking
     private let textProvider: any ReaderTextProviding
+    private let summarizer: any ReaderSummarizing
     private var debouncer = HotkeyDebouncer()
+    private var pipelineGeneration = 0
     private var globalEscapeMonitor: Any?
     private var localEscapeMonitor: Any?
 
@@ -71,16 +86,19 @@ final class ReaderController: ObservableObject {
         defaults: UserDefaults = .standard,
         overlay: SuggestionOverlayController = SuggestionOverlayController(),
         speech: (any SpeechSpeaking)? = nil,
-        textProvider: (any ReaderTextProviding)? = nil
+        textProvider: (any ReaderTextProviding)? = nil,
+        summarizer: (any ReaderSummarizing)? = nil
     ) {
         self.defaults = defaults
         self.overlay = overlay
         self.speech = speech ?? SystemSpeechEngine()
         self.textProvider = textProvider ?? LiveReaderTextProvider()
+        self.summarizer = summarizer ?? ConfiguredReaderSummarizer(defaults: defaults)
         shortcut = Preferences.readerShortcut(from: defaults)
         isEnabled = Preferences.readerEnabled(from: defaults)
         voiceIdentifier = Preferences.readerVoiceIdentifier(from: defaults)
         rate = Preferences.readerRate(from: defaults)
+        deliveryMode = Preferences.readerDeliveryMode(from: defaults)
         activity = isEnabled ? .idle : .off
 
         self.speech.onFinish = { [weak self] in
@@ -127,7 +145,7 @@ final class ReaderController: ObservableObject {
 
     func handlePress() async {
         guard isEnabled else { return }
-        if activity == .reading {
+        if activity == .processing || activity == .reading {
             stopSpeaking()
             return
         }
@@ -136,18 +154,19 @@ final class ReaderController: ObservableObject {
     }
 
     /// Playground path: speak this text without touching Accessibility or the clipboard.
-    func speakPlaygroundText(_ text: String) {
+    func speakPlaygroundText(_ text: String) async {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        if activity == .reading {
+        if activity == .processing || activity == .reading {
             stopSpeaking()
             return
         }
-        startSpeaking(text, message: "Reading…")
+        await prepareAndSpeak(trimmed, readingMessage: "Reading…")
     }
 
     func stopSpeaking() {
-        guard activity == .reading || speech.isSpeaking else {
+        pipelineGeneration &+= 1
+        guard activity == .processing || activity == .reading || speech.isSpeaking else {
             finishReading()
             return
         }
@@ -165,9 +184,50 @@ final class ReaderController: ObservableObject {
             DebugLog.log("reader: no selection or clipboard text")
             flash(systemImage: "text.cursor", message: "Select some text first")
         case .selection(let text):
-            startSpeaking(text, message: "Reading…")
+            await prepareAndSpeak(text, readingMessage: "Reading…")
         case .clipboard(let text):
-            startSpeaking(text, message: "Reading clipboard…")
+            await prepareAndSpeak(text, readingMessage: "Reading clipboard…")
+        }
+    }
+
+    private func prepareAndSpeak(_ text: String, readingMessage: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        errorMessage = nil
+
+        guard deliveryMode == .summarizeWhenHelpful else {
+            startSpeaking(trimmed, message: readingMessage)
+            return
+        }
+
+        pipelineGeneration &+= 1
+        let generation = pipelineGeneration
+        activity = .processing
+        overlay.show(
+            .status(
+                systemImage: "text.alignleft",
+                message: "Summarizing for listening…",
+                tone: .accent,
+                pulses: true,
+                anchor: SuggestionOverlayController.mouseTopLeftPoint()
+            ),
+            from: .reader
+        )
+        installEscapeMonitors()
+
+        do {
+            let summary = try await summarizer.summarize(trimmed)
+            guard generation == pipelineGeneration, activity == .processing else { return }
+            startSpeaking(summary, message: "Reading summary…")
+        } catch {
+            guard generation == pipelineGeneration, activity == .processing else { return }
+            errorMessage = error.localizedDescription
+            DebugLog.log("reader summary failed: \(error.localizedDescription)", at: .quiet)
+            finishReading()
+            flash(
+                systemImage: "exclamationmark.triangle.fill",
+                message: "Couldn’t summarize — try again or read verbatim"
+            )
         }
     }
 
@@ -192,8 +252,9 @@ final class ReaderController: ObservableObject {
     }
 
     private func finishReading() {
+        let wasBusy = activity == .processing || activity == .reading
         isSpeaking = false
-        if activity == .reading {
+        if wasBusy {
             overlay.hide(from: .reader)
         }
         activity = isEnabled ? .idle : .off

@@ -52,6 +52,20 @@ final class ReaderControllerTests: XCTestCase {
         XCTAssertEqual(Preferences.readerVoiceIdentifier(from: defaults), "com.apple.voice.test")
     }
 
+    func testReaderDeliveryModeDefaultsToVerbatimAndRoundTrips() {
+        XCTAssertEqual(Preferences.readerDeliveryMode(from: defaults), .verbatim)
+        Preferences.setReaderDeliveryMode(.summarizeWhenHelpful, to: defaults)
+        XCTAssertEqual(Preferences.readerDeliveryMode(from: defaults), .summarizeWhenHelpful)
+    }
+
+    func testReaderSummaryDirectivePreservesImportantSpokenDetails() {
+        let directive = PromptComposer.readerSummaryDirective.lowercased()
+        for detail in ["names", "numbers", "dates", "deadlines", "decisions", "action items"] {
+            XCTAssertTrue(directive.contains(detail), "missing \(detail)")
+        }
+        XCTAssertTrue(directive.contains("short and clear"))
+    }
+
     // MARK: - Text source
 
     func testSelectionWinsOverClipboard() {
@@ -207,7 +221,7 @@ final class ReaderControllerTests: XCTestCase {
     }
 
     @MainActor
-    func testPlaygroundSpeaksWithoutEnablingTheHotkey() {
+    func testPlaygroundSpeaksWithoutEnablingTheHotkey() async {
         let speech = FakeSpeechEngine()
         let controller = ReaderController(
             defaults: defaults,
@@ -217,10 +231,80 @@ final class ReaderControllerTests: XCTestCase {
         )
         XCTAssertFalse(controller.isEnabled)
 
-        controller.speakPlaygroundText("playground passage")
+        await controller.speakPlaygroundText("playground passage")
 
         XCTAssertEqual(speech.spoken.map(\.text), ["playground passage"])
         XCTAssertEqual(controller.activity, .reading)
+    }
+
+    @MainActor
+    func testSummaryModeSpeaksSummarizerOutput() async {
+        let speech = FakeSpeechEngine()
+        let summarizer = FakeReaderSummarizer(result: .success("Three key points and a Friday deadline."))
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: speech,
+            textProvider: StubTextProvider(source: .selection("A much longer source passage.")),
+            summarizer: summarizer
+        )
+        controller.deliveryMode = .summarizeWhenHelpful
+        controller.isEnabled = true
+
+        await controller.handlePress()
+
+        XCTAssertEqual(summarizer.inputs, ["A much longer source passage."])
+        XCTAssertEqual(speech.spoken.map(\.text), ["Three key points and a Friday deadline."])
+        XCTAssertEqual(controller.activity, .reading)
+        XCTAssertNil(controller.errorMessage)
+    }
+
+    @MainActor
+    func testSummaryFailureDoesNotFallBackToReadingSource() async {
+        let speech = FakeSpeechEngine()
+        let summarizer = FakeReaderSummarizer(
+            result: .failure(RewriteEngineError.modelUnavailable("Model unavailable for test."))
+        )
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: speech,
+            textProvider: StubTextProvider(source: .selection("Do not read this verbatim.")),
+            summarizer: summarizer
+        )
+        controller.deliveryMode = .summarizeWhenHelpful
+        controller.isEnabled = true
+
+        await controller.handlePress()
+
+        XCTAssertTrue(speech.spoken.isEmpty)
+        XCTAssertEqual(controller.activity, .idle)
+        XCTAssertEqual(controller.errorMessage, "Model unavailable for test.")
+    }
+
+    @MainActor
+    func testSecondPressWhileSummarizingPreventsLaterSpeech() async {
+        let speech = FakeSpeechEngine()
+        let summarizer = SuspendingReaderSummarizer()
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: speech,
+            textProvider: StubTextProvider(source: .selection("A long source.")),
+            summarizer: summarizer
+        )
+        controller.deliveryMode = .summarizeWhenHelpful
+        controller.isEnabled = true
+
+        let firstPress = Task { await controller.handlePress() }
+        while controller.activity != .processing { await Task.yield() }
+
+        await controller.handlePress()
+        XCTAssertEqual(controller.activity, .idle)
+
+        summarizer.resume(returning: "A late summary.")
+        await firstPress.value
+        XCTAssertTrue(speech.spoken.isEmpty)
     }
 
     @MainActor
@@ -287,4 +371,35 @@ private final class StubTextProvider: ReaderTextProviding {
     }
 
     func currentSource() async -> ReaderTextSource { source }
+}
+
+@MainActor
+private final class FakeReaderSummarizer: ReaderSummarizing {
+    private(set) var inputs: [String] = []
+    let result: Result<String, Error>
+
+    init(result: Result<String, Error>) {
+        self.result = result
+    }
+
+    func summarize(_ text: String) async throws -> String {
+        inputs.append(text)
+        return try result.get()
+    }
+}
+
+@MainActor
+private final class SuspendingReaderSummarizer: ReaderSummarizing {
+    private var continuation: CheckedContinuation<String, Error>?
+
+    func summarize(_ text: String) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func resume(returning summary: String) {
+        continuation?.resume(returning: summary)
+        continuation = nil
+    }
 }
