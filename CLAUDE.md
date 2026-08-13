@@ -66,6 +66,13 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
   swift-frontend** (`SendNonSendable` pass, `Partition::merge`). No actor hops
   in C callbacks: use an `NSLock`-guarded nonisolated `@unchecked Sendable`
   state box.
+- A **closure literal written inside a `@MainActor` type inherits that
+  isolation**, even when its body touches nothing isolated. Passed as a
+  `@convention(c)` callback it compiles clean, then traps at runtime on any
+  other thread (`swift_task_isCurrentExecutorWithFlags` →
+  `dispatch_assert_queue_fail`, SIGTRAP). Write C callbacks as **file-scope
+  functions**. Verify: the symbol's disassembly must contain no
+  `isCurrentExecutor` call (`otool -tvV <binary> -p <mangled>`).
 - `@StateObject(wrappedValue:)` **autoclosures are lazy** — objects are built
   on first body access, not during init. Anything init-order-sensitive
   (logging, truncation, registration) must not assume init-time creation.
