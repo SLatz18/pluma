@@ -18,9 +18,9 @@ All semantic tokens and reusable components live in `Pluma/DesignSystem`.
 - `OverlayPresentation` is the semantic input to the single pure-AppKit
   floating-pill renderer.
 
-Use semantic macOS colors and SF Symbols. Do not introduce a raw feature color,
-corner radius, type size, locally constructed card, badge, or pill in a
-user-facing view.
+Use semantic macOS colors and SF Symbols. Outside the documented platform-native
+exceptions below, do not introduce a raw feature color, corner radius, type
+size, locally constructed card, badge, or pill in a user-facing view.
 
 ## Page composition
 
@@ -41,6 +41,17 @@ Use:
 Platform-native `List`, `Form`, `Picker`, `TextEditor`, alerts, and standard
 buttons are valid exceptions when they are not restyled into a new visual
 component. The hidden Developer page is intentionally utilitarian and exempt.
+
+Non-activating overlays that must remain outside SwiftUI's display cycle are a
+documented AppKit exception. The autocomplete pill and rewrite-feedback HUD may
+use `NSPanel`, `NSVisualEffectView`, and native AppKit controls because hosting
+these transient surfaces in SwiftUI previously caused display-cycle constraint
+re-entry crashes. These overlays must still use semantic system colors and
+native controls, remain non-activating, and preserve keyboard and accessibility
+behavior. Renderer-specific AppKit geometry and type metrics may remain local
+when they are not reusable by SwiftUI surfaces. Keep each exception explicitly
+allowlisted in `scripts/check-design-system.sh` so new AppKit visual primitives
+still fail CI.
 
 ## Review
 

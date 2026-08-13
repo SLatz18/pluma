@@ -95,6 +95,32 @@ final class ClipboardFallbackTests: XCTestCase {
         )
     }
 
+    // MARK: - Safe Undo
+
+    func testClipboardUndoAllowsAnUnchangedPasteboard() {
+        XCTAssertTrue(
+            ClipboardRewriteController.canSafelyRestoreClipboard(
+                expectedChangeCount: 42,
+                currentChangeCount: 42
+            )
+        )
+    }
+
+    func testClipboardUndoRefusesToOverwriteNewerCopiedContent() {
+        XCTAssertFalse(
+            ClipboardRewriteController.canSafelyRestoreClipboard(
+                expectedChangeCount: 42,
+                currentChangeCount: 43
+            )
+        )
+        XCTAssertFalse(
+            ClipboardRewriteController.canSafelyRestoreClipboard(
+                expectedChangeCount: nil,
+                currentChangeCount: 43
+            )
+        )
+    }
+
     // MARK: - PasteboardAccess
 
     func testPreflightIsFalseForAnEmptyPasteboard() {
