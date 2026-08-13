@@ -968,6 +968,17 @@ final class AutocompleteCoordinator: ObservableObject {
         dismissSuggestion()
     }
 
+    /// Swaps a directive with its neighbor so users can reorder without
+    /// removing and re-adding. Out-of-range moves are no-ops.
+    func moveDirective(_ directive: CompletionDirective, offset: Int) {
+        guard let index = directiveChain.firstIndex(of: directive) else { return }
+        let target = index + offset
+        guard directiveChain.indices.contains(target) else { return }
+        directiveChain.swapAt(index, target)
+        Preferences.saveCompletionChain(directiveChain, to: defaults)
+        dismissSuggestion()
+    }
+
     private func dismissSuggestion() {
         appleSpellTask?.cancel()
         activeSuggestion = nil

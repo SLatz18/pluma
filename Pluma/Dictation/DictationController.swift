@@ -345,6 +345,16 @@ final class DictationController: ObservableObject {
         Preferences.saveCleanupChain(cleanupChain, to: defaults)
     }
 
+    /// Swaps a directive with its neighbor so users can reorder without
+    /// removing and re-adding. Out-of-range moves are no-ops.
+    func moveCleanupDirective(_ directive: CleanupDirective, offset: Int) {
+        guard let index = cleanupChain.firstIndex(of: directive) else { return }
+        let target = index + offset
+        guard cleanupChain.indices.contains(target) else { return }
+        cleanupChain.swapAt(index, target)
+        Preferences.saveCleanupChain(cleanupChain, to: defaults)
+    }
+
     private func insert(_ text: String) async {
         defer { resetSession() }
 

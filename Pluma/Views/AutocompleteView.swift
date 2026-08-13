@@ -101,7 +101,13 @@ struct AutocompleteView: View {
                     DSPipelineStep(
                         title: directive.title,
                         number: index + 1,
-                        tint: DS.Feature.autocomplete.color
+                        tint: DS.Feature.autocomplete.color,
+                        moveLeft: index > 0
+                            ? { coordinator.moveDirective(directive, offset: -1) }
+                            : nil,
+                        moveRight: index < coordinator.directiveChain.count - 1
+                            ? { coordinator.moveDirective(directive, offset: 1) }
+                            : nil
                     ) {
                         coordinator.removeDirective(directive)
                     }

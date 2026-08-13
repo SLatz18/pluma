@@ -546,7 +546,11 @@ struct DSPipelineStep: View {
     let title: String
     let number: Int
     let tint: Color
+    var moveLeft: (() -> Void)? = nil
+    var moveRight: (() -> Void)? = nil
     let remove: () -> Void
+
+    private var isReorderable: Bool { moveLeft != nil || moveRight != nil }
 
     var body: some View {
         HStack(spacing: DS.Spacing.small) {
@@ -555,6 +559,27 @@ struct DSPipelineStep: View {
                 .foregroundStyle(tint)
             Text(title)
                 .font(DS.meta.weight(.medium))
+            if isReorderable {
+                HStack(spacing: 2) {
+                    Button(action: { moveLeft?() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(moveLeft == nil ? .quaternary : .tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(moveLeft == nil)
+                    .accessibilityLabel("Move \(title) earlier in pipeline")
+
+                    Button(action: { moveRight?() }) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(moveRight == nil ? .quaternary : .tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(moveRight == nil)
+                    .accessibilityLabel("Move \(title) later in pipeline")
+                }
+            }
             Button(action: remove) {
                 Image(systemName: "xmark")
                     .font(.caption2.weight(.bold))
@@ -562,6 +587,15 @@ struct DSPipelineStep: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Remove \(title) from pipeline")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityActions {
+            if let moveLeft {
+                Button("Move \(title) earlier", action: moveLeft)
+            }
+            if let moveRight {
+                Button("Move \(title) later", action: moveRight)
+            }
         }
         .padding(.horizontal, DS.Spacing.medium)
         .padding(.vertical, DS.Spacing.small)

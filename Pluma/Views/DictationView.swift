@@ -225,7 +225,13 @@ struct DictationView: View {
                     DSPipelineStep(
                         title: directive.title,
                         number: index + 1,
-                        tint: DS.Feature.dictation.color
+                        tint: DS.Feature.dictation.color,
+                        moveLeft: index > 0
+                            ? { controller.moveCleanupDirective(directive, offset: -1) }
+                            : nil,
+                        moveRight: index < controller.cleanupChain.count - 1
+                            ? { controller.moveCleanupDirective(directive, offset: 1) }
+                            : nil
                     ) {
                         controller.removeCleanupDirective(directive)
                     }
