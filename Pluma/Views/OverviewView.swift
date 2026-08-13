@@ -31,7 +31,7 @@ struct OverviewView: View {
                         systemImage: "brain",
                         destination: .writing
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     DSSharedSettingLink(
                         title: "Privacy and stored data",
                         value: privacySummary,

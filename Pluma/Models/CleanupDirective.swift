@@ -11,6 +11,8 @@ enum CleanupDirective: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    var promptID: String { "dictation.\(rawValue)" }
+
     var title: String {
         switch self {
         case .removeFiller: "Remove Filler"
@@ -39,8 +41,13 @@ enum CleanupDirective: String, CaseIterable, Codable, Identifiable, Sendable {
     }
 
     /// The cleanup step added to the dictation prompt when this card is in
-    /// the chain.
+    /// the chain. Honors a Developer-page override when one is set.
     var promptDirective: String {
+        PromptOverrides.text(for: promptID, default: shippedPromptDirective)
+    }
+
+    /// Shipped copy — the Reset target and the default for an untouched install.
+    var shippedPromptDirective: String {
         switch self {
         case .removeFiller:
             "Remove filler words, false starts, stutters, and accidental "
@@ -59,8 +66,12 @@ enum CleanupDirective: String, CaseIterable, Codable, Identifiable, Sendable {
         }
     }
 
+    var hasCustomPrompt: Bool {
+        PromptOverrides.isCustom(promptID, default: shippedPromptDirective)
+    }
+
     /// Matching today's shipped behavior: the legacy cleanup directive removes
-    /// filler and fixes punctuation. When the chain equals this default, the
-    /// composer emits exactly the legacy prompt.
+    /// filler and fixes punctuation. When the chain equals this default and no
+    /// card is customized, the composer emits exactly the legacy prompt.
     static let defaultChain: [CleanupDirective] = [.removeFiller, .addPunctuation]
 }
