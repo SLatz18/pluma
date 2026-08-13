@@ -13,9 +13,12 @@ struct PlumaApp: App {
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
-        // If Caps shortcuts are off and a prior crash left *our* Caps→F18
-        // mapping, remove only that entry — never wipe the user's other remaps.
-        if !Preferences.capsShortcutsEnabled(), CapsLockHIDRemap.isOurMappingPresent() {
+        // A clean exit always clears our mapping, so finding it at launch means
+        // the last run died. Reset to a known-good keyboard before anything
+        // else: drop only our entry (never the user's other remaps) and clear a
+        // Caps Lock the crash may have stranded on. The expander re-applies
+        // moments later if the feature is still enabled.
+        if CapsLockHIDRemap.isOurMappingPresent() {
             try? CapsLockHIDRemap.clearOurMapping()
             CapsLockState.turnOff()
         }

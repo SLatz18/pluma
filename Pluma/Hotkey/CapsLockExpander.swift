@@ -57,6 +57,12 @@ final class CapsTapState: @unchecked Sendable {
         lock.unlock()
     }
 
+    func currentCapsFlags() -> CGEventFlags {
+        lock.lock()
+        defer { lock.unlock() }
+        return capsFlags
+    }
+
     func verdict(type: CGEventType, keyCode: Int64) -> CapsTapVerdict {
         lock.lock()
         defer { lock.unlock() }
@@ -96,6 +102,39 @@ final class CapsTapState: @unchecked Sendable {
         case .passUnmodified: return .passUnmodified
         case .passWithCapsChord: return .passWithCapsChord
         }
+    }
+}
+
+/// The tap callback, at file scope for the same reason as the state above — and
+/// this one is load-bearing in a way that is easy to miss. A closure literal
+/// written inside the `@MainActor` expander *inherits* main-actor isolation, so
+/// converting it to a C function pointer makes the compiler emit a runtime
+/// executor check. On the dedicated tap thread that check fails and traps
+/// (`swift_task_isCurrentExecutorWithFlags` → SIGTRAP) on the first keystroke.
+/// A file-scope function has no enclosing actor to inherit, so no check is
+/// emitted. Keep it here; do not inline it back into the class.
+private func capsTapCallback(
+    _ proxy: CGEventTapProxy,
+    _ type: CGEventType,
+    _ event: CGEvent,
+    _ userInfo: UnsafeMutableRawPointer?
+) -> Unmanaged<CGEvent>? {
+    guard let userInfo else { return Unmanaged.passUnretained(event) }
+    let state = Unmanaged<CapsTapState>.fromOpaque(userInfo).takeUnretainedValue()
+    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+
+    switch state.verdict(type: type, keyCode: keyCode) {
+    case .consume:
+        return nil
+    case .consumeAndToggleCapsLock:
+        // Never do IOKit on the tap thread — hop to a serial queue.
+        capsLockIOQueue.async { CapsLockState.toggle() }
+        return nil
+    case .passUnmodified:
+        return Unmanaged.passUnretained(event)
+    case .passWithCapsChord:
+        event.flags.formUnion(state.currentCapsFlags())
+        return Unmanaged.passUnretained(event)
     }
 }
 
@@ -239,13 +278,17 @@ final class CapsLockExpander: ObservableObject {
     // MARK: - Remap
 
     private func ensureRemap() throws {
-        if remapApplied, CapsLockHIDRemap.isOurMappingPresent() { return }
-        try CapsLockHIDRemap.apply()
+        if remapApplied, CapsLockHIDRemap.isOurMappingPresent(), CapsLockGuardian.isArmed { return }
+        let restoreJSON = try CapsLockHIDRemap.apply()
+        // Arm before we can possibly crash with the remap live.
+        CapsLockGuardian.arm(restoreJSON: restoreJSON)
         remapApplied = true
         DebugLog.log("caps expander: HID Caps→F18 applied")
     }
 
     private func clearRemapIfNeeded() {
+        // Retire the guardian first so its snapshot cannot race our own restore.
+        CapsLockGuardian.disarm()
         // Always probe the world — in-memory remapApplied can lie after a crash
         // recovery or a failed ensureRemap that still wrote.
         let present = CapsLockHIDRemap.isOurMappingPresent()
@@ -294,29 +337,7 @@ final class CapsLockExpander: ObservableObject {
                 place: .headInsertEventTap,
                 options: .defaultTap,
                 eventsOfInterest: mask,
-                callback: { _, type, event, userInfo -> Unmanaged<CGEvent>? in
-                    guard let userInfo else { return Unmanaged.passUnretained(event) }
-                    let state = Unmanaged<CapsTapState>
-                        .fromOpaque(userInfo).takeUnretainedValue()
-                    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-                    let verdict = state.verdict(type: type, keyCode: keyCode)
-                    switch verdict {
-                    case .consume:
-                        return nil
-                    case .consumeAndToggleCapsLock:
-                        // Never do IOKit on the tap thread — hop to a serial queue.
-                        capsLockIOQueue.async { CapsLockState.toggle() }
-                        return nil
-                    case .passUnmodified:
-                        return Unmanaged.passUnretained(event)
-                    case .passWithCapsChord:
-                        state.lock.lock()
-                        let flags = state.capsFlags
-                        state.lock.unlock()
-                        event.flags.formUnion(flags)
-                        return Unmanaged.passUnretained(event)
-                    }
-                },
+                callback: capsTapCallback,
                 userInfo: userInfo
             )
         else {

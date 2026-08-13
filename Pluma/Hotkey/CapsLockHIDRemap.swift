@@ -13,11 +13,17 @@ enum CapsLockHIDRemap {
     /// F18 — no physical key on Apple keyboards.
     static let f18Usage: UInt64 = 0x7000_0006D
 
-    static func apply() throws {
+    /// Adds pluma's Caps→F18 entry.
+    /// - Returns: JSON for the mapping list *without* pluma's entry — the exact
+    ///   state to restore on teardown or crash (see `CapsLockGuardian`).
+    @discardableResult
+    static func apply() throws -> String {
         var entries = try currentEntries()
         entries.removeAll { isOurMapping($0) }
+        let restoreJSON = try encodeEntries(entries)
         entries.append(ourMapping)
         try setEntries(entries)
+        return restoreJSON
     }
 
     /// Removes only pluma's Caps→F18 mapping. Leaves every other entry alone.
@@ -99,14 +105,18 @@ enum CapsLockHIDRemap {
         }
     }
 
-    private static func setEntries(_ entries: [Entry]) throws {
+    private static func encodeEntries(_ entries: [Entry]) throws -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = []
         let data = try encoder.encode(entries)
-        guard let arrayJSON = String(data: data, encoding: .utf8) else {
+        guard let json = String(data: data, encoding: .utf8) else {
             throw CapsLockHIDRemapError.hidutilFailed("failed to encode UserKeyMapping")
         }
-        try runHidutil(setJSON: "{\"UserKeyMapping\":\(arrayJSON)}")
+        return json
+    }
+
+    private static func setEntries(_ entries: [Entry]) throws {
+        try runHidutil(setJSON: "{\"UserKeyMapping\":\(try encodeEntries(entries))}")
     }
 
     private static func runHidutil(setJSON: String) throws {
