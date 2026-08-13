@@ -58,6 +58,22 @@ final class ReaderControllerTests: XCTestCase {
         XCTAssertEqual(Preferences.readerDeliveryMode(from: defaults), .summarizeWhenHelpful)
     }
 
+    func testReaderSpeechProviderDefaultsToAppleAndRoundTrips() {
+        XCTAssertEqual(Preferences.readerSpeechProvider(from: defaults), .appleOnDevice)
+        Preferences.setReaderSpeechProvider(.openAI, to: defaults)
+        XCTAssertEqual(Preferences.readerSpeechProvider(from: defaults), .openAI)
+    }
+
+    func testOpenAITTSVoiceAndModelRoundTrip() {
+        XCTAssertEqual(Preferences.openAITTSVoice(from: defaults), .nova)
+        Preferences.setOpenAITTSVoice(.onyx, to: defaults)
+        XCTAssertEqual(Preferences.openAITTSVoice(from: defaults), .onyx)
+
+        XCTAssertEqual(Preferences.openAITTSModel(from: defaults), .tts1HD)
+        Preferences.setOpenAITTSModel(.gpt4oMiniTTS, to: defaults)
+        XCTAssertEqual(Preferences.openAITTSModel(from: defaults), .gpt4oMiniTTS)
+    }
+
     func testReaderDeliveryModesProvideBuilderCopyAndSymbols() {
         for mode in ReaderDeliveryMode.allCases {
             XCTAssertFalse(mode.title.isEmpty)
@@ -443,6 +459,23 @@ final class ReaderControllerTests: XCTestCase {
         await controller.handlePress()
         XCTAssertTrue(speech.spoken.isEmpty)
         XCTAssertEqual(controller.activity, .off)
+    }
+
+    @MainActor
+    func testOpenAISpeechProviderWithoutKeyDoesNotSpeak() async {
+        let speech = FakeSpeechEngine()
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: speech,
+            textProvider: StubTextProvider(source: .selection("cloud please")),
+            openAIKeyPresent: { false }
+        )
+        controller.isEnabled = true
+        controller.speechProvider = .openAI
+        await controller.handlePress()
+        XCTAssertTrue(speech.spoken.isEmpty)
+        XCTAssertEqual(controller.activity, .idle)
     }
 }
 

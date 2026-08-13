@@ -17,6 +17,7 @@ final class ReaderController: ObservableObject {
     @Published private(set) var shortcutConflict: String?
     @Published private(set) var isSpeaking = false
     @Published private(set) var errorMessage: String?
+    @Published private(set) var voiceEntries: [ReaderVoiceCatalog.Entry] = []
 
     @Published var isEnabled: Bool {
         didSet {
@@ -33,10 +34,38 @@ final class ReaderController: ObservableObject {
         }
     }
 
+    @Published var speechProvider: ReaderSpeechProviderChoice {
+        didSet {
+            guard speechProvider != oldValue else { return }
+            Preferences.setReaderSpeechProvider(speechProvider, to: defaults)
+            errorMessage = nil
+            if activity == .processing || activity == .reading {
+                stopSpeaking()
+            }
+            rebuildSpeechEngineIfNeeded()
+        }
+    }
+
     @Published var voiceIdentifier: String {
         didSet {
             guard voiceIdentifier != oldValue else { return }
             Preferences.setReaderVoiceIdentifier(voiceIdentifier, to: defaults)
+        }
+    }
+
+    @Published var openAIVoice: OpenAITTSVoice {
+        didSet {
+            guard openAIVoice != oldValue else { return }
+            Preferences.setOpenAITTSVoice(openAIVoice, to: defaults)
+            configureOpenAISpeechEngine()
+        }
+    }
+
+    @Published var openAITTSModel: OpenAITTSModel {
+        didSet {
+            guard openAITTSModel != oldValue else { return }
+            Preferences.setOpenAITTSModel(openAITTSModel, to: defaults)
+            configureOpenAISpeechEngine()
         }
     }
 
@@ -63,20 +92,22 @@ final class ReaderController: ObservableObject {
         }
     }
 
-    var voices: [AVSpeechSynthesisVoice] {
-        let code = Locale.current.language.languageCode?.identifier ?? "en"
-        let all = AVSpeechSynthesisVoice.speechVoices()
-        let matches = all.filter { $0.language.hasPrefix(code) }
-        return (matches.isEmpty ? all : matches)
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    var voiceSections: [ReaderVoiceCatalog.Section] {
+        ReaderVoiceCatalog.sections(from: voiceEntries)
+    }
+
+    var hasPremiumAppleVoices: Bool {
+        ReaderVoiceCatalog.hasPremium(in: voiceEntries)
     }
 
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay: SuggestionOverlayController
-    private let speech: any SpeechSpeaking
+    private let injectedSpeech: (any SpeechSpeaking)?
+    private var speech: any SpeechSpeaking
     private let textProvider: any ReaderTextProviding
     private let summarizer: any ReaderSummarizing
+    private let openAIKeyPresent: () -> Bool
     private var debouncer = HotkeyDebouncer()
     private var pipelineGeneration = 0
     private var globalEscapeMonitor: Any?
@@ -87,36 +118,71 @@ final class ReaderController: ObservableObject {
         overlay: SuggestionOverlayController = SuggestionOverlayController(),
         speech: (any SpeechSpeaking)? = nil,
         textProvider: (any ReaderTextProviding)? = nil,
-        summarizer: (any ReaderSummarizing)? = nil
+        summarizer: (any ReaderSummarizing)? = nil,
+        openAIKeyPresent: @escaping () -> Bool = { OpenAIKey.isPresent }
     ) {
         self.defaults = defaults
         self.overlay = overlay
-        self.speech = speech ?? SystemSpeechEngine()
+        self.injectedSpeech = speech
         self.textProvider = textProvider ?? LiveReaderTextProvider()
         self.summarizer = summarizer ?? ConfiguredReaderSummarizer(defaults: defaults)
-        shortcut = Preferences.readerShortcut(from: defaults)
-        isEnabled = Preferences.readerEnabled(from: defaults)
-        voiceIdentifier = Preferences.readerVoiceIdentifier(from: defaults)
-        rate = Preferences.readerRate(from: defaults)
-        deliveryMode = Preferences.readerDeliveryMode(from: defaults)
-        activity = isEnabled ? .idle : .off
+        self.openAIKeyPresent = openAIKeyPresent
 
-        self.speech.onFinish = { [weak self] in
-            self?.finishReading()
-        }
+        let enabled = Preferences.readerEnabled(from: defaults)
+        let provider = Preferences.readerSpeechProvider(from: defaults)
+        let appleVoice = Preferences.readerVoiceIdentifier(from: defaults)
+        let cloudVoice = Preferences.openAITTSVoice(from: defaults)
+        let cloudModel = Preferences.openAITTSModel(from: defaults)
+        let speakingRate = Preferences.readerRate(from: defaults)
+        let mode = Preferences.readerDeliveryMode(from: defaults)
+        let savedShortcut = Preferences.readerShortcut(from: defaults)
+
+        self.speech = speech ?? Self.makeSpeechEngine(for: provider)
+        self.shortcut = savedShortcut
+        self.isEnabled = enabled
+        self.speechProvider = provider
+        self.voiceIdentifier = appleVoice
+        self.openAIVoice = cloudVoice
+        self.openAITTSModel = cloudModel
+        self.rate = speakingRate
+        self.deliveryMode = mode
+        self.activity = enabled ? .idle : .off
+
+        wireSpeechCallbacks()
+        refreshInstalledVoices()
+
         hotkey.onPress = { [weak self] slot in
             guard slot == .readSelection else { return }
             Task { @MainActor [weak self] in
                 await self?.handlePress()
             }
         }
-        if isEnabled {
-            hotkey.register(shortcut, in: .readSelection)
+        if enabled {
+            hotkey.register(savedShortcut, in: .readSelection)
         }
     }
 
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
+    }
+
+    func refreshInstalledVoices() {
+        let code = Locale.current.language.languageCode?.identifier ?? "en"
+        voiceEntries = ReaderVoiceCatalog.entries(
+            from: AVSpeechSynthesisVoice.speechVoices(),
+            languageCode: code
+        )
+        if voiceIdentifier.isEmpty == false,
+           voiceEntries.contains(where: { $0.voice.identifier == voiceIdentifier }) == false {
+            voiceIdentifier = ""
+        }
+    }
+
+    func preferBestInstalledAppleVoiceIfUnset() {
+        guard speechProvider == .appleOnDevice, voiceIdentifier.isEmpty else { return }
+        let preferred = ReaderVoiceCatalog.preferredIdentifier(in: voiceEntries)
+        guard !preferred.isEmpty else { return }
+        voiceIdentifier = preferred
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
@@ -198,6 +264,11 @@ final class ReaderController: ObservableObject {
         guard !trimmed.isEmpty else { return }
         errorMessage = nil
 
+        if speechProvider == .openAI, openAIKeyPresent() == false {
+            flash(systemImage: "key", message: OpenAITranscriptionError.missingKey.localizedDescription)
+            return
+        }
+
         guard deliveryMode == .summarizeWhenHelpful else {
             startSpeaking(trimmed, message: readingMessage)
             return
@@ -235,14 +306,15 @@ final class ReaderController: ObservableObject {
     }
 
     private func startSpeaking(_ text: String, message: String) {
-        DebugLog.log("reader start: \(text.count) chars")
+        DebugLog.log("reader start: \(text.count) chars via \(speechProvider.rawValue)")
         activity = .reading
         isSpeaking = true
+        let speakingMessage = speechProvider == .openAI ? "Preparing speech…" : message
         let anchor = SuggestionOverlayController.mouseTopLeftPoint()
         overlay.show(
             .status(
                 systemImage: "speaker.wave.2.fill",
-                message: message,
+                message: speakingMessage,
                 tone: .accent,
                 pulses: true,
                 anchor: anchor
@@ -250,6 +322,21 @@ final class ReaderController: ObservableObject {
             from: .reader
         )
         installEscapeMonitors()
+        configureOpenAISpeechEngine()
+        if let openAI = speech as? OpenAISpeechEngine {
+            openAI.onPlaybackStarted = { [weak self] in
+                self?.overlay.show(
+                    .status(
+                        systemImage: "speaker.wave.2.fill",
+                        message: message,
+                        tone: .accent,
+                        pulses: true,
+                        anchor: SuggestionOverlayController.mouseTopLeftPoint()
+                    ),
+                    from: .reader
+                )
+            }
+        }
         let voice = voiceIdentifier.isEmpty ? nil : voiceIdentifier
         speech.speak(text, voiceIdentifier: voice, rate: Float(rate))
     }
@@ -266,6 +353,45 @@ final class ReaderController: ObservableObject {
 
     private func flash(systemImage: String, message: String, tone: OverlayTone = .warning) {
         overlay.flashAtMouse(systemImage: systemImage, message: message, tone: tone, from: .reader)
+    }
+
+    private func rebuildSpeechEngineIfNeeded() {
+        guard injectedSpeech == nil else { return }
+        speech.stop()
+        speech = Self.makeSpeechEngine(for: speechProvider)
+        wireSpeechCallbacks()
+    }
+
+    private func wireSpeechCallbacks() {
+        speech.onFinish = { [weak self] in
+            self?.finishReading()
+        }
+        if let openAI = speech as? OpenAISpeechEngine {
+            openAI.onFailure = { [weak self] message in
+                guard let self else { return }
+                self.errorMessage = message
+                self.flash(
+                    systemImage: "exclamationmark.triangle.fill",
+                    message: "Couldn’t speak — \(message)"
+                )
+            }
+            configureOpenAISpeechEngine()
+        }
+    }
+
+    private func configureOpenAISpeechEngine() {
+        guard let openAI = speech as? OpenAISpeechEngine else { return }
+        openAI.voice = openAIVoice
+        openAI.model = openAITTSModel
+    }
+
+    private static func makeSpeechEngine(
+        for provider: ReaderSpeechProviderChoice
+    ) -> any SpeechSpeaking {
+        switch provider {
+        case .appleOnDevice: SystemSpeechEngine()
+        case .openAI: OpenAISpeechEngine()
+        }
     }
 
     private func installEscapeMonitors() {

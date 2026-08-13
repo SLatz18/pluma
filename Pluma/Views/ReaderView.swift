@@ -8,6 +8,8 @@ struct ReaderView: View {
 
     @State private var isRecording = false
     @State private var playgroundText = ""
+    @State private var hasOpenAIKey = OpenAIKey.isPresent
+    @State private var apiKeyDraft = ""
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -25,6 +27,8 @@ struct ReaderView: View {
 
             listeningRecipeSection
 
+            speechProviderSection
+
             voiceCard
 
             playgroundCard
@@ -32,6 +36,10 @@ struct ReaderView: View {
             Text(privacyText)
                 .font(DS.meta)
                 .foregroundStyle(.tertiary)
+        }
+        .onAppear {
+            hasOpenAIKey = OpenAIKey.isPresent
+            controller.refreshInstalledVoices()
         }
     }
 
@@ -134,9 +142,9 @@ struct ReaderView: View {
                         .foregroundStyle(.tertiary)
 
                     DSBadge(
-                        text: "Read aloud",
+                        text: controller.speechProvider.title,
                         tone: .neutral,
-                        systemImage: "speaker.wave.2.fill"
+                        systemImage: controller.speechProvider.symbolName
                     )
                 }
                 .padding(.vertical, 2)
@@ -175,28 +183,47 @@ struct ReaderView: View {
         .dsCard()
     }
 
+    private var speechProviderSection: some View {
+        DSSection(
+            "Speech",
+            detail: "Choose the voice engine. Apple stays on this Mac; OpenAI sends text for synthesis."
+        ) {
+            LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
+                ForEach(ReaderSpeechProviderChoice.allCases) { provider in
+                    RecipeActionCard(
+                        title: provider.title,
+                        subtitle: provider.detail,
+                        symbolName: provider.symbolName,
+                        tint: DS.Feature.reader.color,
+                        eyebrow: "Voice engine",
+                        stepNumber: controller.speechProvider == provider ? 1 : nil,
+                        selectionBehavior: .exclusiveChoice
+                    ) {
+                        controller.speechProvider = provider
+                        hasOpenAIKey = OpenAIKey.isPresent
+                    }
+                }
+            }
+        }
+    }
+
     private var voiceCard: some View {
         DSSection("Voice") {
             VStack(spacing: 0) {
-                DSSettingRow(
-                    "Voice",
-                    detail: "On-device voices only. The system default follows your Mac’s language."
-                ) {
-                    Picker("Voice", selection: $controller.voiceIdentifier) {
-                        Text("System default").tag("")
-                        ForEach(controller.voices, id: \.identifier) { voice in
-                            Text(voice.name).tag(voice.identifier)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 220)
+                switch controller.speechProvider {
+                case .appleOnDevice:
+                    appleVoiceControls
+                case .openAI:
+                    openAIVoiceControls
                 }
 
                 DSRowDivider()
 
                 DSSettingRow(
                     "Rate",
-                    detail: "How quickly the voice reads."
+                    detail: controller.speechProvider == .openAI
+                        ? "Mapped to OpenAI playback speed."
+                        : "How quickly the voice reads."
                 ) {
                     HStack(spacing: DS.Spacing.small) {
                         Text("Slow")
@@ -211,6 +238,141 @@ struct ReaderView: View {
                 }
             }
             .dsCard()
+        }
+    }
+
+    @ViewBuilder
+    private var appleVoiceControls: some View {
+        DSSettingRow(
+            "Voice",
+            detail: "Premium and Enhanced voices sound more natural. Download them in Spoken Content."
+        ) {
+            Picker("Voice", selection: $controller.voiceIdentifier) {
+                Text("System default").tag("")
+                ForEach(controller.voiceSections, id: \.tier) { section in
+                    Section(section.title) {
+                        ForEach(section.voices, id: \.identifier) { voice in
+                            Text(voice.name).tag(voice.identifier)
+                        }
+                    }
+                }
+            }
+            .labelsHidden()
+            .frame(width: 220)
+        }
+
+        DSRowDivider()
+
+        VStack(alignment: .leading, spacing: 10) {
+            if controller.hasPremiumAppleVoices {
+                DSNoticeRow(
+                    systemImage: "checkmark.seal",
+                    tint: .green,
+                    text: "Premium Apple voices are installed. Manage downloads in Spoken Content.",
+                    actionTitle: "Open Spoken Content…"
+                ) {
+                    SpokenContentSettings.open()
+                }
+            } else {
+                DSNoticeRow(
+                    systemImage: "arrow.down.circle",
+                    tint: .orange,
+                    text: "For clearer speech, download Premium voices in System Settings → Accessibility → Spoken Content.",
+                    actionTitle: "Open Spoken Content…"
+                ) {
+                    SpokenContentSettings.open()
+                }
+            }
+
+            HStack(spacing: 8) {
+                Button("Refresh voice list") {
+                    controller.refreshInstalledVoices()
+                }
+                .controlSize(.small)
+
+                if !controller.hasPremiumAppleVoices {
+                    Button("Use best installed") {
+                        controller.refreshInstalledVoices()
+                        let preferred = ReaderVoiceCatalog.preferredIdentifier(
+                            in: controller.voiceEntries
+                        )
+                        if !preferred.isEmpty {
+                            controller.voiceIdentifier = preferred
+                        }
+                    }
+                    .controlSize(.small)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var openAIVoiceControls: some View {
+        DSSettingRow(
+            "Voice",
+            detail: "OpenAI neural voices. Text is sent for synthesis, then played locally."
+        ) {
+            Picker("OpenAI voice", selection: $controller.openAIVoice) {
+                ForEach(OpenAITTSVoice.allCases) { voice in
+                    Text(voice.title).tag(voice)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 160)
+        }
+
+        DSRowDivider()
+
+        DSSettingRow(
+            "Model",
+            detail: controller.openAITTSModel.detail
+        ) {
+            Picker("OpenAI TTS model", selection: $controller.openAITTSModel) {
+                ForEach(OpenAITTSModel.allCases) { model in
+                    Text(model.title).tag(model)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 180)
+        }
+
+        DSRowDivider()
+
+        apiKeyRow
+            .padding(.vertical, 8)
+    }
+
+    private var apiKeyRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: hasOpenAIKey ? "key.fill" : "key")
+                .font(DS.cardBody.weight(.semibold))
+                .foregroundStyle(hasOpenAIKey ? .green : .orange)
+                .frame(width: 18)
+            if hasOpenAIKey {
+                Text("API key stored in the keychain")
+                    .font(DS.meta)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Remove") {
+                    OpenAIKey.clear()
+                    hasOpenAIKey = false
+                    apiKeyDraft = ""
+                }
+                .controlSize(.small)
+            } else {
+                SecureField("OpenAI API key", text: $apiKeyDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 280)
+                Button("Save") {
+                    OpenAIKey.save(apiKeyDraft)
+                    hasOpenAIKey = OpenAIKey.isPresent
+                    apiKeyDraft = ""
+                }
+                .controlSize(.small)
+                .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                Spacer()
+            }
         }
     }
 
@@ -253,7 +415,9 @@ struct ReaderView: View {
         switch controller.activity {
         case .off: .gray
         case .idle:
-            if !autocomplete.isPermissionGranted || controller.errorMessage != nil {
+            if !autocomplete.isPermissionGranted
+                || controller.errorMessage != nil
+                || (controller.speechProvider == .openAI && !hasOpenAIKey) {
                 .orange
             } else {
                 .green
@@ -270,15 +434,17 @@ struct ReaderView: View {
         case .idle:
             if !autocomplete.isPermissionGranted {
                 "Needs Accessibility access to read the selection"
+            } else if controller.speechProvider == .openAI && !hasOpenAIKey {
+                "Add an OpenAI API key to speak with OpenAI"
             } else if let error = controller.errorMessage {
-                "Couldn’t summarize: \(error)"
+                "Couldn’t speak: \(error)"
             } else {
                 "Ready — press \(controller.shortcut.display) to hear the selection"
             }
         case .processing:
             "Summarizing for listening…"
         case .reading:
-            "Reading…"
+            controller.speechProvider == .openAI ? "Preparing or reading…" : "Reading…"
         }
     }
 
@@ -291,27 +457,40 @@ struct ReaderView: View {
             tint: .reader,
             trigger: "Select text and press the shortcut",
             action: "Summarize when helpful",
-            result: "Speak the summary on this Mac",
+            result: controller.speechProvider.isLocal
+                ? "Speak the summary on this Mac"
+                : "Speak the summary with OpenAI",
             enabledStatus: "Ready to summarize and read selected text",
             disabledStatus: "Reader is off"
         )
     }
 
     private var playgroundDetail: String {
-        switch controller.deliveryMode {
-        case .verbatim:
+        switch (controller.deliveryMode, controller.speechProvider) {
+        case (.verbatim, .appleOnDevice):
             "Paste a passage and press Read. Speech stays on this Mac."
-        case .summarizeWhenHelpful:
-            "Paste a passage to run it through \(model.provider.title), then hear the result."
+        case (.verbatim, .openAI):
+            "Paste a passage and press Read. Text is sent to OpenAI for speech."
+        case (.summarizeWhenHelpful, .appleOnDevice):
+            "Paste a passage to run it through \(model.provider.title), then hear it on this Mac."
+        case (.summarizeWhenHelpful, .openAI):
+            "Paste a passage to summarize with \(model.provider.title), then speak with OpenAI."
         }
     }
 
     private var privacyText: String {
+        let speech: String
+        switch controller.speechProvider {
+        case .appleOnDevice:
+            speech = "Speech uses Apple’s on-device voices."
+        case .openAI:
+            speech = "Speech sends text to OpenAI for synthesis."
+        }
         switch controller.deliveryMode {
         case .verbatim:
-            "Speech stays on this Mac. Nothing is stored. Password fields are never read."
+            return "\(speech) Nothing is stored. Password fields are never read."
         case .summarizeWhenHelpful:
-            "Summaries use \(model.provider.title); speech uses Apple’s on-device voices. Nothing is stored. Password fields are never read."
+            return "Summaries use \(model.provider.title). \(speech) Nothing is stored. Password fields are never read."
         }
     }
 }

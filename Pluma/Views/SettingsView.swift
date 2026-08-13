@@ -30,6 +30,7 @@ struct SettingsView: View {
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
     @EnvironmentObject private var clipboardRewrite: ClipboardRewriteController
     @EnvironmentObject private var dictation: DictationController
+    @EnvironmentObject private var reader: ReaderController
     @EnvironmentObject private var memory: MemoryStore
     @EnvironmentObject private var spellMemory: SpellMemoryStore
     @EnvironmentObject private var styleProfile: StyleProfileStore
@@ -377,7 +378,9 @@ struct SettingsView: View {
                     Divider().padding(.vertical, DS.Spacing.medium)
                     processingRow(
                         title: "Reader",
-                        value: "Spoken on this Mac. Text is not stored."
+                        value: reader.speechProvider == .openAI
+                            ? "Text sent to OpenAI for speech. Not stored by pluma."
+                            : "Spoken on this Mac. Text is not stored."
                     )
                     Divider().padding(.vertical, DS.Spacing.medium)
                     processingRow(
