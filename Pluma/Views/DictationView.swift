@@ -332,7 +332,7 @@ struct DictationView: View {
     private var apiKeyRow: some View {
         HStack(spacing: 10) {
             Image(systemName: hasKey ? "key.fill" : "key")
-                .font(.system(size: 13, weight: .semibold))
+                .font(DS.cardBody.weight(.semibold))
                 .foregroundStyle(hasKey ? .green : .orange)
                 .frame(width: 18)
             if hasKey {
