@@ -6,6 +6,99 @@ extension Notification.Name {
     static let capsShortcutsSettingsDidChange = Notification.Name("pluma.capsShortcutsSettingsDidChange")
 }
 
+/// F18 after HID remap — Carbon/Cocoa keycode.
+///
+/// File scope on purpose. Everything the CGEventTap callback touches must be
+/// nonisolated: nesting these inside the `@MainActor` expander made them
+/// MainActor-isolated, and once the tap moved to its own thread the runtime
+/// isolation check trapped (`swift_task_checkIsolated` → SIGTRAP) on the first
+/// keystroke. Repo rule: no actor hops in C callbacks.
+private let capsAliasKeyCode = Int64(kVK_F18)
+
+/// Serial queue for IOKit toggles — never block the event-tap callback.
+private let capsLockIOQueue = DispatchQueue(label: "com.scottlatz.Pluma.capsLockIO")
+
+enum CapsTapVerdict: Sendable {
+    case consume
+    case consumeAndToggleCapsLock
+    case passUnmodified
+    case passWithCapsChord
+}
+
+/// Shared with the C callback — no actor hops, NSLock only.
+final class CapsTapState: @unchecked Sendable {
+    let lock = NSLock()
+    var machine = CapsLockStateMachine()
+    var tap: CFMachPort?
+    var capsFlags: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand]
+    /// Run-loop the tap source lives on (dedicated thread).
+    var runLoop: CFRunLoop?
+
+    func configure(tapToggles: Bool, threshold: TimeInterval) {
+        lock.lock()
+        machine.tapTogglesCapsLock = tapToggles
+        machine.tapThreshold = threshold
+        lock.unlock()
+    }
+
+    func forceReleaseHold() {
+        lock.lock()
+        _ = machine.handle(.forceRelease, at: CFAbsoluteTimeGetCurrent())
+        lock.unlock()
+    }
+
+    /// Poll path: the ceiling inside `handle` clears only a hold that outlived
+    /// `maxHold`, so a legitimate in-progress hold survives the tick.
+    func abandonStrandedHold() {
+        lock.lock()
+        if machine.capsHeld {
+            _ = machine.handle(.otherKeyUp, at: CFAbsoluteTimeGetCurrent())
+        }
+        lock.unlock()
+    }
+
+    func verdict(type: CGEventType, keyCode: Int64) -> CapsTapVerdict {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let tap {
+                CGEvent.tapEnable(tap: tap, enable: true)
+            }
+            // A disable mid-hold loses the Caps key-up — abandon the hold
+            // so ordinary typing does not inherit the Caps chord.
+            _ = machine.handle(.forceRelease, at: CFAbsoluteTimeGetCurrent())
+            return .passUnmodified
+        }
+
+        let isCapsAlias = keyCode == capsAliasKeyCode
+        let now = CFAbsoluteTimeGetCurrent()
+
+        if isCapsAlias, type == .keyDown {
+            return map(machine.handle(.capsDown, at: now))
+        }
+        if isCapsAlias, type == .keyUp {
+            return map(machine.handle(.capsUp, at: now))
+        }
+        if type == .keyDown {
+            return map(machine.handle(.otherKeyDown, at: now))
+        }
+        if type == .keyUp {
+            return map(machine.handle(.otherKeyUp, at: now))
+        }
+        return .passUnmodified
+    }
+
+    private func map(_ output: CapsLockStateMachine.Output) -> CapsTapVerdict {
+        switch output {
+        case .consume: return .consume
+        case .consumeAndToggleCapsLock: return .consumeAndToggleCapsLock
+        case .passUnmodified: return .passUnmodified
+        case .passWithCapsChord: return .passWithCapsChord
+        }
+    }
+}
+
 /// Turns Caps Lock into Pluma's shortcut modifier without Hyperkey.
 ///
 /// Layer 1: HID remap Caps → F18 (surgical — never wipes other remaps).
@@ -32,103 +125,13 @@ final class CapsLockExpander: ObservableObject {
         "com.knollsoft.Superkey"
     ]
 
-    /// F18 after HID remap — Carbon/Cocoa keycode.
-    nonisolated static let capsAliasKeyCode = CGKeyCode(kVK_F18)
-
-    enum TapVerdict: Sendable {
-        case consume
-        case consumeAndToggleCapsLock
-        case passUnmodified
-        case passWithCapsChord
-    }
-
-    /// Shared with the C callback — no actor hops, NSLock only.
-    final class TapState: @unchecked Sendable {
-        let lock = NSLock()
-        var machine = CapsLockStateMachine()
-        var tap: CFMachPort?
-        var capsFlags: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand]
-        /// Run-loop the tap source lives on (dedicated thread).
-        var runLoop: CFRunLoop?
-
-        func configure(tapToggles: Bool, threshold: TimeInterval) {
-            lock.lock()
-            machine.tapTogglesCapsLock = tapToggles
-            machine.tapThreshold = threshold
-            lock.unlock()
-        }
-
-        func forceReleaseHold() {
-            lock.lock()
-            _ = machine.handle(.forceRelease, at: CFAbsoluteTimeGetCurrent())
-            lock.unlock()
-        }
-
-        /// Poll path: only clear if the hold exceeded maxHold (lost key-up).
-        func abandonStrandedHold() {
-            lock.lock()
-            let now = CFAbsoluteTimeGetCurrent()
-            // Feed a no-op keyUp path? Ceiling runs at the top of handle for
-            // any non-forceRelease event — use otherKeyUp which is a no-op when
-            // not held / past ceiling.
-            if machine.capsHeld {
-                _ = machine.handle(.otherKeyUp, at: now)
-            }
-            lock.unlock()
-        }
-
-        func verdict(type: CGEventType, keyCode: Int64) -> TapVerdict {
-            lock.lock()
-            defer { lock.unlock() }
-
-            if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-                if let tap {
-                    CGEvent.tapEnable(tap: tap, enable: true)
-                }
-                // A disable mid-hold loses the Caps key-up — abandon the hold
-                // so ordinary typing does not inherit the Caps chord.
-                _ = machine.handle(.forceRelease, at: CFAbsoluteTimeGetCurrent())
-                return .passUnmodified
-            }
-
-            let isCapsAlias = keyCode == Int64(CapsLockExpander.capsAliasKeyCode)
-            let now = CFAbsoluteTimeGetCurrent()
-
-            if isCapsAlias, type == .keyDown {
-                return map(machine.handle(.capsDown, at: now))
-            }
-            if isCapsAlias, type == .keyUp {
-                return map(machine.handle(.capsUp, at: now))
-            }
-            if type == .keyDown {
-                return map(machine.handle(.otherKeyDown, at: now))
-            }
-            if type == .keyUp {
-                return map(machine.handle(.otherKeyUp, at: now))
-            }
-            return .passUnmodified
-        }
-
-        private func map(_ output: CapsLockStateMachine.Output) -> TapVerdict {
-            switch output {
-            case .consume: return .consume
-            case .consumeAndToggleCapsLock: return .consumeAndToggleCapsLock
-            case .passUnmodified: return .passUnmodified
-            case .passWithCapsChord: return .passWithCapsChord
-            }
-        }
-    }
-
-    private let tapState = TapState()
+    private let tapState = CapsTapState()
     private let defaults: UserDefaults
     private var pollTask: Task<Void, Never>?
     private var remapApplied = false
     private var workspaceObservers: [NSObjectProtocol] = []
     private var distributedObservers: [NSObjectProtocol] = []
     private var tapThread: Thread?
-
-    /// Serial queue for IOKit toggles — never block the event-tap callback.
-    private static let ioQueue = DispatchQueue(label: "com.scottlatz.Pluma.capsLockIO")
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -293,7 +296,7 @@ final class CapsLockExpander: ObservableObject {
                 eventsOfInterest: mask,
                 callback: { _, type, event, userInfo -> Unmanaged<CGEvent>? in
                     guard let userInfo else { return Unmanaged.passUnretained(event) }
-                    let state = Unmanaged<CapsLockExpander.TapState>
+                    let state = Unmanaged<CapsTapState>
                         .fromOpaque(userInfo).takeUnretainedValue()
                     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
                     let verdict = state.verdict(type: type, keyCode: keyCode)
@@ -302,7 +305,7 @@ final class CapsLockExpander: ObservableObject {
                         return nil
                     case .consumeAndToggleCapsLock:
                         // Never do IOKit on the tap thread — hop to a serial queue.
-                        CapsLockExpander.ioQueue.async { CapsLockState.toggle() }
+                        capsLockIOQueue.async { CapsLockState.toggle() }
                         return nil
                     case .passUnmodified:
                         return Unmanaged.passUnretained(event)
