@@ -13,6 +13,15 @@ struct PlumaApp: App {
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
+        // A clean exit always clears our mapping, so finding it at launch means
+        // the last run died. Reset to a known-good keyboard before anything
+        // else: drop only our entry (never the user's other remaps) and clear a
+        // Caps Lock the crash may have stranded on. The expander re-applies
+        // moments later if the feature is still enabled.
+        if CapsLockHIDRemap.isOurMappingPresent() {
+            try? CapsLockHIDRemap.clearOurMapping()
+            CapsLockState.turnOff()
+        }
 
         // One overlay panel for ghost text, rewrite status, dictation, and
         // reader, so they can never stack on top of each other at the caret.
@@ -29,6 +38,8 @@ struct PlumaApp: App {
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
         _reader = StateObject(wrappedValue: ReaderController(overlay: overlay))
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
+
+        CapsLockExpander.shared.startMonitoring()
     }
 
     var body: some Scene {
@@ -65,6 +76,7 @@ struct PlumaApp: App {
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(SpellMemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)
+                .environmentObject(CapsLockExpander.shared)
         }
     }
 }

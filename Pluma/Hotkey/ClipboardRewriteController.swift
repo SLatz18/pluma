@@ -55,6 +55,23 @@ final class ClipboardRewriteController: ObservableObject {
         if isEnabled {
             hotkey.register(shortcut, in: .clipboardRewrite)
         }
+        NotificationCenter.default.addObserver(
+            forName: .capsShortcutsSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.reloadShortcutFromPreferences()
+            }
+        }
+    }
+
+    private func reloadShortcutFromPreferences() {
+        let updated = Preferences.clipboardShortcut(from: defaults)
+        shortcut = updated
+        if isEnabled {
+            hotkey.register(updated, in: .clipboardRewrite)
+        }
     }
 
     func setEnabled(_ enabled: Bool) {

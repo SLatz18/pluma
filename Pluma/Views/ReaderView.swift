@@ -129,8 +129,8 @@ struct ReaderView: View {
             systemImage: "keyboard",
             title: "Press to speak",
             detail: isRecording
-                ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
-                : "Press again to stop. Hyperkey maps Caps Lock to ⌃⌥⌘, so Caps Lock L works.",
+                ? "Press the new shortcut. Caps Lock chords work too. Esc cancels."
+                : "Press again to stop. Caps Lock L works when Caps shortcuts are on in Settings.",
             shortcut: controller.shortcut,
             isRecording: $isRecording,
             conflict: controller.shortcutConflict

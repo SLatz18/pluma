@@ -52,7 +52,22 @@ struct SystemReaderFocusReader: ReaderFocusReading {
 /// Accessibility. Copy the live selection, read it, then restore the user's
 /// previous clipboard so Reader behaves like the native-app path.
 struct SystemReaderSelectionCopier: ReaderSelectionCopying {
+    private static let shortcutModifierMask: CGEventFlags = [
+        .maskControl,
+        .maskAlternate,
+        .maskCommand,
+        .maskShift
+    ]
+    private static let modifierReleaseTimeout: Duration = .seconds(2)
+    private static let modifierPollInterval: Duration = .milliseconds(10)
+
     func copySelectedText() async -> String? {
+        // Reader is normally launched with Caps-L, which expands to the Hyper
+        // modifiers. Posting Command-C before that chord is released can turn
+        // the synthetic copy into another app's Hyper-C global shortcut. Wait
+        // for the initiating chord to clear so the event remains Command-C.
+        guard await waitForShortcutModifiersToRelease() else { return nil }
+
         let pasteboard = NSPasteboard.general
         guard pasteboard.accessBehavior != .alwaysDeny else { return nil }
         let previousSnapshot = PasteboardSnapshot(pasteboard)
@@ -72,6 +87,21 @@ struct SystemReaderSelectionCopier: ReaderSelectionCopying {
             previousSnapshot.restore(to: pasteboard)
         }
         return copiedText
+    }
+
+    static func hasHeldShortcutModifiers(_ flags: CGEventFlags) -> Bool {
+        !flags.intersection(shortcutModifierMask).isEmpty
+    }
+
+    private func waitForShortcutModifiersToRelease() async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: Self.modifierReleaseTimeout)
+
+        while Self.hasHeldShortcutModifiers(CGEventSource.flagsState(.hidSystemState)) {
+            guard clock.now < deadline else { return false }
+            try? await Task.sleep(for: Self.modifierPollInterval)
+        }
+        return true
     }
 
     private func postCopyShortcut() -> Bool {
