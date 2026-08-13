@@ -7,6 +7,12 @@ import SwiftUI
 // The grammar is WHEN → THEN → RESULT: an uppercase eyebrow names the
 // trigger ("SELECTED TEXT", "AS YOU TYPE"), an arrow, then the outcome. If a
 // new surface can't state its trigger, it doesn't get an eyebrow.
+//
+// Feature pages stack DSFeaturePage → DSFeatureHero → DSShortcutCard →
+// recipe section → other DSSection blocks → DSSharedSettingLink +
+// DSPageFootnote. Rewrite has no hero, because recipe selection is the
+// enablement, but the recipe section still sits in the same slot: first
+// section after the shortcut card.
 // MARK: - Card surface
 
 struct DSCard<Content: View>: View {
@@ -68,7 +74,7 @@ struct DSIconTile: View {
 struct DSRowDivider: View {
     var body: some View {
         Divider()
-            .padding(.vertical, 10)
+            .padding(.vertical, DS.Spacing.medium)
     }
 }
 
@@ -181,7 +187,8 @@ struct DSToggleRow: View {
 
 /// The lead card on a feature page: icon tile, title, description, trailing
 /// enable switch, a status row, and an optional permission notice. Keeps
-/// Autocomplete and Dictation (and future features) visually identical.
+/// Autocomplete, Dictation, and Reader visually identical. Rewrite has no
+/// hero — recipe selection is the enablement.
 struct DSFeatureHero: View {
     let systemImage: String
     let tint: Color
@@ -220,6 +227,62 @@ struct DSFeatureHero: View {
 
             if let notice {
                 notice
+            }
+        }
+        .dsCard()
+    }
+}
+
+// MARK: - Shortcut card
+
+/// The shared shortcut recorder surface: optional icon and eyebrow, a title,
+/// explainer copy, the recorder, and a conflict row. Rewrite's AnywhereCard
+/// wraps this; Dictation and Reader use it directly.
+struct DSShortcutCard: View {
+    var systemImage: String? = nil
+    var tint: Color = DS.Feature.shortcut.color
+    var eyebrowTrigger: String? = nil
+    var eyebrowAction: String? = nil
+    var title: String? = nil
+    let detail: String
+    let shortcut: GlobalShortcut
+    @Binding var isRecording: Bool
+    var conflict: String? = nil
+    let onRecord: (GlobalShortcut) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 14) {
+                if let systemImage {
+                    DSIconTile(systemImage: systemImage, tint: tint)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    if let eyebrowTrigger {
+                        DSEyebrow(trigger: eyebrowTrigger, action: eyebrowAction)
+                    }
+                    if let title {
+                        Text(title)
+                            .font(DS.cardTitle)
+                    }
+                    Text(detail)
+                        .font(DS.meta)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 12)
+
+                ShortcutRecorderView(
+                    shortcut: shortcut,
+                    isRecording: $isRecording,
+                    onRecord: onRecord
+                )
+            }
+
+            if let conflict {
+                Label(conflict, systemImage: "exclamationmark.triangle.fill")
+                    .font(DS.meta)
+                    .foregroundStyle(.orange)
             }
         }
         .dsCard()
@@ -293,6 +356,39 @@ struct DSFeaturePage<Content: View>: View {
             content
         }
         .accessibilityIdentifier("\(definition.id.rawValue)-page")
+    }
+}
+
+/// Settings window tabs: the same page padding and width as `DSPage`, without
+/// a title block — the TabView labels own that role.
+struct DSSettingsPage<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DS.sectionGap) {
+                content
+            }
+            .padding(DS.pagePadding)
+            .frame(maxWidth: DS.Control.pageMaxWidth, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .background(DS.pageBackground)
+    }
+}
+
+/// Tertiary privacy or processing note at the bottom of a feature page.
+struct DSPageFootnote: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(DS.meta)
+            .foregroundStyle(.tertiary)
     }
 }
 
@@ -609,6 +705,70 @@ struct DSPipelineStep: View {
             RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
                 .strokeBorder(tint.opacity(0.35))
         }
+    }
+}
+
+/// Horizontal recipe/pipeline strip. Rewrite and Reader show the default
+/// "Your pipeline → runs left to right" eyebrow; Autocomplete and Dictation
+/// omit it. Pass `isEmpty` plus `empty:` for the no-steps placeholder.
+struct DSPipelineStrip<Content: View, Empty: View>: View {
+    var eyebrowTrigger: String? = "Your pipeline"
+    var eyebrowAction: String? = "runs left to right"
+    var isEmpty: Bool = false
+    let empty: Empty
+    let content: Content
+
+    init(
+        eyebrowTrigger: String? = "Your pipeline",
+        eyebrowAction: String? = "runs left to right",
+        isEmpty: Bool = false,
+        @ViewBuilder empty: () -> Empty,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.eyebrowTrigger = eyebrowTrigger
+        self.eyebrowAction = eyebrowAction
+        self.isEmpty = isEmpty
+        self.empty = empty()
+        self.content = content()
+    }
+
+    init(
+        eyebrowTrigger: String? = "Your pipeline",
+        eyebrowAction: String? = "runs left to right",
+        @ViewBuilder content: () -> Content
+    ) where Empty == EmptyView {
+        self.eyebrowTrigger = eyebrowTrigger
+        self.eyebrowAction = eyebrowAction
+        self.isEmpty = false
+        self.empty = EmptyView()
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let eyebrowTrigger {
+                DSEyebrow(trigger: eyebrowTrigger, action: eyebrowAction)
+            }
+
+            if isEmpty {
+                empty
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        content
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+    }
+}
+
+struct DSPipelineConnector: View {
+    var body: some View {
+        Image(systemName: "arrow.right")
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(.tertiary)
     }
 }
 

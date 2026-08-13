@@ -29,52 +29,42 @@ struct ReaderView: View {
 
             playgroundCard
 
-            Text(privacyText)
-                .font(DS.meta)
-                .foregroundStyle(.tertiary)
+            DSSharedSettingLink(
+                title: "Writing model",
+                value: model.provider.title,
+                systemImage: "brain",
+                destination: .writing
+            )
+            .dsCard()
+
+            DSPageFootnote(text: privacyText)
         }
     }
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 14) {
-                DSIconTile(systemImage: "speaker.wave.2", tint: DS.Feature.reader.color)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Listen to the selection")
-                        .font(DS.cardTitle)
-                    Text("Press the shortcut to start, press it again to stop. Reader captures the live selection in TextEdit, Google Docs, and other apps. Escape also stops.")
-                        .font(DS.cardBody)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                Toggle("Reader", isOn: $controller.isEnabled)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
+        DSFeatureHero(
+            systemImage: "speaker.wave.2",
+            tint: DS.Feature.reader.color,
+            title: "Listen to the selection",
+            detail: "Press the shortcut to start, press it again to stop. Reader captures the live selection in TextEdit, Google Docs, and other apps. Escape also stops.",
+            isOn: $controller.isEnabled,
+            toggleLabel: "Reader",
+            statusColor: statusColor,
+            statusText: statusText,
+            notice: autocomplete.isPermissionGranted ? nil : DSNoticeRow(
+                systemImage: "hand.raised",
+                tint: .orange,
+                text: "Grant Accessibility to read selected text. Reader will not substitute unrelated clipboard text when access is missing.",
+                actionTitle: "Grant Accessibility Access…"
+            ) {
+                autocomplete.requestPermission()
             }
-
-            DSStatusRow(color: statusColor, text: statusText)
-
-            if !autocomplete.isPermissionGranted {
-                DSNoticeRow(
-                    systemImage: "hand.raised",
-                    tint: .orange,
-                    text: "Grant Accessibility to read selected text. Reader will not substitute unrelated clipboard text when access is missing.",
-                    actionTitle: "Grant Accessibility Access…"
-                ) {
-                    autocomplete.requestPermission()
-                }
-            }
-        }
-        .dsCard()
+        )
     }
 
     private var listeningRecipeSection: some View {
         DSSection(
-            "Listening recipe",
+            "Recipe",
             detail: "Choose how Reader prepares the selection before speaking."
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
@@ -108,71 +98,45 @@ struct ReaderView: View {
     }
 
     private var listeningPipelineStrip: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DSEyebrow(trigger: "Your pipeline", action: "runs left to right")
+        DSPipelineStrip {
+            DSBadge(
+                text: controller.shortcut.display,
+                tone: .neutral,
+                systemImage: "keyboard"
+            )
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    DSBadge(
-                        text: controller.shortcut.display,
-                        tone: .neutral,
-                        systemImage: "keyboard"
-                    )
+            DSPipelineConnector()
 
-                    Image(systemName: "arrow.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
+            DSPipelineStep(
+                title: controller.deliveryMode.title,
+                number: 1,
+                tint: DS.Feature.reader.color
+            )
 
-                    DSPipelineStep(
-                        title: controller.deliveryMode.title,
-                        number: 1,
-                        tint: DS.Feature.reader.color
-                    )
+            DSPipelineConnector()
 
-                    Image(systemName: "arrow.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
-
-                    DSBadge(
-                        text: "Read aloud",
-                        tone: .neutral,
-                        systemImage: "speaker.wave.2.fill"
-                    )
-                }
-                .padding(.vertical, 2)
-            }
+            DSBadge(
+                text: "Read aloud",
+                tone: .neutral,
+                systemImage: "speaker.wave.2.fill"
+            )
         }
         .accessibilityElement(children: .contain)
     }
 
     private var shortcutCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 14) {
-                Text(
-                    isRecording
-                        ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
-                        : "Press to speak, press again to stop. Hyperkey maps Caps Lock to ⌃⌥⌘, so Caps Lock L works."
-                )
-                    .font(DS.meta)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                ShortcutRecorderView(
-                    shortcut: controller.shortcut,
-                    isRecording: $isRecording
-                ) { shortcut in
-                    controller.recordShortcut(shortcut)
-                }
-            }
-
-            if let conflict = controller.shortcutConflict {
-                Label(conflict, systemImage: "exclamationmark.triangle.fill")
-                    .font(DS.meta)
-                    .foregroundStyle(.orange)
-            }
+        DSShortcutCard(
+            systemImage: "keyboard",
+            title: "Press to speak",
+            detail: isRecording
+                ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
+                : "Press again to stop. Hyperkey maps Caps Lock to ⌃⌥⌘, so Caps Lock L works.",
+            shortcut: controller.shortcut,
+            isRecording: $isRecording,
+            conflict: controller.shortcutConflict
+        ) { shortcut in
+            controller.recordShortcut(shortcut)
         }
-        .dsCard()
     }
 
     private var voiceCard: some View {

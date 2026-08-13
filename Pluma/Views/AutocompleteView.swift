@@ -17,7 +17,7 @@ struct AutocompleteView: View {
             heroCard
 
             DSSection(
-                "Suggestion recipe",
+                "Recipe",
                 detail: "Stack directives to shape suggestions. They apply in order."
             ) {
                 LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
@@ -80,40 +80,35 @@ struct AutocompleteView: View {
             )
             .dsCard()
 
-            Text("macOS never shares password fields. Accepted style memory and spelling corrections are stored only when enabled, and can be managed in Settings → Privacy.")
-                .font(DS.meta)
-                .foregroundStyle(.tertiary)
+            DSPageFootnote(
+                text: "macOS never shares password fields. Accepted style memory and spelling corrections are stored only when enabled, and can be managed in Settings → Privacy."
+            )
         }
     }
 
     private var directiveStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(
-                    Array(coordinator.directiveChain.enumerated()), id: \.element
-                ) { index, directive in
-                    if index > 0 {
-                        Image(systemName: "arrow.right")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
+        DSPipelineStrip(eyebrowTrigger: nil) {
+            ForEach(
+                Array(coordinator.directiveChain.enumerated()), id: \.element
+            ) { index, directive in
+                if index > 0 {
+                    DSPipelineConnector()
+                }
 
-                    DSPipelineStep(
-                        title: directive.title,
-                        number: index + 1,
-                        tint: DS.Feature.autocomplete.color,
-                        moveLeft: index > 0
-                            ? { coordinator.moveDirective(directive, offset: -1) }
-                            : nil,
-                        moveRight: index < coordinator.directiveChain.count - 1
-                            ? { coordinator.moveDirective(directive, offset: 1) }
-                            : nil
-                    ) {
-                        coordinator.removeDirective(directive)
-                    }
+                DSPipelineStep(
+                    title: directive.title,
+                    number: index + 1,
+                    tint: DS.Feature.autocomplete.color,
+                    moveLeft: index > 0
+                        ? { coordinator.moveDirective(directive, offset: -1) }
+                        : nil,
+                    moveRight: index < coordinator.directiveChain.count - 1
+                        ? { coordinator.moveDirective(directive, offset: 1) }
+                        : nil
+                ) {
+                    coordinator.removeDirective(directive)
                 }
             }
-            .padding(.vertical, 2)
         }
     }
 

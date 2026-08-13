@@ -9,43 +9,28 @@ struct AnywhereCard: View {
     @State private var isRecording = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 14) {
-                DSIconTile(systemImage: "keyboard", tint: DS.Feature.shortcut.color)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    DSEyebrow(trigger: "In any app", action: model.chainDisplay)
-
-                    Text("Rewrite the selection")
-                        .font(DS.cardTitle)
-
-                    Text(
-                        isRecording
-                            ? "Press the new shortcut. Hyperkey chords work too. Esc cancels."
-                            : model.chain.isEmpty
-                                ? "Pick a recipe above to give the shortcut a pipeline."
-                                : "Runs your pipeline — built above — on text selected in any app."
-                    )
-                        .font(DS.meta)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 12)
-
-                ShortcutRecorderView(
-                    shortcut: controller.shortcut,
-                    isRecording: $isRecording
-                ) { shortcut in
-                    controller.recordShortcut(shortcut)
-                }
-            }
-
-            if let conflict = controller.shortcutConflict {
-                Label(conflict, systemImage: "exclamationmark.triangle.fill")
-                    .font(DS.meta)
-                    .foregroundStyle(.orange)
-            }
+        DSShortcutCard(
+            systemImage: "keyboard",
+            tint: DS.Feature.shortcut.color,
+            eyebrowTrigger: "In any app",
+            eyebrowAction: model.chainDisplay,
+            title: "Rewrite the selection",
+            detail: detail,
+            shortcut: controller.shortcut,
+            isRecording: $isRecording,
+            conflict: controller.shortcutConflict
+        ) { shortcut in
+            controller.recordShortcut(shortcut)
         }
-        .dsCard()
+    }
+
+    private var detail: String {
+        if isRecording {
+            "Press the new shortcut. Hyperkey chords work too. Esc cancels."
+        } else if model.chain.isEmpty {
+            "Pick a recipe above to give the shortcut a pipeline."
+        } else {
+            "Runs your pipeline — built above — on text selected in any app."
+        }
     }
 }

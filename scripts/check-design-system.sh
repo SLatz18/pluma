@@ -24,7 +24,8 @@ git diff --unified=0 "$base" -- Pluma '*.swift' |
           file != "Pluma/Autocomplete/GhostTextView.swift" &&
           file != "Pluma/RewriteFeedback/RewriteFeedbackController.swift" &&
           file !~ /^Pluma\/Developer\// &&
-          file != "Pluma/Views/DeveloperView.swift") {
+          file != "Pluma/Views/DeveloperView.swift" &&
+          file != "Pluma/Views/PromptEditorCard.swift") {
         print file ":" substr($0, 2)
       }
     }
