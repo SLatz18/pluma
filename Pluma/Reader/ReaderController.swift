@@ -183,6 +183,9 @@ final class ReaderController: ObservableObject {
         case .empty:
             DebugLog.log("reader: no selection or clipboard text")
             flash(systemImage: "text.cursor", message: "Select text, or copy it first")
+        case .accessibilityDenied:
+            DebugLog.log("reader blocked: Accessibility access is required", at: .quiet)
+            flash(systemImage: "hand.raised.fill", message: "Grant Accessibility to read selected text")
         case .selection(let text):
             await prepareAndSpeak(text, readingMessage: "Reading…")
         case .clipboard(let text):

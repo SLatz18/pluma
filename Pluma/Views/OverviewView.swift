@@ -114,11 +114,15 @@ struct OverviewView: View {
             case .off: .neutral
             }
         case .reader:
-            switch reader.activity {
-            case .reading: .recording
-            case .processing: .attention
-            case .idle: .success
-            case .off: .neutral
+            if reader.isEnabled && !autocomplete.isPermissionGranted {
+                .attention
+            } else {
+                switch reader.activity {
+                case .reading: .recording
+                case .processing: .attention
+                case .idle: .success
+                case .off: .neutral
+                }
             }
         }
     }
@@ -148,6 +152,9 @@ struct OverviewView: View {
             case .unavailable(let reason): reason
             }
         case .reader:
+            if reader.isEnabled && !autocomplete.isPermissionGranted {
+                return "Needs Accessibility access"
+            }
             return switch reader.activity {
             case .off: feature.disabledStatus
             case .idle: feature.enabledStatus

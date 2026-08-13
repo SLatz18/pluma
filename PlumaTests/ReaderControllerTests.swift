@@ -133,6 +133,25 @@ final class ReaderControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testLiveProviderDoesNotReadStaleClipboardWithoutAccessibility() async {
+        let copier = StubReaderSelectionCopier(result: "stale clipboard text")
+        let provider = LiveReaderTextProvider(
+            focusReader: StubReaderFocusReader(
+                snapshot: ReaderFocusSnapshot(
+                    isAccessibilityTrusted: false,
+                    isSecureField: false,
+                    selectedText: nil
+                )
+            ),
+            selectionCopier: copier
+        )
+
+        let source = await provider.currentSource()
+        XCTAssertEqual(source, .accessibilityDenied)
+        XCTAssertEqual(copier.copyCount, 0)
+    }
+
+    @MainActor
     func testLiveProviderDoesNotCopyFromSecureField() async {
         let copier = StubReaderSelectionCopier(result: "must not be read")
         let provider = LiveReaderTextProvider(
@@ -223,6 +242,23 @@ final class ReaderControllerTests: XCTestCase {
     func testSecureFieldDoesNotSpeak() async {
         let speech = FakeSpeechEngine()
         let provider = StubTextProvider(source: .secureField)
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: speech,
+            textProvider: provider
+        )
+        controller.isEnabled = true
+        await controller.handlePress()
+
+        XCTAssertTrue(speech.spoken.isEmpty)
+        XCTAssertEqual(controller.activity, .idle)
+    }
+
+    @MainActor
+    func testMissingAccessibilityDoesNotSpeakClipboardText() async {
+        let speech = FakeSpeechEngine()
+        let provider = StubTextProvider(source: .accessibilityDenied)
         let controller = ReaderController(
             defaults: defaults,
             overlay: SuggestionOverlayController(),

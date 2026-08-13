@@ -97,8 +97,9 @@ struct SystemReaderSelectionCopier: ReaderSelectionCopying {
     }
 }
 
-/// Live path: Accessibility selection, then the clipboard. Password fields
-/// refuse both.
+/// Live path: Accessibility selection, copied live selection, then the
+/// clipboard. Password fields refuse every source. When Accessibility is not
+/// trusted, stop instead of presenting unrelated clipboard text as a selection.
 struct LiveReaderTextProvider: ReaderTextProviding {
     private let focusReader: any ReaderFocusReading
     private let selectionCopier: any ReaderSelectionCopying
@@ -118,8 +119,11 @@ struct LiveReaderTextProvider: ReaderTextProviding {
             return .selection(selected)
         }
 
+        guard focus.isAccessibilityTrusted else {
+            return .accessibilityDenied
+        }
+
         if
-            focus.isAccessibilityTrusted,
             let copiedSelection = await selectionCopier.copySelectedText(),
             copiedSelection.containsNonWhitespace
         {

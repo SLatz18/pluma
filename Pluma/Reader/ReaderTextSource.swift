@@ -1,13 +1,16 @@
 import Foundation
 
 /// Where Reader got the words it is about to speak. Selection wins; clipboard
-/// is the fallback for apps where Accessibility cannot see a selection.
+/// is the fallback only after Accessibility access lets Reader verify the live
+/// selection path. Without that access, stale clipboard text must not be read
+/// as though it were the user's selection.
 /// A focused password field refuses both — the clipboard might be the password
 /// the writer just copied to paste.
 enum ReaderTextSource: Equatable, Sendable {
     case selection(String)
     case clipboard(String)
     case empty
+    case accessibilityDenied
     case secureField
 
     /// Pure resolution so tests can cover the privacy rules without Accessibility
@@ -26,7 +29,7 @@ enum ReaderTextSource: Equatable, Sendable {
     var spokenText: String? {
         switch self {
         case .selection(let text), .clipboard(let text): text
-        case .empty, .secureField: nil
+        case .empty, .accessibilityDenied, .secureField: nil
         }
     }
 }

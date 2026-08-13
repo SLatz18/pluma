@@ -43,7 +43,7 @@ struct ReaderView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Listen to the selection")
                         .font(DS.cardTitle)
-                    Text("Press the shortcut to start, press it again to stop. Reader captures selections in Google Docs and other apps, then falls back to the clipboard. Escape also stops.")
+                    Text("Press the shortcut to start, press it again to stop. Reader captures the live selection in TextEdit, Google Docs, and other apps. Escape also stops.")
                         .font(DS.cardBody)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -62,7 +62,7 @@ struct ReaderView: View {
                 DSNoticeRow(
                     systemImage: "hand.raised",
                     tint: .orange,
-                    text: "Grant Accessibility to read the selection. Without it, Reader speaks whatever is on the clipboard.",
+                    text: "Grant Accessibility to read selected text. Reader will not substitute unrelated clipboard text when access is missing.",
                     actionTitle: "Grant Accessibility Access…"
                 ) {
                     autocomplete.requestPermission()
@@ -252,7 +252,12 @@ struct ReaderView: View {
     private var statusColor: Color {
         switch controller.activity {
         case .off: .gray
-        case .idle: controller.errorMessage == nil ? .green : .orange
+        case .idle:
+            if !autocomplete.isPermissionGranted || controller.errorMessage != nil {
+                .orange
+            } else {
+                .green
+            }
         case .processing: .orange
         case .reading: .red
         }
@@ -263,7 +268,9 @@ struct ReaderView: View {
         case .off:
             "Reader is off"
         case .idle:
-            if let error = controller.errorMessage {
+            if !autocomplete.isPermissionGranted {
+                "Needs Accessibility access to read the selection"
+            } else if let error = controller.errorMessage {
                 "Couldn’t summarize: \(error)"
             } else {
                 "Ready — press \(controller.shortcut.display) to hear the selection"
