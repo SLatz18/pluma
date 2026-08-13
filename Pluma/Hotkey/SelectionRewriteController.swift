@@ -10,10 +10,16 @@ final class SelectionRewriteController: ObservableObject {
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay: SuggestionOverlayController
+    private let feedback: RewriteFeedbackController
 
-    init(defaults: UserDefaults = .standard, overlay: SuggestionOverlayController = SuggestionOverlayController()) {
+    init(
+        defaults: UserDefaults = .standard,
+        overlay: SuggestionOverlayController = SuggestionOverlayController(),
+        feedback: RewriteFeedbackController = RewriteFeedbackController()
+    ) {
         self.defaults = defaults
         self.overlay = overlay
+        self.feedback = feedback
         shortcut = Preferences.globalShortcut(from: defaults)
         hotkey.onPress = { [weak self] slot in
             guard slot == .rewriteSelection else { return }
@@ -55,6 +61,7 @@ final class SelectionRewriteController: ObservableObject {
             flash(systemImage: "text.cursor", message: "Select some text first")
             return
         }
+        let originalRange = Self.selectedRange(of: element, expectedText: selectedText)
 
         let chain = Preferences.chain(from: defaults)
         guard !chain.isEmpty else {
@@ -100,6 +107,33 @@ final class SelectionRewriteController: ObservableObject {
             if await AXTextInsertion.insert(output, into: element) {
                 DebugLog.log("rewrite inserted OK")
                 overlay.hide(from: .rewrite)
+                feedback.showResult(
+                    original: selectedText,
+                    revised: output,
+                    pipeline: chain.map(\.title).joined(separator: " → "),
+                    destination: "Selection updated",
+                    pasteHint: false,
+                    onUndo: {
+                        guard let originalRange else { return .unavailable }
+                        let rewrittenRange = CFRange(
+                            location: originalRange.location,
+                            length: (output as NSString).length
+                        )
+                        switch await AXTextInsertion.replaceIfUnchanged(
+                            range: rewrittenRange,
+                            expectedText: output,
+                            with: selectedText,
+                            in: element
+                        ) {
+                        case .replaced:
+                            return .restored
+                        case .contentChanged:
+                            return .contentChanged
+                        case .unavailable:
+                            return .unavailable
+                        }
+                    }
+                )
             } else {
                 DebugLog.log("rewrite insertion failed", at: .quiet)
                 flash(
@@ -134,6 +168,22 @@ final class SelectionRewriteController: ObservableObject {
             ) == .success
         else { return nil }
         return selectedValue as? String
+    }
+
+    private static func selectedRange(of element: AXUIElement, expectedText: String) -> CFRange? {
+        var rangeValue: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, kAXSelectedTextRangeAttribute as CFString, &rangeValue
+            ) == .success,
+            let rangeValue,
+            CFGetTypeID(rangeValue) == AXValueGetTypeID()
+        else { return nil }
+
+        var range = CFRange()
+        guard AXValueGetValue(rangeValue as! AXValue, .cfRange, &range) else { return nil }
+        guard range.length == (expectedText as NSString).length else { return nil }
+        return range
     }
 
     // Just below the start of the selection, so the progress chip never covers
