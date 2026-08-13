@@ -44,25 +44,26 @@ enum KeychainStore {
         }
         guard let data = trimmed.data(using: .utf8) else { return }
 
-        let query = baseQuery(account: account)
-        let attributes: [String: Any] = [kSecValueData as String: data]
+        // Delete then add rather than SecItemUpdate. An update leaves the item's
+        // access control list as it was born, so a key first saved under a
+        // different signing identity keeps asking the user to approve every read.
+        // Re-creating the item rebinds the ACL to the identity running now.
+        SecItemDelete(baseQuery(account: account) as CFDictionary)
 
-        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if status == errSecItemNotFound {
-            var insert = query
-            insert[kSecValueData as String] = data
-            insert[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
-            let addStatus = SecItemAdd(insert as CFDictionary, nil)
-            if addStatus != errSecSuccess {
-                DebugLog.log("keychain add failed for \(account): \(addStatus)", at: .quiet)
-            }
-        } else if status != errSecSuccess {
-            DebugLog.log("keychain update failed for \(account): \(status)", at: .quiet)
+        var insert = baseQuery(account: account)
+        insert[kSecValueData as String] = data
+        insert[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
+        let addStatus = SecItemAdd(insert as CFDictionary, nil)
+        if addStatus != errSecSuccess {
+            DebugLog.log("keychain add failed for \(account): \(addStatus)", at: .quiet)
         }
     }
 
+    // Clears the legacy item too, otherwise the next read migrates the old value
+    // back and the key the user just removed reappears.
     static func remove(account: String) {
         SecItemDelete(baseQuery(account: account) as CFDictionary)
+        SecItemDelete(baseQuery(account: account, service: legacyService) as CFDictionary)
     }
 
     // Copies rather than moves: leaving the old item alone keeps a downgrade to a
