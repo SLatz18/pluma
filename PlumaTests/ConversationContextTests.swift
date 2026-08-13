@@ -23,6 +23,104 @@ final class ConversationContextTests: XCTestCase {
         XCTAssertEqual(ConversationContextProvider.normalizedLines([]), [])
     }
 
+    // MARK: Per-app profiles
+
+    private typealias Fragment = ConversationContextProvider.Fragment
+    private typealias Profile = ConversationContextProvider.AppExtractionProfile
+
+    func testProfileSelectionByBundleID() {
+        XCTAssertTrue(Profile.profile(for: "com.tinyspeck.slackmacgap").prefersWebAreaRoot)
+        XCTAssertTrue(Profile.profile(for: "com.apple.mail").prefersWebAreaRoot)
+        XCTAssertFalse(Profile.profile(for: "com.example.other").prefersWebAreaRoot)
+        XCTAssertFalse(Profile.profile(for: nil).prefersWebAreaRoot)
+    }
+
+    func testSlackNoiseLinesDrop() {
+        let profile = Profile.slack
+        for noise in [
+            "9:41 AM", "12:03", "Today at 9:41 AM", "Yesterday at 12:03",
+            "3 replies", "1 reply", "2 reactions", "Add reaction",
+            "Reply in thread", "New messages", "(edited)"
+        ] {
+            XCTAssertTrue(profile.isNoise(noise), "expected noise: \(noise)")
+        }
+        for message in [
+            "Are we still on for Thursday?", "Shipping at 9 tomorrow",
+            "I added 3 replies to the doc"
+        ] {
+            XCTAssertFalse(profile.isNoise(message), "expected kept: \(message)")
+        }
+    }
+
+    func testMailNoiseLinesDrop() {
+        let profile = Profile.mail
+        XCTAssertTrue(profile.isNoise("To:"))
+        XCTAssertTrue(profile.isNoise("Cc:"))
+        XCTAssertTrue(profile.isNoise("9:41 AM"))
+        XCTAssertFalse(profile.isNoise("To: everyone — thanks for the patience"))
+    }
+
+    func testGenericProfileKeepsEverything() {
+        XCTAssertFalse(Profile.generic.isNoise("9:41 AM"))
+    }
+
+    // MARK: Sender labeling
+
+    func testHeadingSenderFoldsIntoNextLine() {
+        let fragments = [
+            Fragment(text: "Alice Chen", isHeading: true),
+            Fragment(text: "Can you review the doc?", isHeading: false),
+            Fragment(text: "Bob", isHeading: true),
+            Fragment(text: "On it.", isHeading: false)
+        ]
+        XCTAssertEqual(
+            ConversationContextProvider.senderLabeled(fragments),
+            ["Alice Chen: Can you review the doc?", "Bob: On it."]
+        )
+    }
+
+    func testSentenceLikeHeadingIsNotTreatedAsSender() {
+        let fragments = [
+            Fragment(text: "Weekly report attached.", isHeading: true),
+            Fragment(text: "See numbers below", isHeading: false)
+        ]
+        XCTAssertEqual(
+            ConversationContextProvider.senderLabeled(fragments),
+            ["Weekly report attached.", "See numbers below"]
+        )
+    }
+
+    func testConsecutiveHeadingsStayUnlabeled() {
+        let fragments = [
+            Fragment(text: "Alice", isHeading: true),
+            Fragment(text: "Bob", isHeading: true),
+            Fragment(text: "hello", isHeading: false)
+        ]
+        XCTAssertEqual(
+            ConversationContextProvider.senderLabeled(fragments),
+            ["Alice", "Bob: hello"]
+        )
+    }
+
+    func testTrailingHeadingSurvivesAlone() {
+        let fragments = [Fragment(text: "Alice", isHeading: true)]
+        XCTAssertEqual(ConversationContextProvider.senderLabeled(fragments), ["Alice"])
+    }
+
+    func testShapedLinesFilterThenLabelThenDedupe() {
+        let fragments = [
+            Fragment(text: "Alice", isHeading: true),
+            Fragment(text: "9:41 AM", isHeading: false),
+            Fragment(text: "Lunch?", isHeading: false),
+            Fragment(text: "Lunch?", isHeading: false),
+            Fragment(text: "3 replies", isHeading: false)
+        ]
+        XCTAssertEqual(
+            ConversationContextProvider.shapedLines(fragments, profile: .slack),
+            ["Alice: Lunch?"]
+        )
+    }
+
     // MARK: Recency-weighted truncation
 
     func testUnderCapKeepsEverythingInOrder() {

@@ -42,7 +42,8 @@ enum ConversationContextProvider {
         guard let target = frontmostTarget() else { return nil }
 
         if AXIsProcessTrusted() {
-            let lines = collectVisibleText(pid: target.pid)
+            let profile = AppExtractionProfile.profile(for: target.bundleID)
+            let lines = collectVisibleText(pid: target.pid, profile: profile)
             let text = recencyTruncated(lines, cap: characterCap)
             if text.count >= minimumUsefulYield {
                 DebugLog.log("conversation context via AX: \(text.count) chars")
@@ -110,26 +111,86 @@ enum ConversationContextProvider {
 
     // MARK: AX walk
 
-    private nonisolated static func frontmostTarget() -> (pid: pid_t, name: String?)? {
+    private nonisolated static func frontmostTarget(
+    ) -> (pid: pid_t, name: String?, bundleID: String?)? {
         guard
             let app = NSWorkspace.shared.frontmostApplication,
             let bundleID = app.bundleIdentifier,
             bundleID != Bundle.main.bundleIdentifier
         else { return nil }
-        return (app.processIdentifier, app.localizedName)
+        return (app.processIdentifier, app.localizedName, bundleID)
     }
 
-    private nonisolated static func collectVisibleText(pid: pid_t) -> [String] {
+    private nonisolated static func collectVisibleText(
+        pid: pid_t, profile: AppExtractionProfile
+    ) -> [String] {
         let appElement = AXUIElementCreateApplication(pid)
         guard
             let window = copyElement(appElement, kAXFocusedWindowAttribute)
                 ?? copyElement(appElement, kAXMainWindowAttribute)
         else { return [] }
 
-        var lines: [String] = []
+        // Apps that render their thread in a web view (Slack's Electron shell,
+        // Mail's reading pane) put everything worth reading under an AXWebArea.
+        // Rooting the walk there drops sidebars, toolbars, and — in Mail — the
+        // inbox table that sits next to the reading pane in the same window.
+        let root = profile.prefersWebAreaRoot
+            ? (deepestWebArea(under: window) ?? window)
+            : window
+
+        var fragments: [Fragment] = []
         var visited = 0
-        walk(window, depth: 0, visited: &visited, into: &lines)
-        return normalizedLines(lines)
+        walk(root, depth: 0, visited: &visited, profile: profile, into: &fragments)
+        return shapedLines(fragments, profile: profile)
+    }
+
+    /// Breadth-first search for the largest web area: Slack nests a small one
+    /// for the search bar, so "first" is wrong — the message pane is the one
+    /// with the most descendants worth visiting, approximated by pixel size.
+    private nonisolated static func deepestWebArea(under window: AXUIElement) -> AXUIElement? {
+        var queue: [AXUIElement] = [window]
+        var best: (element: AXUIElement, area: CGFloat)?
+        var visited = 0
+        while !queue.isEmpty, visited < 400 {
+            let element = queue.removeFirst()
+            visited += 1
+            let role = copyString(element, kAXRoleAttribute) ?? ""
+            if role == "AXWebArea" {
+                let area = pixelArea(of: element)
+                if best == nil || area > best!.area {
+                    best = (element, area)
+                }
+                continue // A web area's own children are walked later, in order.
+            }
+            if let children = copyChildren(element) {
+                queue.append(contentsOf: children)
+            }
+        }
+        return best?.element
+    }
+
+    private nonisolated static func pixelArea(of element: AXUIElement) -> CGFloat {
+        var value: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, kAXSizeAttribute as CFString, &value
+            ) == .success,
+            let value,
+            CFGetTypeID(value) == AXValueGetTypeID()
+        else { return 0 }
+        var size = CGSize.zero
+        // swiftlint:disable:next force_cast
+        guard AXValueGetValue(value as! AXValue, .cgSize, &size) else { return 0 }
+        return size.width * size.height
+    }
+
+    /// One captured text node, tagged with enough tree context for the pure
+    /// shaping pass to tell sender headings from message bodies.
+    struct Fragment: Equatable, Sendable {
+        let text: String
+        /// True when the tree itself marked this line as a heading — Slack and
+        /// Mail both expose sender names that way where they expose them at all.
+        let isHeading: Bool
     }
 
     // Depth-first in child order, which is document order in every app that
@@ -142,30 +203,43 @@ enum ConversationContextProvider {
         _ element: AXUIElement,
         depth: Int,
         visited: inout Int,
-        into lines: inout [String]
+        profile: AppExtractionProfile,
+        into fragments: inout [Fragment]
     ) {
         guard depth <= maximumDepth, visited <= maximumNodesVisited else { return }
         visited += 1
 
         let role = copyString(element, kAXRoleAttribute) ?? ""
         // Window chrome would drown the thread in "Reply" and "Search" labels.
-        guard !chromeRoles.contains(role) else { return }
+        guard !chromeRoles.contains(role), !profile.skippedRoles.contains(role) else {
+            return
+        }
+        // Some apps label their chrome panes (Slack: "Channel sidebar",
+        // "Workspace switcher") rather than using chrome roles; skip whole
+        // subtrees the profile names.
+        if containerRoles.contains(role), !profile.skippedContainerDescriptions.isEmpty {
+            let description = (copyString(element, kAXDescriptionAttribute) ?? "")
+                .lowercased()
+            if profile.skippedContainerDescriptions.contains(
+                where: { description.contains($0) }
+            ) { return }
+        }
 
         if textRoles.contains(role) {
-            appendText(from: element, role: role, into: &lines)
+            appendText(from: element, role: role, into: &fragments)
         }
 
         guard let children = copyChildren(element) else { return }
         for child in children {
             guard visited <= maximumNodesVisited else { return }
-            walk(child, depth: depth + 1, visited: &visited, into: &lines)
+            walk(child, depth: depth + 1, visited: &visited, profile: profile, into: &fragments)
         }
     }
 
     private nonisolated static func appendText(
         from element: AXUIElement,
         role: String,
-        into lines: inout [String]
+        into fragments: inout [Fragment]
     ) {
         let raw = copyString(element, kAXValueAttribute)
             ?? copyString(element, kAXTitleAttribute)
@@ -174,8 +248,19 @@ enum ConversationContextProvider {
         guard let raw else { return }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        lines.append(String(trimmed.prefix(maximumLineLength)))
+        fragments.append(
+            Fragment(
+                text: String(trimmed.prefix(maximumLineLength)),
+                isHeading: role == "AXHeading"
+            )
+        )
     }
+
+    private nonisolated static let containerRoles: Set<String> = [
+        kAXGroupRole as String,
+        "AXList",
+        kAXScrollAreaRole as String
+    ]
 
     private nonisolated static let textRoles: Set<String> = [
         kAXStaticTextRole as String,
@@ -193,6 +278,49 @@ enum ConversationContextProvider {
     ]
 
     // MARK: Text shaping (pure — exercised directly by tests)
+
+    /// Filters per-app noise, then labels senders. Runs on captured fragments
+    /// before the generic dedupe/truncation so the model reads "Alice: text"
+    /// instead of a heading line floating above an unattributed message.
+    nonisolated static func shapedLines(
+        _ fragments: [Fragment], profile: AppExtractionProfile
+    ) -> [String] {
+        let kept = fragments.filter { !profile.isNoise($0.text) }
+        return normalizedLines(senderLabeled(kept))
+    }
+
+    /// Where the tree marks a sender name as a heading, folds it into the
+    /// next message line as "Alice: message". A heading followed by another
+    /// heading (or nothing) stays as-is — better an unlabeled line than a
+    /// wrongly attributed one.
+    nonisolated static func senderLabeled(_ fragments: [Fragment]) -> [String] {
+        var output: [String] = []
+        var index = 0
+        while index < fragments.count {
+            let fragment = fragments[index]
+            if fragment.isHeading,
+               looksLikeSenderName(fragment.text),
+               index + 1 < fragments.count,
+               !fragments[index + 1].isHeading {
+                output.append("\(fragment.text): \(fragments[index + 1].text)")
+                index += 2
+                continue
+            }
+            output.append(fragment.text)
+            index += 1
+        }
+        return output
+    }
+
+    /// A sender heading is a short run of words with no sentence punctuation —
+    /// "Alice Chen", not "Weekly report attached." Section headings that read
+    /// like sentences must not swallow the line after them.
+    nonisolated static func looksLikeSenderName(_ text: String) -> Bool {
+        guard text.count <= 60, !text.isEmpty else { return false }
+        guard text.rangeOfCharacter(from: CharacterSet(charactersIn: ".!?:;,")) == nil
+        else { return false }
+        return text.split(separator: " ").count <= 5
+    }
 
     /// Collapses consecutive duplicate lines. Chat apps often expose the same
     /// string twice (a label and its value); repeating it only wastes budget.
@@ -221,6 +349,84 @@ enum ConversationContextProvider {
             result = "…\n" + result
         }
         return result
+    }
+
+    // MARK: Per-app extraction profiles
+
+    /// What the generic AX walk should ignore or prefer in a specific app.
+    /// The generic profile is deliberately empty: unknown apps keep today's
+    /// behavior exactly.
+    struct AppExtractionProfile: Sendable {
+        /// Root the walk at the window's largest AXWebArea when one exists.
+        let prefersWebAreaRoot: Bool
+        /// Extra roles skipped wholesale, beyond the shared chrome roles.
+        let skippedRoles: Set<String>
+        /// Lowercased substrings of AXDescription on group/list/scroll-area
+        /// containers whose whole subtree is chrome (sidebars, switchers).
+        let skippedContainerDescriptions: [String]
+        /// Lines matching any of these are dropped before shaping.
+        let noisePatterns: [NSRegularExpression]
+
+        nonisolated static let generic = AppExtractionProfile(
+            prefersWebAreaRoot: false,
+            skippedRoles: [],
+            skippedContainerDescriptions: [],
+            noisePatterns: []
+        )
+
+        /// Slack's Electron shell exposes one big web area; the sidebar and
+        /// workspace switcher live in labeled containers inside it. Timestamps,
+        /// reaction counts, and reply-count buttons are real text nodes that
+        /// only waste budget.
+        nonisolated static let slack = AppExtractionProfile(
+            prefersWebAreaRoot: true,
+            skippedRoles: [],
+            skippedContainerDescriptions: [
+                "channel sidebar", "workspace switcher", "history navigation",
+                "primary view navigation", "search"
+            ],
+            noisePatterns: compiled([
+                #"^\d{1,2}:\d{2}(\s?[AP]M)?$"#,
+                #"^(Today|Yesterday) at \d{1,2}:\d{2}(\s?[AP]M)?$"#,
+                #"^\d+ (repl(y|ies)|reaction[s]?)$"#,
+                #"^(Add reaction|Reply in thread|New messages?|\(edited\))$"#,
+                #"reacted with :[a-z0-9_+-]+:"#
+            ])
+        )
+
+        /// Mail shows the inbox table and the reading pane in one window; the
+        /// table (and the mailbox outline) must not leak into the thread. The
+        /// message body itself is a web area.
+        nonisolated static let mail = AppExtractionProfile(
+            prefersWebAreaRoot: true,
+            skippedRoles: [kAXTableRole as String, kAXOutlineRole as String],
+            skippedContainerDescriptions: ["message list", "mailbox list", "favorites"],
+            noisePatterns: compiled([
+                #"^\d{1,2}:\d{2}(\s?[AP]M)?$"#,
+                #"^(To|Cc|Bcc):$"#
+            ])
+        )
+
+        nonisolated static func profile(for bundleID: String?) -> AppExtractionProfile {
+            switch bundleID {
+            case "com.tinyspeck.slackmacgap": return .slack
+            case "com.apple.mail": return .mail
+            default: return .generic
+            }
+        }
+
+        nonisolated func isNoise(_ line: String) -> Bool {
+            let range = NSRange(line.startIndex..., in: line)
+            return noisePatterns.contains {
+                $0.firstMatch(in: line, range: range) != nil
+            }
+        }
+
+        private nonisolated static func compiled(_ patterns: [String]) -> [NSRegularExpression] {
+            patterns.compactMap {
+                try? NSRegularExpression(pattern: $0, options: [.caseInsensitive])
+            }
+        }
     }
 
     // MARK: AX plumbing
