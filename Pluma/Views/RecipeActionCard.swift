@@ -1,9 +1,14 @@
 import SwiftUI
 
 /// One tappable directive card in a recipe/pipeline builder. Rewrite,
-/// Autocomplete, and Dictation all render their builders with this card so
+/// Autocomplete, Dictation, and Reader all render their builders with this card so
 /// the look and interactions stay identical across features.
 struct RecipeActionCard: View {
+    enum SelectionBehavior {
+        case pipelineStep
+        case exclusiveChoice
+    }
+
     let title: String
     let subtitle: String
     let symbolName: String
@@ -13,6 +18,7 @@ struct RecipeActionCard: View {
     let eyebrow: String
     /// 1-based position in the pipeline, nil when the card isn't a step.
     let stepNumber: Int?
+    let selectionBehavior: SelectionBehavior
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -24,6 +30,7 @@ struct RecipeActionCard: View {
         tint: Color,
         eyebrow: String,
         stepNumber: Int?,
+        selectionBehavior: SelectionBehavior = .pipelineStep,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -32,6 +39,7 @@ struct RecipeActionCard: View {
         self.tint = tint
         self.eyebrow = eyebrow
         self.stepNumber = stepNumber
+        self.selectionBehavior = selectionBehavior
         self.action = action
     }
 
@@ -43,6 +51,7 @@ struct RecipeActionCard: View {
             tint: intent.feature.color,
             eyebrow: "Selected text",
             stepNumber: stepNumber,
+            selectionBehavior: .pipelineStep,
             action: action
         )
     }
@@ -93,10 +102,15 @@ struct RecipeActionCard: View {
     }
 
     private var accessibilityLabel: String {
-        if let stepNumber {
+        switch (selectionBehavior, stepNumber) {
+        case (.pipelineStep, .some(let stepNumber)):
             "\(title): step \(stepNumber) in your pipeline. Tap to remove."
-        } else {
+        case (.pipelineStep, .none):
             "\(title): \(subtitle). Tap to add to your pipeline."
+        case (.exclusiveChoice, .some):
+            "\(title): selected."
+        case (.exclusiveChoice, .none):
+            "\(title): \(subtitle). Tap to choose."
         }
     }
 }

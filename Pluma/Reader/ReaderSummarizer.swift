@@ -19,6 +19,20 @@ enum ReaderDeliveryMode: String, CaseIterable, Codable, Identifiable, Sendable {
         case .summarizeWhenHelpful: "Summarize & Read"
         }
     }
+
+    var shortDescription: String {
+        switch self {
+        case .verbatim: "Keep every word exactly as written"
+        case .summarizeWhenHelpful: "Condense long text; preserve key details"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .verbatim: "text.quote"
+        case .summarizeWhenHelpful: "text.alignleft"
+        }
+    }
 }
 
 @MainActor

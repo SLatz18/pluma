@@ -174,11 +174,16 @@ struct SettingsView: View {
                         "Paste from Other Apps",
                         detail: pasteboardPermissionDetail
                     ) {
-                        DSBadge(
-                            text: pasteboardPermissionLabel,
-                            tone: pasteboardPermissionTone,
-                            systemImage: pasteboardPermissionSymbol
-                        )
+                        HStack(spacing: DS.Spacing.small) {
+                            DSBadge(
+                                text: pasteboardPermissionLabel,
+                                tone: pasteboardPermissionTone,
+                                systemImage: pasteboardPermissionSymbol
+                            )
+                            Button("Manage…") {
+                                PasteboardAccess.openPrivacySettings()
+                            }
+                        }
                     }
 
                     if let conflict = clipboardRewrite.shortcutConflict {
@@ -200,7 +205,7 @@ struct SettingsView: View {
             "macOS is blocking clipboard reads, so this shortcut cannot work. "
                 + "Allow pluma under Privacy & Security."
         case .alwaysAllow:
-            "pluma can read the clipboard without prompting."
+            "pluma can read the clipboard without prompting. Reader uses this as a fallback in Google Docs."
         default:
             "macOS may ask once the first time pluma reads your clipboard."
         }

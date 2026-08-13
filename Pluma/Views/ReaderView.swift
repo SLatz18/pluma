@@ -9,6 +9,11 @@ struct ReaderView: View {
     @State private var isRecording = false
     @State private var playgroundText = ""
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
+
     var body: some View {
         DSFeaturePage(
             flowDefinition,
@@ -18,7 +23,7 @@ struct ReaderView: View {
 
             shortcutCard
 
-            pipelineCard
+            listeningRecipeSection
 
             voiceCard
 
@@ -38,7 +43,7 @@ struct ReaderView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Listen to the selection")
                         .font(DS.cardTitle)
-                    Text("Press the shortcut to start, press it again to stop. If nothing is selected, Reader uses the clipboard. Escape also stops.")
+                    Text("Press the shortcut to start, press it again to stop. Reader captures selections in Google Docs and other apps, then falls back to the clipboard. Escape also stops.")
                         .font(DS.cardBody)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -67,38 +72,77 @@ struct ReaderView: View {
         .dsCard()
     }
 
-    private var pipelineCard: some View {
-        DSSection("Audio pipeline", detail: "Choose what the voice receives before it starts speaking.") {
-            VStack(spacing: 0) {
-                DSSettingRow(
-                    "Delivery",
-                    detail: controller.deliveryMode == .verbatim
-                        ? "Speak every word exactly as written."
-                        : "Use the Writing model to condense longer text while preserving key details."
-                ) {
-                    Picker("Delivery", selection: $controller.deliveryMode) {
-                        ForEach(ReaderDeliveryMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 310)
-                }
-
-                if controller.deliveryMode == .summarizeWhenHelpful {
-                    DSRowDivider()
-                    DSSettingRow(
-                        "Summary model",
-                        detail: "Shared with Rewrite and configurable in Settings → Writing."
+    private var listeningRecipeSection: some View {
+        DSSection(
+            "Listening recipe",
+            detail: "Choose how Reader prepares the selection before speaking."
+        ) {
+            LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
+                ForEach(ReaderDeliveryMode.allCases) { mode in
+                    RecipeActionCard(
+                        title: mode.title,
+                        subtitle: mode.shortDescription,
+                        symbolName: mode.symbolName,
+                        tint: DS.Feature.reader.color,
+                        eyebrow: "Before speaking",
+                        stepNumber: controller.deliveryMode == mode ? 1 : nil,
+                        selectionBehavior: .exclusiveChoice
                     ) {
-                        Label(model.provider.title, systemImage: model.provider.symbolName)
-                            .font(DS.meta.weight(.medium))
+                        controller.deliveryMode = mode
                     }
                 }
             }
-            .dsCard()
+
+            listeningPipelineStrip
+
+            if controller.deliveryMode == .summarizeWhenHelpful {
+                DSSharedSettingLink(
+                    title: "Summary model",
+                    value: model.provider.title,
+                    systemImage: model.provider.symbolName,
+                    destination: .writing
+                )
+                .dsCard()
+            }
         }
+    }
+
+    private var listeningPipelineStrip: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DSEyebrow(trigger: "Your pipeline", action: "runs left to right")
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    DSBadge(
+                        text: controller.shortcut.display,
+                        tone: .neutral,
+                        systemImage: "keyboard"
+                    )
+
+                    Image(systemName: "arrow.right")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.tertiary)
+
+                    DSPipelineStep(
+                        title: controller.deliveryMode.title,
+                        number: 1,
+                        tint: DS.Feature.reader.color
+                    )
+
+                    Image(systemName: "arrow.right")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.tertiary)
+
+                    DSBadge(
+                        text: "Read aloud",
+                        tone: .neutral,
+                        systemImage: "speaker.wave.2.fill"
+                    )
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .accessibilityElement(children: .contain)
     }
 
     private var shortcutCard: some View {

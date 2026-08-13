@@ -58,6 +58,14 @@ final class ReaderControllerTests: XCTestCase {
         XCTAssertEqual(Preferences.readerDeliveryMode(from: defaults), .summarizeWhenHelpful)
     }
 
+    func testReaderDeliveryModesProvideBuilderCopyAndSymbols() {
+        for mode in ReaderDeliveryMode.allCases {
+            XCTAssertFalse(mode.title.isEmpty)
+            XCTAssertFalse(mode.shortDescription.isEmpty)
+            XCTAssertFalse(mode.symbolName.isEmpty)
+        }
+    }
+
     func testReaderSummaryDirectivePreservesImportantSpokenDetails() {
         let directive = PromptComposer.readerSummaryDirective.lowercased()
         for detail in ["names", "numbers", "dates", "deadlines", "decisions", "action items"] {
@@ -103,6 +111,63 @@ final class ReaderControllerTests: XCTestCase {
         )
         XCTAssertEqual(source, .secureField)
         XCTAssertNil(source.spokenText)
+    }
+
+    @MainActor
+    func testLiveProviderCopiesSelectionWhenAccessibilityCannotExposeIt() async {
+        let copier = StubReaderSelectionCopier(result: "selected in Google Docs")
+        let provider = LiveReaderTextProvider(
+            focusReader: StubReaderFocusReader(
+                snapshot: ReaderFocusSnapshot(
+                    isAccessibilityTrusted: true,
+                    isSecureField: false,
+                    selectedText: nil
+                )
+            ),
+            selectionCopier: copier
+        )
+
+        let source = await provider.currentSource()
+        XCTAssertEqual(source, .selection("selected in Google Docs"))
+        XCTAssertEqual(copier.copyCount, 1)
+    }
+
+    @MainActor
+    func testLiveProviderDoesNotCopyFromSecureField() async {
+        let copier = StubReaderSelectionCopier(result: "must not be read")
+        let provider = LiveReaderTextProvider(
+            focusReader: StubReaderFocusReader(
+                snapshot: ReaderFocusSnapshot(
+                    isAccessibilityTrusted: true,
+                    isSecureField: true,
+                    selectedText: nil
+                )
+            ),
+            selectionCopier: copier
+        )
+
+        let source = await provider.currentSource()
+        XCTAssertEqual(source, .secureField)
+        XCTAssertEqual(copier.copyCount, 0)
+    }
+
+    @MainActor
+    func testLiveProviderPrefersNativeSelectionWithoutCopying() async {
+        let copier = StubReaderSelectionCopier(result: "copied fallback")
+        let provider = LiveReaderTextProvider(
+            focusReader: StubReaderFocusReader(
+                snapshot: ReaderFocusSnapshot(
+                    isAccessibilityTrusted: true,
+                    isSecureField: false,
+                    selectedText: "native selection"
+                )
+            ),
+            selectionCopier: copier
+        )
+
+        let source = await provider.currentSource()
+        XCTAssertEqual(source, .selection("native selection"))
+        XCTAssertEqual(copier.copyCount, 0)
     }
 
     // MARK: - Conflicts
@@ -377,6 +442,28 @@ private final class StubTextProvider: ReaderTextProviding {
     }
 
     func currentSource() async -> ReaderTextSource { source }
+}
+
+@MainActor
+private struct StubReaderFocusReader: ReaderFocusReading {
+    let snapshot: ReaderFocusSnapshot
+
+    func currentSnapshot() -> ReaderFocusSnapshot { snapshot }
+}
+
+@MainActor
+private final class StubReaderSelectionCopier: ReaderSelectionCopying {
+    let result: String?
+    private(set) var copyCount = 0
+
+    init(result: String?) {
+        self.result = result
+    }
+
+    func copySelectedText() async -> String? {
+        copyCount += 1
+        return result
+    }
 }
 
 @MainActor
