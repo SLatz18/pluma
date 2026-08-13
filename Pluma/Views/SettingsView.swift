@@ -302,7 +302,7 @@ struct SettingsView: View {
             DSStatusIndicator(
                 tone: .attention,
                 text: capsLock.lastError
-                    ?? "Needs Input Monitoring permission in System Settings"
+                    ?? "Needs Accessibility permission in System Settings"
             )
         case .off:
             DSStatusIndicator(tone: .neutral, text: "Off")

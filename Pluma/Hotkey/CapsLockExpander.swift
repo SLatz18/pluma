@@ -9,7 +9,7 @@ extension Notification.Name {
 /// Turns Caps Lock into Pluma's shortcut modifier without Hyperkey.
 ///
 /// Layer 1: HID remap Caps → F18 (kills toggle/LED).
-/// Layer 2: HID-level CGEventTap treats F18 as hold-to-modify, ORing the
+/// Layer 2: session CGEventTap treats F18 as hold-to-modify, ORing the
 /// chosen Caps chord (⌃⌥⌘ or ⌃⌥⌘⇧) onto other keys.
 /// Layer 3: re-arm on tapDisabled + wake/lock — the reliability Hyperkey lacks.
 @MainActor
@@ -138,15 +138,19 @@ final class CapsLockExpander: ObservableObject {
         }
 
         do {
-            try ensureRemap()
+            // Tap first: a failed tap must not leave Caps aliased to a dead key.
             try startTap()
+            try ensureRemap()
             status = .active
             lastError = nil
         } catch {
             stopTapAndClearRemap()
+            let wasBlocked = status == .needsPermission
             status = .needsPermission
             lastError = error.localizedDescription
-            DebugLog.log("caps expander: \(error.localizedDescription)")
+            if !wasBlocked {
+                DebugLog.log("caps expander: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -197,7 +201,11 @@ final class CapsLockExpander: ObservableObject {
         let userInfo = Unmanaged.passUnretained(tapState).toOpaque()
         guard
             let tap = CGEvent.tapCreate(
-                tap: .cghidEventTap,
+                // Session tap, not `.cghidEventTap`: HID-level taps are gated
+                // behind Input Monitoring, while a session tap needs only the
+                // Accessibility grant Pluma already holds. This is the level
+                // Hyperkey works at, and it still sees keys before any app.
+                tap: .cgSessionEventTap,
                 place: .headInsertEventTap,
                 options: .defaultTap,
                 eventsOfInterest: mask,
@@ -308,7 +316,7 @@ enum CapsLockExpanderError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .tapCreateFailed:
-            "Couldn't create the Caps Lock event tap. Grant Input Monitoring for pluma in System Settings."
+            "Couldn't create the Caps Lock event tap. Grant Accessibility for pluma in System Settings."
         }
     }
 }
