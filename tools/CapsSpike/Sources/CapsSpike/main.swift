@@ -16,6 +16,43 @@
 import SwiftUI
 import AppKit
 import Carbon.HIToolbox
+import IOKit
+import IOKit.hidsystem
+
+// MARK: - Real Caps Lock state
+
+/// Physical Caps is aliased to F18, so the OS never toggles caps for us. To
+/// keep a lone Caps tap working as a real Caps Lock, we drive the state (and
+/// the LED) directly through IOHIDSystem.
+enum CapsLockState {
+    private static func withConnection<T>(_ body: (io_connect_t) -> T) -> T? {
+        let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOHIDSystem"))
+        guard service != 0 else { return nil }
+        defer { IOObjectRelease(service) }
+        var handle: io_connect_t = 0
+        guard IOServiceOpen(service, mach_task_self_, UInt32(kIOHIDParamConnectType), &handle)
+            == KERN_SUCCESS
+        else { return nil }
+        defer { IOServiceClose(handle) }
+        return body(handle)
+    }
+
+    static func isOn() -> Bool {
+        withConnection { handle in
+            var state = false
+            IOHIDGetModifierLockState(handle, Int32(kIOHIDCapsLockState), &state)
+            return state
+        } ?? false
+    }
+
+    static func toggle() {
+        _ = withConnection { handle in
+            var state = false
+            IOHIDGetModifierLockState(handle, Int32(kIOHIDCapsLockState), &state)
+            IOHIDSetModifierLockState(handle, Int32(kIOHIDCapsLockState), !state)
+        }
+    }
+}
 
 // MARK: - HID remap (mirror of Pluma/Hotkey/CapsLockHIDRemap.swift)
 
@@ -74,15 +111,47 @@ enum CapsLockHIDRemap {
 
 enum CapsEvent: Sendable { case capsDown, capsUp, otherKey }
 
+/// Dual-role Caps: HOLD it with another key and it is the chord modifier; TAP
+/// it alone and it is still a real Caps Lock toggle. A tap only counts if no
+/// other key was pressed during the hold and the press was shorter than
+/// `tapThreshold` — otherwise a slow "hold and think" never surprises you with
+/// caps.
 struct CapsMachine: Sendable {
-    enum Output: Equatable, Sendable { case consume, passUnmodified, passWithCapsChord }
-    private(set) var capsHeld = false
+    enum Output: Equatable, Sendable {
+        case consume
+        case consumeAndToggleCapsLock
+        case passUnmodified
+        case passWithCapsChord
+    }
 
-    mutating func handle(_ event: CapsEvent) -> Output {
+    var tapThreshold: TimeInterval = 0.3
+    var tapTogglesCapsLock = true
+
+    private(set) var capsHeld = false
+    private var downAt: TimeInterval = 0
+    private var usedAsModifier = false
+
+    mutating func handle(_ event: CapsEvent, at now: TimeInterval) -> Output {
         switch event {
-        case .capsDown: capsHeld = true; return .consume
-        case .capsUp: capsHeld = false; return .consume
-        case .otherKey: return capsHeld ? .passWithCapsChord : .passUnmodified
+        case .capsDown:
+            // Key autorepeat re-sends keyDown; only the first one starts the clock.
+            if !capsHeld {
+                downAt = now
+                usedAsModifier = false
+            }
+            capsHeld = true
+            return .consume
+        case .capsUp:
+            capsHeld = false
+            let wasQuick = (now - downAt) <= tapThreshold
+            if tapTogglesCapsLock, !usedAsModifier, wasQuick {
+                return .consumeAndToggleCapsLock
+            }
+            return .consume
+        case .otherKey:
+            guard capsHeld else { return .passUnmodified }
+            usedAsModifier = true
+            return .passWithCapsChord
         }
     }
 }
@@ -107,6 +176,7 @@ final class TapState: @unchecked Sendable {
 
     var capsHeldMirror = false
     var chordFireCount = 0
+    var capsTapCount = 0
     var events: [EventRecord] = []
 
     static let aliasKeyCode = Int64(kVK_F18)
@@ -127,9 +197,10 @@ final class TapState: @unchecked Sendable {
         else if type == .keyDown || type == .keyUp { event = .otherKey }
         else { return .passUnmodified }
 
-        let output = machine.handle(event)
+        let output = machine.handle(event, at: CFAbsoluteTimeGetCurrent())
         capsHeldMirror = machine.capsHeld
         if output == .passWithCapsChord, type == .keyDown { chordFireCount += 1 }
+        if output == .consumeAndToggleCapsLock { capsTapCount += 1 }
 
         let label: String
         switch event {
@@ -144,6 +215,7 @@ final class TapState: @unchecked Sendable {
     private func verdictName(_ o: CapsMachine.Output) -> String {
         switch o {
         case .consume: "consumed"
+        case .consumeAndToggleCapsLock: "CAPS TOGGLE"
         case .passUnmodified: "passed"
         case .passWithCapsChord: "chord+"
         }
@@ -154,9 +226,15 @@ final class TapState: @unchecked Sendable {
         if events.count > 40 { events.removeFirst(events.count - 40) }
     }
 
-    func snapshot() -> (held: Bool, fires: Int, events: [EventRecord]) {
+    func snapshot() -> (held: Bool, fires: Int, taps: Int, events: [EventRecord]) {
         lock.lock(); defer { lock.unlock() }
-        return (capsHeldMirror, chordFireCount, events)
+        return (capsHeldMirror, chordFireCount, capsTapCount, events)
+    }
+
+    func configure(tapToggles: Bool, threshold: TimeInterval) {
+        lock.lock(); defer { lock.unlock() }
+        machine.tapTogglesCapsLock = tapToggles
+        machine.tapThreshold = threshold
     }
 }
 
@@ -173,6 +251,10 @@ final class SpikeController: ObservableObject {
     @Published var includesShift = false
     @Published var capsHeld = false
     @Published var chordFires = 0
+    @Published var capsTaps = 0
+    @Published var capsLockOn = false
+    @Published var tapTogglesCapsLock = true
+    @Published var tapThreshold: TimeInterval = 0.3
     @Published var events: [EventRecord] = []
     @Published var lastError: String?
 
@@ -198,6 +280,7 @@ final class SpikeController: ObservableObject {
         applyFlags()
         do {
             try startTap()
+            applyMachineConfig()
             try applyRemap()
             running = true
             lastError = nil
@@ -216,6 +299,20 @@ final class SpikeController: ObservableObject {
     func toggleShift(_ on: Bool) {
         includesShift = on
         applyFlags()
+    }
+
+    func setTapToggles(_ on: Bool) {
+        tapTogglesCapsLock = on
+        applyMachineConfig()
+    }
+
+    func setTapThreshold(_ seconds: TimeInterval) {
+        tapThreshold = seconds
+        applyMachineConfig()
+    }
+
+    private func applyMachineConfig() {
+        state.configure(tapToggles: tapTogglesCapsLock, threshold: tapThreshold)
     }
 
     func openAccessibilitySettings() {
@@ -237,6 +334,8 @@ final class SpikeController: ObservableObject {
         let snap = state.snapshot()
         capsHeld = snap.held
         chordFires = snap.fires
+        capsTaps = snap.taps
+        capsLockOn = CapsLockState.isOn()
         events = snap.events.reversed()
         remapApplied = state.tap != nil ? CapsLockHIDRemap.isApplied() : remapApplied
     }
@@ -282,6 +381,9 @@ final class SpikeController: ObservableObject {
                     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
                     switch state.process(type: type, keyCode: keyCode) {
                     case .consume:
+                        return nil
+                    case .consumeAndToggleCapsLock:
+                        CapsLockState.toggle()
                         return nil
                     case .passUnmodified:
                         return Unmanaged.passUnretained(event)
@@ -383,10 +485,18 @@ struct ContentView: View {
                     StatusDot(ok: c.remapApplied, label: "Caps → F18 HID remap", neutralWhenOff: true)
                     StatusDot(ok: c.capsHeld, label: c.capsHeld ? "Caps HELD now" : "Caps not held",
                               neutralWhenOff: true)
+                    StatusDot(ok: c.capsLockOn,
+                              label: c.capsLockOn ? "CAPS LOCK is ON (LED lit)" : "Caps Lock off",
+                              neutralWhenOff: true)
                     HStack {
                         Text("Chord fired").font(.system(.body, design: .rounded))
                         Spacer()
                         Text("\(c.chordFires)").monospacedDigit().bold()
+                    }
+                    HStack {
+                        Text("Caps tap → toggle").font(.system(.body, design: .rounded))
+                        Spacer()
+                        Text("\(c.capsTaps)").monospacedDigit().bold()
                     }
                     if let err = c.lastError {
                         Text(err).font(.callout).foregroundStyle(.red)
@@ -408,6 +518,27 @@ struct ContentView: View {
                     Button("Grant Accessibility…") { c.promptTrust(); c.openAccessibilitySettings() }
                 }
                 Button("Re-check") { c.refreshTrust() }
+            }
+
+            GroupBox("Dual-role Caps") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Toggle("Tap Caps alone → real Caps Lock toggle", isOn: Binding(
+                        get: { c.tapTogglesCapsLock }, set: { c.setTapToggles($0) }
+                    ))
+                    HStack {
+                        Text("Tap must be under")
+                        Slider(
+                            value: Binding(
+                                get: { c.tapThreshold }, set: { c.setTapThreshold($0) }
+                            ),
+                            in: 0.15...0.6, step: 0.05
+                        )
+                        .frame(width: 160)
+                        Text("\(Int(c.tapThreshold * 1000)) ms").monospacedDigit()
+                    }
+                    .font(.callout)
+                }
+                .padding(6)
             }
 
             GroupBox("Type here to test (hold Caps + a letter — it should NOT capitalize)") {
@@ -442,6 +573,7 @@ struct ContentView: View {
     private func verdictColor(_ v: String) -> Color {
         switch v {
         case "chord+": .green
+        case "CAPS TOGGLE": .orange
         case "consumed": .blue
         case "rearm": .purple
         default: .secondary
