@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Home: pick a recipe, try it on your own text, then take it system-wide
-/// with the shortcut strip. Doing lives here; configuring lives on the
-/// feature pages.
+/// Home: set the system-wide shortcut, pick a recipe pipeline, then try it
+/// here before using it in another app.
 struct HomeView: View {
     @EnvironmentObject private var model: RewriteViewModel
     @EnvironmentObject private var selectionRewrite: SelectionRewriteController
@@ -17,6 +16,8 @@ struct HomeView: View {
             .rewrite,
             subtitle: "Select text, run a recipe pipeline, and keep your meaning."
         ) {
+            AnywhereCard()
+
             DSSection(
                 "Recipe pipeline",
                 detail: "Choose recipes in the order they should run."
@@ -39,8 +40,6 @@ struct HomeView: View {
                 PlaygroundView()
                     .environmentObject(model)
             }
-
-            AnywhereCard()
 
             DSSharedSettingLink(
                 title: "Writing model",

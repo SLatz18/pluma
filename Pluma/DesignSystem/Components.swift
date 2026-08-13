@@ -9,8 +9,10 @@ import SwiftUI
 // new surface can't state its trigger, it doesn't get an eyebrow.
 //
 // Feature pages stack DSFeaturePage → DSFeatureHero → DSShortcutCard →
-// DSSection blocks → DSSharedSettingLink + DSPageFootnote. Rewrite is the
-// exception: it has no hero, because recipe selection is the enablement.
+// recipe section → other DSSection blocks → DSSharedSettingLink +
+// DSPageFootnote. Rewrite has no hero, because recipe selection is the
+// enablement, but the recipe section still sits in the same slot: first
+// section after the shortcut card.
 // MARK: - Card surface
 
 struct DSCard<Content: View>: View {

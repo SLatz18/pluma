@@ -26,13 +26,11 @@ struct DictationView: View {
 
             shortcutCard
 
+            cleanupRecipeSection
+
             draftReplySection
 
             transcriptionSection
-
-            if controller.cleanupEnabled {
-                cleanupRecipeSection
-            }
 
             DSSharedSettingLink(
                 title: "Shared screen context",
@@ -222,12 +220,15 @@ struct DictationView: View {
 
     // MARK: Cleanup recipe
 
-    // Only rendered while AI cleanup is on: with cleanup off the raw
-    // transcript is inserted and no directive would ever run.
+    // Always in the same slot as the other feature recipes (after the
+    // shortcut). Directives only run when cleanup is on; the cards stay
+    // visible so the page layout does not jump.
     private var cleanupRecipeSection: some View {
         DSSection(
             "Cleanup recipe",
-            detail: "Stack directives to shape the cleanup pass. They apply in order."
+            detail: controller.cleanupEnabled
+                ? "Stack directives to shape the cleanup pass. They apply in order."
+                : "Stack directives for the cleanup pass. Turn on Clean up with AI below to use them."
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
                 ForEach(CleanupDirective.allCases) { directive in
@@ -249,6 +250,8 @@ struct DictationView: View {
                 cleanupStrip
             }
         }
+        .disabled(!controller.cleanupEnabled)
+        .opacity(controller.cleanupEnabled ? 1 : 0.55)
     }
 
     private var cleanupStrip: some View {
