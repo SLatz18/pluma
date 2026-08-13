@@ -115,4 +115,84 @@ final class CapsLockExpanderTests: XCTestCase {
         let aligned = custom.aligningCapsChord(includesShift: true)
         XCTAssertEqual(aligned, custom)
     }
+
+    // MARK: - hidutil dump parsing
+
+    /// Real `hidutil property --get UserKeyMapping` output on macOS 26. Note the
+    /// key order: Dst comes first. Reading the pair positionally made every poll
+    /// think the mapping was missing and re-apply it every few seconds.
+    func testParsesDumpWithDstBeforeSrc() {
+        let dump = """
+        (
+                {
+                HIDKeyboardModifierMappingDst = 30064771181;
+                HIDKeyboardModifierMappingSrc = 30064771129;
+            }
+        )
+        """
+        let entries = CapsLockHIDRemap.entries(fromDump: dump)
+        XCTAssertEqual(entries.count, 1)
+        XCTAssertEqual(entries.first?.HIDKeyboardModifierMappingSrc, CapsLockHIDRemap.capsLockUsage)
+        XCTAssertEqual(entries.first?.HIDKeyboardModifierMappingDst, CapsLockHIDRemap.f18Usage)
+    }
+
+    /// A second remap must survive: `apply` derives the crash-restore snapshot
+    /// from this parse, so a dropped entry would silently wipe the user's remap.
+    func testParsesMultipleEntriesWithoutCrossPairing() {
+        let dump = """
+        (
+                {
+                HIDKeyboardModifierMappingDst = 30064771113;
+                HIDKeyboardModifierMappingSrc = 30064771110;
+            },
+                {
+                HIDKeyboardModifierMappingDst = 30064771181;
+                HIDKeyboardModifierMappingSrc = 30064771129;
+            }
+        )
+        """
+        let entries = CapsLockHIDRemap.entries(fromDump: dump)
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertTrue(entries.contains(
+            .init(
+                HIDKeyboardModifierMappingSrc: CapsLockHIDRemap.capsLockUsage,
+                HIDKeyboardModifierMappingDst: CapsLockHIDRemap.f18Usage
+            )
+        ))
+        XCTAssertTrue(entries.contains(
+            .init(HIDKeyboardModifierMappingSrc: 30_064_771_110, HIDKeyboardModifierMappingDst: 30_064_771_113)
+        ))
+    }
+
+    func testParsesHexAndJSONForms() {
+        let hexDump = """
+        (
+                {
+                HIDKeyboardModifierMappingSrc = 0x700000039;
+                HIDKeyboardModifierMappingDst = 0x70000006D;
+            }
+        )
+        """
+        XCTAssertEqual(
+            CapsLockHIDRemap.entries(fromDump: hexDump).first?.HIDKeyboardModifierMappingSrc,
+            CapsLockHIDRemap.capsLockUsage
+        )
+
+        let json = """
+        [{"HIDKeyboardModifierMappingSrc":30064771129,"HIDKeyboardModifierMappingDst":30064771181}]
+        """
+        XCTAssertEqual(
+            CapsLockHIDRemap.entries(fromDump: json).first?.HIDKeyboardModifierMappingDst,
+            CapsLockHIDRemap.f18Usage
+        )
+    }
+
+    func testEmptyDumpFormsParseAsNoEntries() {
+        for text in ["", "()", "null", "(null)", "(\n)"] {
+            XCTAssertTrue(
+                CapsLockHIDRemap.entries(fromDump: text).isEmpty,
+                "expected no entries for \(text.debugDescription)"
+            )
+        }
+    }
 }

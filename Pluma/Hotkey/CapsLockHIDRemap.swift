@@ -41,7 +41,7 @@ enum CapsLockHIDRemap {
 
     // MARK: - Private
 
-    private struct Entry: Codable, Equatable {
+    struct Entry: Codable, Equatable {
         var HIDKeyboardModifierMappingSrc: UInt64
         var HIDKeyboardModifierMappingDst: UInt64
     }
@@ -76,33 +76,72 @@ enum CapsLockHIDRemap {
         if text.isEmpty || text == "null" || text == "()" || text == "(null)" {
             return []
         }
-        // hidutil prints an Obj-C style plist dump for some macOS versions and
-        // JSON-ish output for others. Prefer JSON; fall back to scanning for
-        // our known usage pair.
-        if let jsonData = text.data(using: .utf8),
-           let decoded = try? JSONDecoder().decode([Entry].self, from: jsonData) {
-            return decoded
-        }
-        // Plist-style: look for decimal usage numbers in the dump.
-        return parsePlistDump(text)
+        return entries(fromDump: text)
     }
 
-    private static func parsePlistDump(_ text: String) -> [Entry] {
-        // Matches pairs of Src/Dst usage integers in either order of appearance.
-        let pattern = #"HIDKeyboardModifierMappingSrc\s*=\s*(\d+).*?HIDKeyboardModifierMappingDst\s*=\s*(\d+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.dotMatchesLineSeparators]) else {
-            return []
+    /// Parses `hidutil property --get UserKeyMapping` output.
+    ///
+    /// Internal for testing. hidutil prints an OpenStep-style plist on current
+    /// macOS and JSON on others, and **it does not guarantee key order** — real
+    /// output lists `Dst` before `Src`. Reading the pair positionally is the bug
+    /// that made every poll believe the mapping was absent and re-apply it.
+    static func entries(fromDump text: String) -> [Entry] {
+        if let data = text.data(using: .utf8) {
+            if let decoded = try? JSONDecoder().decode([Entry].self, from: data) {
+                return decoded
+            }
+            // OpenStep plists carry no number type, so values arrive as strings.
+            if let list = try? PropertyListSerialization.propertyList(
+                from: data, options: [], format: nil
+            ) as? [[String: Any]] {
+                let parsed = list.compactMap(entry(fromDictionary:))
+                if !parsed.isEmpty { return parsed }
+            }
         }
-        let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        return regex.matches(in: text, range: range).compactMap { match in
-            guard match.numberOfRanges == 3,
-                  let srcRange = Range(match.range(at: 1), in: text),
-                  let dstRange = Range(match.range(at: 2), in: text),
-                  let src = UInt64(text[srcRange]),
-                  let dst = UInt64(text[dstRange])
+        // Last resort: scan each brace-delimited block on its own so a Src and a
+        // Dst can never be paired across two different entries.
+        return text.components(separatedBy: "}").compactMap { block in
+            guard let src = usage("HIDKeyboardModifierMappingSrc", in: block),
+                  let dst = usage("HIDKeyboardModifierMappingDst", in: block)
             else { return nil }
             return Entry(HIDKeyboardModifierMappingSrc: src, HIDKeyboardModifierMappingDst: dst)
         }
+    }
+
+    private static func entry(fromDictionary dict: [String: Any]) -> Entry? {
+        guard let src = usage(dict["HIDKeyboardModifierMappingSrc"]),
+              let dst = usage(dict["HIDKeyboardModifierMappingDst"])
+        else { return nil }
+        return Entry(HIDKeyboardModifierMappingSrc: src, HIDKeyboardModifierMappingDst: dst)
+    }
+
+    private static func usage(_ value: Any?) -> UInt64? {
+        switch value {
+        case let number as NSNumber: number.uint64Value
+        case let string as String: parseUsage(string)
+        default: nil
+        }
+    }
+
+    /// hidutil accepts and echoes both hex (`0x700000039`) and decimal.
+    private static func parseUsage(_ text: String) -> UInt64? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if trimmed.lowercased().hasPrefix("0x") {
+            return UInt64(trimmed.dropFirst(2), radix: 16)
+        }
+        return UInt64(trimmed)
+    }
+
+    private static func usage(_ key: String, in block: String) -> UInt64? {
+        guard let regex = try? NSRegularExpression(
+            pattern: "\(key)\\s*=\\s*\"?(0[xX][0-9a-fA-F]+|\\d+)\"?"
+        ) else { return nil }
+        let range = NSRange(block.startIndex..<block.endIndex, in: block)
+        guard let match = regex.firstMatch(in: block, range: range),
+              match.numberOfRanges == 2,
+              let valueRange = Range(match.range(at: 1), in: block)
+        else { return nil }
+        return parseUsage(String(block[valueRange]))
     }
 
     private static func encodeEntries(_ entries: [Entry]) throws -> String {

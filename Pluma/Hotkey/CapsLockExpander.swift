@@ -71,6 +71,15 @@ final class CapsTapState: @unchecked Sendable {
             if let tap {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
+            // The keystroke that tripped this is already gone, which is why the
+            // hold that triggers it appears to do nothing. Logged so the cause
+            // is visible instead of being guessed at.
+            DebugLog.log(
+                "caps expander: tap disabled by "
+                    + (type == .tapDisabledByTimeout ? "timeout" : "user input")
+                    + " — re-enabled, this keystroke was dropped",
+                at: .quiet
+            )
             // A disable mid-hold loses the Caps key-up — abandon the hold
             // so ordinary typing does not inherit the Caps chord.
             _ = machine.handle(.forceRelease, at: CFAbsoluteTimeGetCurrent())
@@ -168,6 +177,7 @@ final class CapsLockExpander: ObservableObject {
     private let defaults: UserDefaults
     private var pollTask: Task<Void, Never>?
     private var remapApplied = false
+    private var activityToken: NSObjectProtocol?
     private var workspaceObservers: [NSObjectProtocol] = []
     private var distributedObservers: [NSObjectProtocol] = []
     private var tapThread: Thread?
@@ -249,12 +259,13 @@ final class CapsLockExpander: ObservableObject {
         do {
             // Tap first: a failed tap must not leave Caps aliased to a dead key.
             try startTap()
+            // The system disables a tap whose callback ever runs long. It hands
+            // the callback a disable event, which we re-enable from — but this
+            // catches the case where that notice was missed, so a dead tap can
+            // only last one tick instead of until the next keypress.
+            reenableTapIfDisabled()
             try ensureRemap()
-            // Confirm the world matches our in-memory claim.
-            if !CapsLockHIDRemap.isOurMappingPresent() {
-                remapApplied = false
-                try ensureRemap()
-            }
+            beginActivityAssertion()
             status = .active
             lastError = nil
         } catch {
@@ -273,6 +284,40 @@ final class CapsLockExpander: ObservableObject {
         Preferences.syncCapsChordShortcuts(to: defaults)
         reevaluate()
         NotificationCenter.default.post(name: .capsShortcutsSettingsDidChange, object: self)
+    }
+
+    // MARK: - Staying awake and enabled
+
+    /// App Nap throttles a backgrounded app's threads, and a throttled tap
+    /// callback runs long enough for the system to disable the tap — which is
+    /// felt as "the first Caps hold after a while does nothing, the second
+    /// works," because the keystroke that triggered the disable is dropped.
+    /// The assertion keeps the tap thread scheduled normally while still
+    /// allowing the machine to sleep on idle.
+    private func beginActivityAssertion() {
+        guard activityToken == nil else { return }
+        activityToken = ProcessInfo.processInfo.beginActivity(
+            options: .userInitiatedAllowingIdleSystemSleep,
+            reason: "Caps Lock shortcut event tap"
+        )
+        DebugLog.log("caps expander: App Nap assertion held")
+    }
+
+    private func endActivityAssertion() {
+        guard let activityToken else { return }
+        ProcessInfo.processInfo.endActivity(activityToken)
+        self.activityToken = nil
+        DebugLog.log("caps expander: App Nap assertion released")
+    }
+
+    private func reenableTapIfDisabled() {
+        tapState.lock.lock()
+        let tap = tapState.tap
+        tapState.lock.unlock()
+        guard let tap, !CGEvent.tapIsEnabled(tap: tap) else { return }
+        CGEvent.tapEnable(tap: tap, enable: true)
+        tapState.forceReleaseHold()
+        DebugLog.log("caps expander: tap was disabled — re-enabled from poll")
     }
 
     // MARK: - Remap
@@ -423,6 +468,7 @@ final class CapsLockExpander: ObservableObject {
     private func stopTapAndClearRemap() {
         stopTapOnly()
         clearRemapIfNeeded()
+        endActivityAssertion()
     }
 
     // MARK: - Lifecycle re-arm (wake / lock)
