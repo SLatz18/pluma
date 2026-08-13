@@ -52,6 +52,10 @@ enum PlumaTheme {
 
     enum Overlay {
         static let textSize: CGFloat = 13
+        /// The pill's corner radius is the card radius, so the chip at the
+        /// caret and the cards in the main window share one curvature. At the
+        /// standard pill height this resolves to a capsule.
+        static let radius: CGFloat = Radius.card
         static let height: CGFloat = 28
         static let horizontalInset: CGFloat = 11
         static let verticalInset: CGFloat = 5
@@ -75,6 +79,17 @@ enum PlumaTheme {
             case .shortcut: .mint
             }
         }
+
+        /// The same tints for AppKit surfaces (the overlay pill and ghost
+        /// text), so a feature wears one colour everywhere.
+        var nsColor: NSColor {
+            switch self {
+            case .rewrite: .controlAccentColor
+            case .autocomplete: .systemIndigo
+            case .dictation: .systemPink
+            case .shortcut: .systemMint
+            }
+        }
     }
 
     enum Tone: String, CaseIterable, Sendable {
@@ -92,12 +107,33 @@ enum PlumaTheme {
             case .recording, .failure: .red
             }
         }
+
+        /// The AppKit mirror of the same palette, for the overlay pill.
+        var nsColor: NSColor {
+            switch self {
+            case .neutral: .secondaryLabelColor
+            case .success: .systemGreen
+            case .attention: .systemOrange
+            case .recording, .failure: .systemRed
+            }
+        }
     }
 
     static let pageBackground = Color(nsColor: .windowBackgroundColor)
     static let cardBackground = Color(nsColor: .controlBackgroundColor)
     static let insetBackground = Color(nsColor: .textBackgroundColor)
     static let hairline = Color.primary.opacity(0.07)
+
+    /// Rounded system font for AppKit text that should speak the same
+    /// typographic dialect as the SwiftUI `design: .rounded` titles. Falls
+    /// back to the plain system font if the rounded design is unavailable.
+    static func roundedUIFont(ofSize size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
+        let base = NSFont.systemFont(ofSize: size, weight: weight)
+        guard let descriptor = base.fontDescriptor.withDesign(.rounded),
+              let rounded = NSFont(descriptor: descriptor, size: size)
+        else { return base }
+        return rounded
+    }
 
     static let pageTitle = Font.system(size: 28, weight: .bold, design: .rounded)
     static let cardTitle = Font.system(.headline, design: .rounded)
