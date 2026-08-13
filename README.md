@@ -32,7 +32,7 @@ and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 | **Rewrite** | Stack recipes (Improve, Shorten, Fix Grammar, Professional) into a pipeline. Run it from a global hotkey or the in-app playground. |
 | **Autocomplete** | Debounced ghost text at the caret in other apps. Tab = next word, Shift-Tab = all, Escape dismisses. |
 | **Dictation** | Push-to-talk at the caret. On-device speech by default; optional cleanup; optional OpenAI transcription. |
-| **Reader** | Speak the selection verbatim, or summarize it with the configured writing model first. On-device voices. Press again to stop. |
+| **Reader** | Speak the selection verbatim, or summarize it with the configured writing model first. Apple on-device voices (with Premium setup help) by default; optional OpenAI TTS. Press again to stop. |
 | **Screen context** | Opt-in OCR of the frontmost window so names on screen bias dictation and completions. Nothing stored. |
 | **Style memory** | Opt-in local phrases from accepted suggestions (capped). Clear anytime. |
 
@@ -48,6 +48,7 @@ or record any ordinary shortcut in-app with **Change…**.
 | Ollama at `127.0.0.1` | No (loopback only) |
 | Apple Speech dictation | No |
 | Apple speech synthesis (Reader) | No |
+| OpenAI Reader TTS (opt-in) | **Yes — only when you choose it** |
 | OpenAI dictation / cleanup (opt-in) | **Yes — only when you choose it** |
 | Analytics / accounts / pluma servers | None |
 
@@ -141,7 +142,7 @@ Services) for apps where Accessibility insertion misbehaves.
 | `Providers/` | Apple Intelligence, Ollama, OpenAI chat; shared `RewriteRunner` |
 | `Autocomplete/` | Focused-field tracking, caret probing, ghost-text overlay (AppKit) |
 | `Dictation/` | Push-to-talk capture, Apple / OpenAI transcription, cleanup |
-| `Reader/` | On-device speech synthesis of the selection or clipboard |
+| `Reader/` | Speech synthesis of the selection or clipboard (Apple voices or optional OpenAI TTS) |
 | `Hotkey/` | Slot-based Carbon hotkeys; Caps Lock expander + Caps-aware chord display |
 | `Developer/` | Cheat-code unlock, caret inspector, trace panel, log viewer |
 | `DesignSystem/` | Shared tokens, WHEN → THEN → RESULT grammar, components, and overlay presentations |
