@@ -5,7 +5,18 @@ enum ChainProgress {
     case stepFinished(step: Int, of: Int, output: String)
 }
 
+// Test seam: when installed, completion and dictation-cleanup requests are
+// handed to the spy with the exact composed instructions the provider engines
+// would send, instead of reaching a live model. Production never sets this.
+@MainActor
+protocol AIRequestSpying: AnyObject, Sendable {
+    func completionRequested(instructions: String, prompt: String) async throws -> String
+    func cleanupRequested(directive: String, transcript: String) async throws -> String
+}
+
 enum RewriteRunner {
+    @MainActor static var requestSpy: (any AIRequestSpying)?
+
     static func rewrite(
         provider: RewriteProviderChoice,
         intent: RewriteIntent,
@@ -84,7 +95,8 @@ enum RewriteRunner {
         provider: CleanupProviderChoice,
         openAIModel: OpenAIChatModel,
         ollamaModel: String,
-        transcript: String
+        transcript: String,
+        directives: [CleanupDirective] = CleanupDirective.defaultChain
     ) async -> String? {
         guard DictationTranscript.isWorthCleaningUp(transcript) else { return nil }
         do {
@@ -92,7 +104,8 @@ enum RewriteRunner {
                 provider: provider,
                 openAIModel: openAIModel,
                 ollamaModel: ollamaModel,
-                transcript: transcript
+                transcript: transcript,
+                directives: directives
             )
             let cleaned = output.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !cleaned.isEmpty else { return nil }
@@ -107,9 +120,13 @@ enum RewriteRunner {
         provider: CleanupProviderChoice,
         openAIModel: OpenAIChatModel,
         ollamaModel: String,
-        transcript: String
+        transcript: String,
+        directives: [CleanupDirective] = CleanupDirective.defaultChain
     ) async throws -> String {
-        let directive = PromptComposer.dictationDirective(for: transcript)
+        let directive = PromptComposer.dictationDirective(for: transcript, directives: directives)
+        if let spy = await MainActor.run(body: { requestSpy }) {
+            return try await spy.cleanupRequested(directive: directive, transcript: transcript)
+        }
         return switch provider {
         case .appleOnDevice:
             try await AppleIntelligenceEngine.rewrite(transcript, directive: directive)
@@ -137,20 +154,71 @@ enum RewriteRunner {
         provider: RewriteProviderChoice,
         context: String,
         surrounding: String? = nil,
+        conversation: String? = nil,
         memory: String? = nil,
         styleProfile: String? = nil,
+        directives: [CompletionDirective] = CompletionDirective.defaultChain,
         ollamaModel: String
     ) async throws -> String {
-        switch provider {
-        case .appleIntelligence:
-            try await AppleIntelligenceEngine.complete(
-                context, surrounding: surrounding, memory: memory, styleProfile: styleProfile
-            )
-        case .ollama:
-            try await OllamaEngine().complete(
-                context, model: ollamaModel, surrounding: surrounding, memory: memory,
-                styleProfile: styleProfile
+        if let spy = await MainActor.run(body: { requestSpy }) {
+            // Both engines send exactly these two composed strings as the
+            // system instructions and user prompt, so capturing them here is
+            // faithful to the real request.
+            return try await spy.completionRequested(
+                instructions: PromptComposer.completionInstructions(
+                    styleProfile: styleProfile, directives: directives
+                ),
+                prompt: PromptComposer.completionUserPrompt(
+                    context: context, surrounding: surrounding,
+                    conversation: conversation, memory: memory
+                )
             )
         }
+        switch provider {
+        case .appleIntelligence:
+            return try await AppleIntelligenceEngine.complete(
+                context, surrounding: surrounding, conversation: conversation,
+                memory: memory, styleProfile: styleProfile, directives: directives
+            )
+        case .ollama:
+            return try await OllamaEngine().complete(
+                context, model: ollamaModel, surrounding: surrounding,
+                conversation: conversation, memory: memory, styleProfile: styleProfile,
+                directives: directives
+            )
+        }
+    }
+
+    // Composes a full reply from the visible thread plus the user's spoken or
+    // typed intent. Rides the cleanup provider choice deliberately: drafting
+    // happens at the end of a dictation, so the model the user picked for
+    // "after you speak" is the model that speaks for them.
+    static func draftReply(
+        provider: CleanupProviderChoice,
+        openAIModel: OpenAIChatModel,
+        ollamaModel: String,
+        intent: String,
+        conversation: String?,
+        memory: String? = nil,
+        styleProfile: String? = nil
+    ) async throws -> String {
+        let output = switch provider {
+        case .appleOnDevice:
+            try await AppleIntelligenceEngine.draftReply(
+                intent: intent, conversation: conversation,
+                memory: memory, styleProfile: styleProfile
+            )
+        case .ollama:
+            try await OllamaEngine().draftReply(
+                intent: intent, conversation: conversation, model: ollamaModel,
+                memory: memory, styleProfile: styleProfile
+            )
+        case .openAI:
+            try await OpenAIChatEngine.draftReply(
+                intent: intent, conversation: conversation, model: openAIModel,
+                memory: memory, styleProfile: styleProfile
+            )
+        }
+        return try validatedOutput(output)
     }
 }

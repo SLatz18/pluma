@@ -33,6 +33,12 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var conversationContextEnabled: Bool {
+        didSet {
+            Preferences.setConversationContextEnabled(conversationContextEnabled, to: defaults)
+        }
+    }
+
     @Published var memoryEnabled: Bool {
         didSet {
             defaults.set(memoryEnabled, forKey: Preferences.memoryEnabledKey)
@@ -83,6 +89,8 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published private(set) var directiveChain: [CompletionDirective]
+
     @Published private(set) var isScreenContextPermitted: Bool
     @Published private(set) var memoryEntryCount: Int
     @Published private(set) var spellMemoryEntryCount: Int
@@ -117,11 +125,13 @@ final class AutocompleteCoordinator: ObservableObject {
         self.overlay = overlay
         isEnabled = Preferences.autocompleteEnabled(from: defaults)
         screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
+        conversationContextEnabled = Preferences.conversationContextEnabled(from: defaults)
         memoryEnabled = Preferences.memoryEnabled(from: defaults)
         inlineSuggestions = Preferences.inlineSuggestions(from: defaults)
         spellCorrectionEnabled = Preferences.spellCorrectionEnabled(from: defaults)
         spellCorrectionEngine = Preferences.spellCorrectionEngine(from: defaults)
         spellMemoryEnabled = Preferences.spellMemoryEnabled(from: defaults)
+        directiveChain = Preferences.completionChain(from: defaults)
         tuning = Preferences.completionTuning(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
@@ -530,10 +540,22 @@ final class AutocompleteCoordinator: ObservableObject {
         let provider = Preferences.provider(from: defaults)
         let ollamaModel = Preferences.ollamaModel(from: defaults)
 
+        // The conversation extractor supersedes raw OCR when it yields a
+        // thread (it falls back to OCR internally), and its capture is cached
+        // per focused window so the AX walk is not repaid on every pause.
         var surrounding: String?
-        if screenContextEnabled, screenContext.isPermitted {
-            surrounding = await ScreenContextProvider.surroundingText()
-            DebugLog.log("screen context: \(surrounding?.count ?? 0) chars")
+        var conversation: String?
+        if screenContextEnabled {
+            if conversationContextEnabled,
+               let captured = await ConversationContextProvider.cachedCapture() {
+                conversation = captured.text
+                DebugLog.log(
+                    "conversation context (\(captured.source.rawValue)): \(captured.text.count) chars"
+                )
+            } else if screenContext.isPermitted {
+                surrounding = await ScreenContextProvider.surroundingText()
+                DebugLog.log("screen context: \(surrounding?.count ?? 0) chars")
+            }
         }
         let memoryDigest = memoryEnabled ? memory.digest() : nil
         let styleProfile = StyleProfileStore.shared.isEmpty ? nil : StyleProfileStore.shared.text
@@ -544,6 +566,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
+                conversation: conversation,
                 memory: memoryDigest,
                 styleProfile: styleProfile,
                 ollamaModel: ollamaModel,
@@ -582,6 +605,7 @@ final class AutocompleteCoordinator: ObservableObject {
                     provider: provider,
                     context: context,
                     surrounding: surrounding,
+                    conversation: conversation,
                     memory: memoryDigest,
                     styleProfile: styleProfile,
                     ollamaModel: ollamaModel,
@@ -640,10 +664,13 @@ final class AutocompleteCoordinator: ObservableObject {
         )
     }
 
-    private func generateCompletion(
+    // Internal (not private) so tests can drive the real request path with a
+    // spy engine installed on RewriteRunner.
+    func generateCompletion(
         provider: RewriteProviderChoice,
         context: String,
         surrounding: String?,
+        conversation: String?,
         memory: String?,
         styleProfile: String?,
         ollamaModel: String,
@@ -655,8 +682,10 @@ final class AutocompleteCoordinator: ObservableObject {
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
+                conversation: conversation,
                 memory: memory,
                 styleProfile: styleProfile,
+                directives: directiveChain,
                 ollamaModel: ollamaModel
             )
         } catch is CancellationError {
@@ -691,8 +720,10 @@ final class AutocompleteCoordinator: ObservableObject {
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
+                conversation: conversation,
                 memory: memory,
                 styleProfile: styleProfile,
+                directives: directiveChain,
                 ollamaModel: ollamaModel
             )
         }
@@ -941,6 +972,37 @@ final class AutocompleteCoordinator: ObservableObject {
             .suggestion(text: offer.replacement, anchor: proposedAnchor),
             from: .autocomplete
         )
+    }
+
+    // Tap order is run order, same contract as the rewrite chain. A change
+    // invalidates whatever suggestion is showing — it was built with the old
+    // directives.
+    func toggleDirective(_ directive: CompletionDirective) {
+        if let index = directiveChain.firstIndex(of: directive) {
+            directiveChain.remove(at: index)
+        } else {
+            directiveChain.append(directive)
+        }
+        Preferences.saveCompletionChain(directiveChain, to: defaults)
+        dismissSuggestion()
+    }
+
+    func removeDirective(_ directive: CompletionDirective) {
+        guard let index = directiveChain.firstIndex(of: directive) else { return }
+        directiveChain.remove(at: index)
+        Preferences.saveCompletionChain(directiveChain, to: defaults)
+        dismissSuggestion()
+    }
+
+    /// Swaps a directive with its neighbor so users can reorder without
+    /// removing and re-adding. Out-of-range moves are no-ops.
+    func moveDirective(_ directive: CompletionDirective, offset: Int) {
+        guard let index = directiveChain.firstIndex(of: directive) else { return }
+        let target = index + offset
+        guard directiveChain.indices.contains(target) else { return }
+        directiveChain.swapAt(index, target)
+        Preferences.saveCompletionChain(directiveChain, to: defaults)
+        dismissSuggestion()
     }
 
     private func dismissSuggestion() {

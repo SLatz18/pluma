@@ -16,7 +16,10 @@ import AppKit
 // It departs from the system's in one place, deliberately. macOS puts an ✕
 // there, because its chip applies itself unless you refuse. This one is offered
 // rather than applied, so the trailing glyph is ⇥ — the key that takes it.
-private final class OverlayPillRenderer: NSVisualEffectView {
+// Internal (not private) so the DEBUG component previews can render the same
+// pill the live overlay uses; nothing outside this file constructs it in
+// release builds.
+final class OverlayPillRenderer: NSVisualEffectView {
     private let iconView = NSImageView()
     private let label = NSTextField(labelWithString: "")
     private let hintLabel = NSTextField(labelWithString: "⇥")
@@ -33,13 +36,13 @@ private final class OverlayPillRenderer: NSVisualEffectView {
         layer?.cornerCurve = .continuous
         layer?.borderWidth = 1
 
-        label.font = .systemFont(ofSize: DS.Overlay.textSize)
+        label.font = DS.roundedUIFont(ofSize: DS.Overlay.textSize)
         label.textColor = .labelColor
         label.lineBreakMode = .byTruncatingTail
         label.maximumNumberOfLines = 1
         label.preferredMaxLayoutWidth = DS.Overlay.maximumTextWidth
 
-        hintLabel.font = .systemFont(ofSize: DS.Overlay.textSize - 1, weight: .regular)
+        hintLabel.font = DS.roundedUIFont(ofSize: DS.Overlay.textSize - 1)
         hintLabel.textColor = .tertiaryLabelColor
 
         divider.wantsLayer = true
@@ -80,11 +83,13 @@ private final class OverlayPillRenderer: NSVisualEffectView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    // A capsule at any height, so the shape survives the text growing with the
-    // field's own font.
+    // The design system's card radius, capped so a short pill still reads as
+    // a capsule. At the standard height the two agree exactly, which is the
+    // point: the chip at the caret shares its curvature with the cards in the
+    // main window.
     override func layout() {
         super.layout()
-        layer?.cornerRadius = bounds.height / 2
+        layer?.cornerRadius = min(bounds.height / 2, DS.Overlay.radius)
     }
 
     // CGColors are resolved snapshots: without this, a dark↔light switch while
@@ -106,12 +111,12 @@ private final class OverlayPillRenderer: NSVisualEffectView {
     // they arrive in the same place wearing the same chip; a size that shifted
     // between them would read as three components rather than one.
     private func applySharedTypography(lineBreak: NSLineBreakMode = .byTruncatingTail) {
-        label.font = .systemFont(ofSize: DS.Overlay.textSize)
+        label.font = DS.roundedUIFont(ofSize: DS.Overlay.textSize)
         label.textColor = .labelColor
         label.maximumNumberOfLines = 1
         label.lineBreakMode = lineBreak
         label.preferredMaxLayoutWidth = DS.Overlay.maximumTextWidth
-        hintLabel.font = .systemFont(ofSize: DS.Overlay.textSize - 1)
+        hintLabel.font = DS.roundedUIFont(ofSize: DS.Overlay.textSize - 1)
         iconView.image = iconView.image?.withSymbolConfiguration(
             .init(pointSize: DS.Overlay.textSize - 1, weight: .semibold)
         )
@@ -123,6 +128,9 @@ private final class OverlayPillRenderer: NSVisualEffectView {
         divider.isHidden = false
         hintLabel.isHidden = false
         applySharedTypography()
+        // The accept hint wears autocomplete's own tint — the same indigo the
+        // feature wears in the main window — softened so it stays a hint.
+        hintLabel.textColor = DS.FeatureColor.autocomplete.nsColor.withAlphaComponent(0.75)
         label.stringValue = text
     }
 
@@ -149,7 +157,9 @@ private final class OverlayPillRenderer: NSVisualEffectView {
 
     func showDictation(transcript: String) {
         iconView.isHidden = false
-        iconView.contentTintColor = .systemRed
+        // Dictation's feature tint, not alarm red: the pulse already says
+        // "live", so the colour is free to say whose pill this is.
+        iconView.contentTintColor = DS.FeatureColor.dictation.nsColor
         iconView.image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Recording")?
             .withSymbolConfiguration(.init(pointSize: DS.Overlay.textSize - 1, weight: .semibold))
         RecordingPulse.start(on: iconView)
@@ -203,7 +213,7 @@ final class SuggestionOverlayController {
     var owner: Owner? { currentOwner }
 
     private var reduceMotion: Bool {
-        NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        DS.Motion.reduceMotion
     }
 
     // The last-resort anchor, and deliberately the only place the mouse is

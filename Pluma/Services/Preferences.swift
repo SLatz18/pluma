@@ -33,6 +33,11 @@ enum Preferences {
     static let completionBriefWordsKey = "pluma.completion.briefWords"
     static let completionDebounceKey = "pluma.completion.debounceMilliseconds"
     static let completionMinimumContextKey = "pluma.completion.minimumContext"
+    static let conversationContextEnabledKey = "pluma.conversationContextEnabled"
+    static let draftReplyEnabledKey = "pluma.draftReplyEnabled"
+    static let draftShortcutKeyCodeKey = "pluma.draftShortcut.keyCode"
+    static let draftShortcutModifiersKey = "pluma.draftShortcut.modifiers"
+    static let draftShortcutDisplayKey = "pluma.draftShortcut.display"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -74,6 +79,47 @@ enum Preferences {
         defaults.set(data, forKey: chainKey)
     }
 
+    static let completionChainKey = "pluma.completionChain"
+    static let cleanupChainKey = "pluma.dictationCleanupChain"
+
+    // Both builder chains store JSON [rawValue] like the rewrite chain, so
+    // order survives. A missing key means the user never touched the builder
+    // and reads as the default chain — today's shipped behavior. A stored
+    // empty chain is a deliberate choice and stays empty.
+    static func completionChain(from defaults: UserDefaults = .standard) -> [CompletionDirective] {
+        guard
+            let data = defaults.data(forKey: completionChainKey),
+            let rawValues = try? JSONDecoder().decode([String].self, from: data)
+        else {
+            return CompletionDirective.defaultChain
+        }
+        return rawValues.compactMap { CompletionDirective(rawValue: $0) }
+    }
+
+    static func saveCompletionChain(
+        _ chain: [CompletionDirective], to defaults: UserDefaults = .standard
+    ) {
+        guard let data = try? JSONEncoder().encode(chain.map(\.rawValue)) else { return }
+        defaults.set(data, forKey: completionChainKey)
+    }
+
+    static func cleanupChain(from defaults: UserDefaults = .standard) -> [CleanupDirective] {
+        guard
+            let data = defaults.data(forKey: cleanupChainKey),
+            let rawValues = try? JSONDecoder().decode([String].self, from: data)
+        else {
+            return CleanupDirective.defaultChain
+        }
+        return rawValues.compactMap { CleanupDirective(rawValue: $0) }
+    }
+
+    static func saveCleanupChain(
+        _ chain: [CleanupDirective], to defaults: UserDefaults = .standard
+    ) {
+        guard let data = try? JSONEncoder().encode(chain.map(\.rawValue)) else { return }
+        defaults.set(data, forKey: cleanupChainKey)
+    }
+
     static func ollamaModel(from defaults: UserDefaults = .standard) -> String {
         defaults.string(forKey: ollamaModelKey) ?? ""
     }
@@ -92,6 +138,60 @@ enum Preferences {
 
     static func dictationEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: dictationEnabledKey)
+    }
+
+    // Rides behind the screen-context switch: conversation reading is a richer
+    // capture of the same surface, so it defaults on but only takes effect when
+    // the user has already opted in to screen context.
+    static func conversationContextEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: conversationContextEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: conversationContextEnabledKey)
+    }
+
+    static func setConversationContextEnabled(
+        _ enabled: Bool, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(enabled, forKey: conversationContextEnabledKey)
+    }
+
+    /// Both toggles must agree before any conversation text is read.
+    static func conversationAwarenessActive(from defaults: UserDefaults = .standard) -> Bool {
+        screenContextEnabled(from: defaults) && conversationContextEnabled(from: defaults)
+    }
+
+    // On by default: the draft shortcut is separate from plain dictation, so an
+    // extra registered chord costs nothing until it is held.
+    static func draftReplyEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: draftReplyEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: draftReplyEnabledKey)
+    }
+
+    static func setDraftReplyEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: draftReplyEnabledKey)
+    }
+
+    static func draftShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
+        guard
+            defaults.object(forKey: draftShortcutKeyCodeKey) != nil,
+            let display = defaults.string(forKey: draftShortcutDisplayKey)
+        else {
+            return .draftReplyDefault
+        }
+        return GlobalShortcut(
+            keyCode: UInt32(defaults.integer(forKey: draftShortcutKeyCodeKey)),
+            carbonModifiers: UInt32(defaults.integer(forKey: draftShortcutModifiersKey)),
+            display: display
+        )
+    }
+
+    static func saveDraftShortcut(
+        _ shortcut: GlobalShortcut, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(Int(shortcut.keyCode), forKey: draftShortcutKeyCodeKey)
+        defaults.set(Int(shortcut.carbonModifiers), forKey: draftShortcutModifiersKey)
+        defaults.set(shortcut.display, forKey: draftShortcutDisplayKey)
     }
 
     // Off by default: drawing the suggestion into the writer's own line needs the

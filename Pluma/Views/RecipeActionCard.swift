@@ -1,33 +1,72 @@
 import SwiftUI
 
+/// One tappable directive card in a recipe/pipeline builder. Rewrite,
+/// Autocomplete, and Dictation all render their builders with this card so
+/// the look and interactions stay identical across features.
 struct RecipeActionCard: View {
-    let intent: RewriteIntent
-    /// 1-based position in the pipeline, nil when the recipe isn't a step.
+    let title: String
+    let subtitle: String
+    let symbolName: String
+    let tint: Color
+    /// The WHEN half of the card's trigger → action language, e.g.
+    /// "Selected text" or "As you type".
+    let eyebrow: String
+    /// 1-based position in the pipeline, nil when the card isn't a step.
     let stepNumber: Int?
     let action: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(
+        title: String,
+        subtitle: String,
+        symbolName: String,
+        tint: Color,
+        eyebrow: String,
+        stepNumber: Int?,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.symbolName = symbolName
+        self.tint = tint
+        self.eyebrow = eyebrow
+        self.stepNumber = stepNumber
+        self.action = action
+    }
+
+    init(intent: RewriteIntent, stepNumber: Int?, action: @escaping () -> Void) {
+        self.init(
+            title: intent.title,
+            subtitle: intent.shortDescription,
+            symbolName: intent.symbolName,
+            tint: intent.feature.color,
+            eyebrow: "Selected text",
+            stepNumber: stepNumber,
+            action: action
+        )
+    }
 
     private var isInChain: Bool { stepNumber != nil }
 
     var body: some View {
         DSSelectableCard(
             isSelected: isInChain,
-            tint: intent.feature.color,
+            tint: tint,
             selectedLineWidth: 1.5,
             action: action
         ) {
             HStack(spacing: 14) {
-                DSIconTile(systemImage: intent.symbolName, tint: intent.feature.color)
+                DSIconTile(systemImage: symbolName, tint: tint)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    DSEyebrow(trigger: "Selected text")
+                    DSEyebrow(trigger: eyebrow)
 
-                    Text(intent.title)
+                    Text(title)
                         .font(DS.cardTitle)
                         .foregroundStyle(.primary)
 
-                    Text(intent.shortDescription)
+                    Text(subtitle)
                         .font(DS.meta)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -43,7 +82,7 @@ struct RecipeActionCard: View {
                     }
                 }
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(isInChain ? intent.feature.color : Color.secondary.opacity(0.35))
+                .foregroundStyle(isInChain ? tint : Color.secondary.opacity(0.35))
                 .contentTransition(.symbolEffect(.replace))
             }
             .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
@@ -55,9 +94,9 @@ struct RecipeActionCard: View {
 
     private var accessibilityLabel: String {
         if let stepNumber {
-            "\(intent.title): step \(stepNumber) in your pipeline. Tap to remove."
+            "\(title): step \(stepNumber) in your pipeline. Tap to remove."
         } else {
-            "\(intent.title): \(intent.shortDescription). Tap to add to your pipeline."
+            "\(title): \(subtitle). Tap to add to your pipeline."
         }
     }
 }
