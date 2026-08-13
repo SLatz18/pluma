@@ -64,7 +64,7 @@ struct ReaderView: View {
 
     private var listeningRecipeSection: some View {
         DSSection(
-            "Listening recipe",
+            "Recipe",
             detail: "Choose how Reader prepares the selection before speaking."
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {

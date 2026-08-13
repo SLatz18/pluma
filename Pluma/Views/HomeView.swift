@@ -19,7 +19,7 @@ struct HomeView: View {
             AnywhereCard()
 
             DSSection(
-                "Recipe pipeline",
+                "Recipe",
                 detail: "Choose recipes in the order they should run."
             ) {
                 LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
