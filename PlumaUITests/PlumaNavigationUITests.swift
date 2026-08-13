@@ -33,14 +33,51 @@ final class PlumaNavigationUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["rewrite-page"].waitForExistence(timeout: 2))
     }
 
+    // Settings are sidebar pages in the main window — one surface, no second
+    // window. ⌘, lands on General; the sidebar reaches Writing and Privacy.
     func testSettingsExposeGeneralWritingAndPrivacy() {
-        app.typeKey(",", modifierFlags: .command)
+        XCTAssertTrue(app.descendants(matching: .any)["overview-page"].waitForExistence(timeout: 5))
 
-        for tab in ["General", "Writing", "Privacy"] {
-            let button = app.buttons[tab]
-            XCTAssertTrue(button.waitForExistence(timeout: 3))
-            button.click()
+        app.typeKey(",", modifierFlags: .command)
+        XCTAssertTrue(app.descendants(matching: .any)["settings-general"].waitForExistence(timeout: 3))
+
+        for page in ["writing", "privacy"] {
+            app.descendants(matching: .any)["nav-\(page)"].click()
+            XCTAssertTrue(
+                app.descendants(matching: .any)["settings-\(page)"].waitForExistence(timeout: 2)
+            )
         }
-        XCTAssertTrue(app.descendants(matching: .any)["settings-privacy"].exists)
+    }
+
+    // A shared-setting link must land on the page it names, not a generic
+    // settings surface.
+    func testSharedSettingLinkOpensThePageItNames() {
+        XCTAssertTrue(app.descendants(matching: .any)["overview-page"].waitForExistence(timeout: 5))
+
+        let privacyLink = app.descendants(matching: .any)["shared-setting-privacy"]
+        XCTAssertTrue(privacyLink.waitForExistence(timeout: 2))
+        privacyLink.click()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-privacy"].waitForExistence(timeout: 3))
+
+        app.descendants(matching: .any)["nav-overview"].click()
+        let writingLink = app.descendants(matching: .any)["shared-setting-writing"]
+        XCTAssertTrue(writingLink.waitForExistence(timeout: 2))
+        writingLink.click()
+        XCTAssertTrue(app.descendants(matching: .any)["settings-writing"].waitForExistence(timeout: 3))
+    }
+
+    // The app runs as an accessory with no main menu when every window is
+    // closed, so the menu bar extra is the only route to Settings from a cold
+    // start.
+    func testMenuBarExtraOffersSettings() {
+        let statusItem = app.statusItems.firstMatch
+        XCTAssertTrue(statusItem.waitForExistence(timeout: 5))
+        statusItem.click()
+
+        let settingsItem = app.menuItems["Settings…"]
+        XCTAssertTrue(settingsItem.waitForExistence(timeout: 3))
+        settingsItem.click()
+
+        XCTAssertTrue(app.descendants(matching: .any)["settings-general"].waitForExistence(timeout: 3))
     }
 }
