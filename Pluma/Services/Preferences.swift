@@ -45,6 +45,10 @@ enum Preferences {
     static let draftShortcutKeyCodeKey = "pluma.draftShortcut.keyCode"
     static let draftShortcutModifiersKey = "pluma.draftShortcut.modifiers"
     static let draftShortcutDisplayKey = "pluma.draftShortcut.display"
+    /// Opt-in: Caps Lock becomes pluma's shortcut modifier (default off).
+    static let capsShortcutsEnabledKey = "pluma.capsShortcutsEnabled"
+    /// When Caps shortcuts are on, include Shift in the Caps chord (⌃⌥⌘⇧).
+    static let capsChordIncludesShiftKey = "pluma.capsChordIncludesShift"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -145,6 +149,48 @@ enum Preferences {
 
     static func dictationEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: dictationEnabledKey)
+    }
+
+    /// Default off until Caps Lock ownership is proven reliable on this Mac.
+    static func capsShortcutsEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: capsShortcutsEnabledKey)
+    }
+
+    static func setCapsShortcutsEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: capsShortcutsEnabledKey)
+    }
+
+    static func capsChordIncludesShift(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: capsChordIncludesShiftKey)
+    }
+
+    static func setCapsChordIncludesShift(_ includesShift: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(includesShift, forKey: capsChordIncludesShiftKey)
+    }
+
+    /// Rewrite stored Caps-chord shortcuts to match the current Caps chord setting.
+    static func syncCapsChordShortcuts(to defaults: UserDefaults = .standard) {
+        let includesShift = capsChordIncludesShift(from: defaults)
+        let aligned = globalShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if aligned != globalShortcut(from: defaults) {
+            saveGlobalShortcut(aligned, to: defaults)
+        }
+        let dictation = dictationShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if dictation != dictationShortcut(from: defaults) {
+            saveDictationShortcut(dictation, to: defaults)
+        }
+        let clipboard = clipboardShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if clipboard != clipboardShortcut(from: defaults) {
+            saveClipboardShortcut(clipboard, to: defaults)
+        }
+        let reader = readerShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if reader != readerShortcut(from: defaults) {
+            saveReaderShortcut(reader, to: defaults)
+        }
+        let draft = draftShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if draft != draftShortcut(from: defaults) {
+            saveDraftShortcut(draft, to: defaults)
+        }
     }
 
     // Rides behind the screen-context switch: conversation reading is a richer

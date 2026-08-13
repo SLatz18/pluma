@@ -13,6 +13,10 @@ struct PlumaApp: App {
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
+        // Recover Caps Lock if a prior crash left the HID remap applied.
+        if !Preferences.capsShortcutsEnabled() {
+            try? CapsLockHIDRemap.clear()
+        }
 
         // One overlay panel for ghost text, rewrite status, dictation, and
         // reader, so they can never stack on top of each other at the caret.
@@ -29,6 +33,8 @@ struct PlumaApp: App {
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
         _reader = StateObject(wrappedValue: ReaderController(overlay: overlay))
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
+
+        CapsLockExpander.shared.startMonitoring()
     }
 
     var body: some Scene {
@@ -65,6 +71,7 @@ struct PlumaApp: App {
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(SpellMemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)
+                .environmentObject(CapsLockExpander.shared)
         }
     }
 }

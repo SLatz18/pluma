@@ -18,6 +18,7 @@
 		0CD573C264CAE0F04E172D09 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83210C17AA6C5F8B68DFF605 /* HotkeyManager.swift */; };
 		0D3813FE851E9FD952FB2F09 /* MicrophonePermission.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC71F4E8618CC84D056A1AFB /* MicrophonePermission.swift */; };
 		0E969B6F7B6D2C8074E9AB6B /* SuggestionPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D26E417D862C0E117F3F1B86 /* SuggestionPresentationTests.swift */; };
+		0F738588C9022A9A51C8EA06 /* CapsLockExpanderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D139E84477484A433EA5DB85 /* CapsLockExpanderTests.swift */; };
 		1139DA1DAB74D8D24F1C5103 /* AccessibilityPrompt.m in Sources */ = {isa = PBXBuildFile; fileRef = 76B92AAA8530056AD55A19B6 /* AccessibilityPrompt.m */; };
 		1541723E41A4CDCFE9A024B6 /* ClipboardRewriteController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA69C13E119E717E725C2CED /* ClipboardRewriteController.swift */; };
 		15C486F4AACDC19683A065A8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1D50F272CCC074CA6FA9C24B /* Assets.xcassets */; };
@@ -51,8 +52,11 @@
 		49657E11DD974D311ED44195 /* SpeechTranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204947E0D18D6B3322B24100 /* SpeechTranscriptionEngine.swift */; };
 		4CCD1E2B1089B0CF756250D9 /* CaretGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 033B246EB48A59D1EE8C77C7 /* CaretGeometry.swift */; };
 		4EE68553496BE12D01AE70C4 /* GhostTextGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215848C0FC26014FFC6179F5 /* GhostTextGeometryTests.swift */; };
+		4F638061ADFBFEC451D5E699 /* CapsLockExpander.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B505BEF2FD6A3E0CEB98027 /* CapsLockExpander.swift */; };
 		50BDCC0E316172EB383327C7 /* ComponentPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3840F0DE7C1F8D8948F774D2 /* ComponentPreviews.swift */; };
 		52219644022864A0730816CC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9C4ACD202C31BC55A92619 /* AppDelegate.swift */; };
+		54DE537C196BA58182B05CBB /* CapsLockHIDRemap.swift in Sources */ = {isa = PBXBuildFile; fileRef = A81EBFCECC19F73244AB861A /* CapsLockHIDRemap.swift */; };
+		56881C4DF48644FC910466D2 /* CapsLockStateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CF01870C0661C36A0BC849A /* CapsLockStateMachine.swift */; };
 		598B8FDC1B317613E4707C75 /* DebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D9B57E93190B904281F60E /* DebugLog.swift */; };
 		5C8CFD6890D6233B6D27C2FB /* MemoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E448CA67FEDDB8A3AEFBD7 /* MemoryStoreTests.swift */; };
 		5CD37B181CD38C5625322D46 /* TextEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = C665AB90507A3053E945A917 /* TextEnvelope.swift */; };
@@ -201,7 +205,9 @@
 		435A827ECB9E1379C91D6E0D /* RewriteOutputSanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteOutputSanitizer.swift; sourceTree = "<group>"; };
 		43E8B5141FF65B532F1BD3BC /* PlumaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PlumaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		47BF492D06B629AE1ECA498A /* RewriteRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteRunnerTests.swift; sourceTree = "<group>"; };
+		4B505BEF2FD6A3E0CEB98027 /* CapsLockExpander.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockExpander.swift; sourceTree = "<group>"; };
 		4CB23F340ADA2220ABF9EE65 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		4CF01870C0661C36A0BC849A /* CapsLockStateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockStateMachine.swift; sourceTree = "<group>"; };
 		4E817CCD638C8DB85D4DC594 /* GhostTextGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextGeometry.swift; sourceTree = "<group>"; };
 		511245ACBCCAC386B612DB8C /* DictationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationController.swift; sourceTree = "<group>"; };
 		5140C9E93B800CBAFC626E5F /* RewriteServiceProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteServiceProvider.swift; sourceTree = "<group>"; };
@@ -246,6 +252,7 @@
 		A46A7783BCC6B69617A342CB /* CleanupDirective.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanupDirective.swift; sourceTree = "<group>"; };
 		A56B71090E08C1A1AEADDDB3 /* DictationProviderChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationProviderChoice.swift; sourceTree = "<group>"; };
 		A5F4C31A8065602998EA4FF1 /* ScreenContextProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenContextProvider.swift; sourceTree = "<group>"; };
+		A81EBFCECC19F73244AB861A /* CapsLockHIDRemap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockHIDRemap.swift; sourceTree = "<group>"; };
 		A9DBF25FE3E08E7E4AEE1713 /* SelectionRewriteController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionRewriteController.swift; sourceTree = "<group>"; };
 		AA9C4ACD202C31BC55A92619 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		AB437C10010152518C81A986 /* RewriteProviderChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteProviderChoice.swift; sourceTree = "<group>"; };
@@ -270,6 +277,7 @@
 		D061800E11B022E95219D27E /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
 		D1126823183A0645FCC5A3B9 /* ShortcutRecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorderView.swift; sourceTree = "<group>"; };
 		D114A39A42DCFAEE58DCCD40 /* AudioCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCaptureSession.swift; sourceTree = "<group>"; };
+		D139E84477484A433EA5DB85 /* CapsLockExpanderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockExpanderTests.swift; sourceTree = "<group>"; };
 		D266E79D73CB1C58311520A5 /* CompletionDirective.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionDirective.swift; sourceTree = "<group>"; };
 		D269B5853865D45E0B7D730D /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		D26E417D862C0E117F3F1B86 /* SuggestionPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionPresentationTests.swift; sourceTree = "<group>"; };
@@ -383,6 +391,7 @@
 			children = (
 				33517DE6D4706C2241EEFCE4 /* AutocompleteCoordinatorTests.swift */,
 				352C65D4803313CB9A5E1C11 /* AXTextInsertionTests.swift */,
+				D139E84477484A433EA5DB85 /* CapsLockExpanderTests.swift */,
 				F92FBCC3A833E5AB79844979 /* CaretResolverTests.swift */,
 				0CD7DCC6A9ABF231324F66E6 /* ChainReorderTests.swift */,
 				C8EBE2A7C63BCB415CF9433A /* CheatCodeRecognizerTests.swift */,
@@ -495,6 +504,9 @@
 		A268C97905B4B7A051DC096A /* Hotkey */ = {
 			isa = PBXGroup;
 			children = (
+				4B505BEF2FD6A3E0CEB98027 /* CapsLockExpander.swift */,
+				A81EBFCECC19F73244AB861A /* CapsLockHIDRemap.swift */,
+				4CF01870C0661C36A0BC849A /* CapsLockStateMachine.swift */,
 				DA69C13E119E717E725C2CED /* ClipboardRewriteController.swift */,
 				C10933E9DB5939D11C1F7F19 /* GlobalShortcut.swift */,
 				83210C17AA6C5F8B68DFF605 /* HotkeyManager.swift */,
@@ -696,6 +708,7 @@
 			files = (
 				490041460D1370D2474AA2DC /* AXTextInsertionTests.swift in Sources */,
 				BB5B3FC85791F64D0F396086 /* AutocompleteCoordinatorTests.swift in Sources */,
+				0F738588C9022A9A51C8EA06 /* CapsLockExpanderTests.swift in Sources */,
 				CFA394DE522D9A0A343E4232 /* CaretResolverTests.swift in Sources */,
 				A6D12A5820A53D811ADDE3C4 /* ChainReorderTests.swift in Sources */,
 				5D2D985DC9B8E15CCD95F223 /* CheatCodeRecognizerTests.swift in Sources */,
@@ -746,6 +759,9 @@
 				188F8DF86A03CB28C997981D /* AudioSampleRecorder.swift in Sources */,
 				4787E21D2D787C042C7E0D7B /* AutocompleteCoordinator.swift in Sources */,
 				022CD9485FB33AB81CBF0A92 /* AutocompleteView.swift in Sources */,
+				4F638061ADFBFEC451D5E699 /* CapsLockExpander.swift in Sources */,
+				54DE537C196BA58182B05CBB /* CapsLockHIDRemap.swift in Sources */,
+				56881C4DF48644FC910466D2 /* CapsLockStateMachine.swift in Sources */,
 				4CCD1E2B1089B0CF756250D9 /* CaretGeometry.swift in Sources */,
 				43C7CBDB411177A633B87477 /* CaretInspector.swift in Sources */,
 				9222D889A2EC068A01682D74 /* CaretTracePanel.swift in Sources */,

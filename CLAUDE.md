@@ -37,14 +37,17 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
 - `Hotkey/HotkeyManager.swift` — slot-based Carbon hotkeys
   (`.rewriteSelection`, `.dictation`, `.clipboardRewrite`, `.readSelection`),
   press+release for push-to-talk.
-- `Hotkey/GlobalShortcut.swift` — factory chords ⇪E / ⇪Space / ⇪L via Hyperkey's
-  ⌃⌥⌘ expansion; `conflicts(with:)` treats 3- and 4-modifier hyper chords as
-  the same press.
+- `Hotkey/GlobalShortcut.swift` — factory chords ⇪E / ⇪Space / ⇪L; Caps chord is
+  ⌃⌥⌘ or ⌃⌥⌘⇧; `conflicts(with:)` treats both as the same physical Caps press.
+- `Hotkey/CapsLockExpander.swift` — optional in-app Caps Lock modifier (HID
+  Caps→F18 + HID CGEventTap + wake/lock re-arm). Settings: Use Caps Lock for
+  shortcuts; Caps chord with/without Shift. Auto-pauses when Hyperkey/Superkey
+  runs. Product language is Caps, never “hyper.”
 - `Reader/` — on-device `AVSpeechSynthesizer`; selection then clipboard;
   never reads `AXSecureTextField`.
 - `Services/Preferences.swift` — all UserDefaults keys + one-time migrations.
-- Open issues: #23 (Caps Lock expander post-mortem), #24 (developer mode,
-  cheat-code unlock).
+- Open issues: #23 (Caps Lock expander history; in-app Caps shortcuts address
+  the missing alias layer), #24 (developer mode, cheat-code unlock).
 
 ## Verification recipes that work here
 
