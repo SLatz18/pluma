@@ -74,6 +74,47 @@ enum Preferences {
         defaults.set(data, forKey: chainKey)
     }
 
+    static let completionChainKey = "pluma.completionChain"
+    static let cleanupChainKey = "pluma.dictationCleanupChain"
+
+    // Both builder chains store JSON [rawValue] like the rewrite chain, so
+    // order survives. A missing key means the user never touched the builder
+    // and reads as the default chain — today's shipped behavior. A stored
+    // empty chain is a deliberate choice and stays empty.
+    static func completionChain(from defaults: UserDefaults = .standard) -> [CompletionDirective] {
+        guard
+            let data = defaults.data(forKey: completionChainKey),
+            let rawValues = try? JSONDecoder().decode([String].self, from: data)
+        else {
+            return CompletionDirective.defaultChain
+        }
+        return rawValues.compactMap { CompletionDirective(rawValue: $0) }
+    }
+
+    static func saveCompletionChain(
+        _ chain: [CompletionDirective], to defaults: UserDefaults = .standard
+    ) {
+        guard let data = try? JSONEncoder().encode(chain.map(\.rawValue)) else { return }
+        defaults.set(data, forKey: completionChainKey)
+    }
+
+    static func cleanupChain(from defaults: UserDefaults = .standard) -> [CleanupDirective] {
+        guard
+            let data = defaults.data(forKey: cleanupChainKey),
+            let rawValues = try? JSONDecoder().decode([String].self, from: data)
+        else {
+            return CleanupDirective.defaultChain
+        }
+        return rawValues.compactMap { CleanupDirective(rawValue: $0) }
+    }
+
+    static func saveCleanupChain(
+        _ chain: [CleanupDirective], to defaults: UserDefaults = .standard
+    ) {
+        guard let data = try? JSONEncoder().encode(chain.map(\.rawValue)) else { return }
+        defaults.set(data, forKey: cleanupChainKey)
+    }
+
     static func ollamaModel(from defaults: UserDefaults = .standard) -> String {
         defaults.string(forKey: ollamaModelKey) ?? ""
     }

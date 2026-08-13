@@ -11,6 +11,11 @@ struct DictationView: View {
     @State private var ollamaModels: [String] = []
     @State private var showAdvanced = false
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
+
     var body: some View {
         DSFeaturePage(
             .dictation,
@@ -21,6 +26,10 @@ struct DictationView: View {
             shortcutCard
 
             transcriptionCard
+
+            if controller.cleanupEnabled {
+                cleanupRecipeSection
+            }
 
             DSSharedSettingLink(
                 title: "Shared screen context",
@@ -167,6 +176,62 @@ struct DictationView: View {
             .animation(DS.Motion.reveal(reduceMotion: reduceMotion), value: showAdvanced)
             .animation(DS.Motion.reveal(reduceMotion: reduceMotion), value: controller.cleanupEnabled)
             .dsCard()
+        }
+    }
+
+    // MARK: Cleanup recipe
+
+    // Only rendered while AI cleanup is on: with cleanup off the raw
+    // transcript is inserted and no directive would ever run.
+    private var cleanupRecipeSection: some View {
+        DSSection(
+            "Cleanup recipe",
+            detail: "Stack directives to shape the cleanup pass. They apply in order."
+        ) {
+            LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
+                ForEach(CleanupDirective.allCases) { directive in
+                    RecipeActionCard(
+                        title: directive.title,
+                        subtitle: directive.shortDescription,
+                        symbolName: directive.symbolName,
+                        tint: DS.Feature.dictation.color,
+                        eyebrow: "After you speak",
+                        stepNumber: controller.cleanupChain
+                            .firstIndex(of: directive).map { $0 + 1 }
+                    ) {
+                        controller.toggleCleanupDirective(directive)
+                    }
+                }
+            }
+
+            if !controller.cleanupChain.isEmpty {
+                cleanupStrip
+            }
+        }
+    }
+
+    private var cleanupStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(
+                    Array(controller.cleanupChain.enumerated()), id: \.element
+                ) { index, directive in
+                    if index > 0 {
+                        Image(systemName: "arrow.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    DSPipelineStep(
+                        title: directive.title,
+                        number: index + 1,
+                        tint: DS.Feature.dictation.color
+                    ) {
+                        controller.removeCleanupDirective(directive)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
         }
     }
 

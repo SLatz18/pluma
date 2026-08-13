@@ -84,7 +84,8 @@ enum RewriteRunner {
         provider: CleanupProviderChoice,
         openAIModel: OpenAIChatModel,
         ollamaModel: String,
-        transcript: String
+        transcript: String,
+        directives: [CleanupDirective] = CleanupDirective.defaultChain
     ) async -> String? {
         guard DictationTranscript.isWorthCleaningUp(transcript) else { return nil }
         do {
@@ -92,7 +93,8 @@ enum RewriteRunner {
                 provider: provider,
                 openAIModel: openAIModel,
                 ollamaModel: ollamaModel,
-                transcript: transcript
+                transcript: transcript,
+                directives: directives
             )
             let cleaned = output.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !cleaned.isEmpty else { return nil }
@@ -107,9 +109,10 @@ enum RewriteRunner {
         provider: CleanupProviderChoice,
         openAIModel: OpenAIChatModel,
         ollamaModel: String,
-        transcript: String
+        transcript: String,
+        directives: [CleanupDirective] = CleanupDirective.defaultChain
     ) async throws -> String {
-        let directive = PromptComposer.dictationDirective(for: transcript)
+        let directive = PromptComposer.dictationDirective(for: transcript, directives: directives)
         return switch provider {
         case .appleOnDevice:
             try await AppleIntelligenceEngine.rewrite(transcript, directive: directive)
@@ -139,17 +142,19 @@ enum RewriteRunner {
         surrounding: String? = nil,
         memory: String? = nil,
         styleProfile: String? = nil,
+        directives: [CompletionDirective] = CompletionDirective.defaultChain,
         ollamaModel: String
     ) async throws -> String {
         switch provider {
         case .appleIntelligence:
             try await AppleIntelligenceEngine.complete(
-                context, surrounding: surrounding, memory: memory, styleProfile: styleProfile
+                context, surrounding: surrounding, memory: memory, styleProfile: styleProfile,
+                directives: directives
             )
         case .ollama:
             try await OllamaEngine().complete(
                 context, model: ollamaModel, surrounding: surrounding, memory: memory,
-                styleProfile: styleProfile
+                styleProfile: styleProfile, directives: directives
             )
         }
     }

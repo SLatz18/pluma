@@ -54,7 +54,8 @@ struct OllamaEngine: Sendable {
         model: String,
         surrounding: String? = nil,
         memory: String? = nil,
-        styleProfile: String? = nil
+        styleProfile: String? = nil,
+        directives: [CompletionDirective] = CompletionDirective.defaultChain
     ) async throws -> String {
         guard !model.isEmpty else {
             throw RewriteEngineError.noOllamaModels
@@ -70,7 +71,9 @@ struct OllamaEngine: Sendable {
                 messages: [
                     .init(
                         role: "system",
-                        content: PromptComposer.completionInstructions(styleProfile: styleProfile)
+                        content: PromptComposer.completionInstructions(
+                            styleProfile: styleProfile, directives: directives
+                        )
                     ),
                     .init(
                         role: "user",

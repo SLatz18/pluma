@@ -68,11 +68,13 @@ enum AppleIntelligenceEngine {
         _ context: String,
         surrounding: String? = nil,
         memory: String? = nil,
-        styleProfile: String? = nil
+        styleProfile: String? = nil,
+        directives: [CompletionDirective] = CompletionDirective.defaultChain
     ) async throws -> String {
         try await gate.run {
             try await completeUnlocked(
-                context, surrounding: surrounding, memory: memory, styleProfile: styleProfile
+                context, surrounding: surrounding, memory: memory, styleProfile: styleProfile,
+                directives: directives
             )
         }
     }
@@ -106,7 +108,8 @@ enum AppleIntelligenceEngine {
         _ context: String,
         surrounding: String?,
         memory: String?,
-        styleProfile: String?
+        styleProfile: String?,
+        directives: [CompletionDirective]
     ) async throws -> String {
         guard model.isAvailable else {
             throw RewriteEngineError.modelUnavailable(status().detail)
@@ -114,7 +117,9 @@ enum AppleIntelligenceEngine {
 
         let session = LanguageModelSession(
             model: model,
-            instructions: PromptComposer.completionInstructions(styleProfile: styleProfile)
+            instructions: PromptComposer.completionInstructions(
+                styleProfile: styleProfile, directives: directives
+            )
         )
         let response = try await session.respond(
             to: PromptComposer.completionUserPrompt(

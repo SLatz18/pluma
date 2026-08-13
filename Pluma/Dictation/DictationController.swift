@@ -41,6 +41,8 @@ final class DictationController: ObservableObject {
         }
     }
 
+    @Published private(set) var cleanupChain: [CleanupDirective]
+
     @Published var provider: DictationProviderChoice {
         didSet {
             guard provider != oldValue else { return }
@@ -119,6 +121,7 @@ final class DictationController: ObservableObject {
         shortcut = Preferences.dictationShortcut(from: defaults)
         isEnabled = Preferences.dictationEnabled(from: defaults)
         cleanupEnabled = Preferences.dictationCleanupEnabled(from: defaults)
+        cleanupChain = Preferences.cleanupChain(from: defaults)
         cleanupProvider = Preferences.cleanupProvider(from: defaults)
         openAIModel = Preferences.openAICleanupModel(from: defaults)
         ollamaModel = Preferences.ollamaModel(from: defaults)
@@ -317,12 +320,29 @@ final class DictationController: ObservableObject {
             provider: cleanupProvider,
             openAIModel: openAIModel,
             ollamaModel: ollamaModel,
-            transcript: transcript
+            transcript: transcript,
+            directives: cleanupChain
         ) {
             output = cleaned
         }
 
         await insert(DictationTranscript.withoutFragmentPeriod(output))
+    }
+
+    // Tap order is run order, same contract as the rewrite chain.
+    func toggleCleanupDirective(_ directive: CleanupDirective) {
+        if let index = cleanupChain.firstIndex(of: directive) {
+            cleanupChain.remove(at: index)
+        } else {
+            cleanupChain.append(directive)
+        }
+        Preferences.saveCleanupChain(cleanupChain, to: defaults)
+    }
+
+    func removeCleanupDirective(_ directive: CleanupDirective) {
+        guard let index = cleanupChain.firstIndex(of: directive) else { return }
+        cleanupChain.remove(at: index)
+        Preferences.saveCleanupChain(cleanupChain, to: defaults)
     }
 
     private func insert(_ text: String) async {

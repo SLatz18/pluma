@@ -83,6 +83,8 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published private(set) var directiveChain: [CompletionDirective]
+
     @Published private(set) var isScreenContextPermitted: Bool
     @Published private(set) var memoryEntryCount: Int
     @Published private(set) var spellMemoryEntryCount: Int
@@ -122,6 +124,7 @@ final class AutocompleteCoordinator: ObservableObject {
         spellCorrectionEnabled = Preferences.spellCorrectionEnabled(from: defaults)
         spellCorrectionEngine = Preferences.spellCorrectionEngine(from: defaults)
         spellMemoryEnabled = Preferences.spellMemoryEnabled(from: defaults)
+        directiveChain = Preferences.completionChain(from: defaults)
         tuning = Preferences.completionTuning(from: defaults)
         isPermissionGranted = permission.isTrusted
         isScreenContextPermitted = screenContext.isPermitted
@@ -657,6 +660,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 surrounding: surrounding,
                 memory: memory,
                 styleProfile: styleProfile,
+                directives: directiveChain,
                 ollamaModel: ollamaModel
             )
         } catch is CancellationError {
@@ -693,6 +697,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 surrounding: surrounding,
                 memory: memory,
                 styleProfile: styleProfile,
+                directives: directiveChain,
                 ollamaModel: ollamaModel
             )
         }
@@ -941,6 +946,26 @@ final class AutocompleteCoordinator: ObservableObject {
             .suggestion(text: offer.replacement, anchor: proposedAnchor),
             from: .autocomplete
         )
+    }
+
+    // Tap order is run order, same contract as the rewrite chain. A change
+    // invalidates whatever suggestion is showing — it was built with the old
+    // directives.
+    func toggleDirective(_ directive: CompletionDirective) {
+        if let index = directiveChain.firstIndex(of: directive) {
+            directiveChain.remove(at: index)
+        } else {
+            directiveChain.append(directive)
+        }
+        Preferences.saveCompletionChain(directiveChain, to: defaults)
+        dismissSuggestion()
+    }
+
+    func removeDirective(_ directive: CompletionDirective) {
+        guard let index = directiveChain.firstIndex(of: directive) else { return }
+        directiveChain.remove(at: index)
+        Preferences.saveCompletionChain(directiveChain, to: defaults)
+        dismissSuggestion()
     }
 
     private func dismissSuggestion() {

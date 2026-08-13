@@ -4,12 +4,42 @@ struct AutocompleteView: View {
     @EnvironmentObject private var coordinator: AutocompleteCoordinator
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
+
     var body: some View {
         DSFeaturePage(
             .autocomplete,
             subtitle: "Suggestions appear at the caret while you type in any app."
         ) {
             heroCard
+
+            DSSection(
+                "Suggestion recipe",
+                detail: "Stack directives to shape suggestions. They apply in order."
+            ) {
+                LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
+                    ForEach(CompletionDirective.allCases) { directive in
+                        RecipeActionCard(
+                            title: directive.title,
+                            subtitle: directive.shortDescription,
+                            symbolName: directive.symbolName,
+                            tint: DS.Feature.autocomplete.color,
+                            eyebrow: "As you type",
+                            stepNumber: coordinator.directiveChain
+                                .firstIndex(of: directive).map { $0 + 1 }
+                        ) {
+                            coordinator.toggleDirective(directive)
+                        }
+                    }
+                }
+
+                if !coordinator.directiveChain.isEmpty {
+                    directiveStrip
+                }
+            }
 
             DSSection("Suggestion appearance") {
                 VStack(spacing: 0) {
@@ -53,6 +83,31 @@ struct AutocompleteView: View {
             Text("macOS never shares password fields. Accepted style memory and spelling corrections are stored only when enabled, and can be managed in Settings → Privacy.")
                 .font(DS.meta)
                 .foregroundStyle(.tertiary)
+        }
+    }
+
+    private var directiveStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(
+                    Array(coordinator.directiveChain.enumerated()), id: \.element
+                ) { index, directive in
+                    if index > 0 {
+                        Image(systemName: "arrow.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    DSPipelineStep(
+                        title: directive.title,
+                        number: index + 1,
+                        tint: DS.Feature.autocomplete.color
+                    ) {
+                        coordinator.removeDirective(directive)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
         }
     }
 
