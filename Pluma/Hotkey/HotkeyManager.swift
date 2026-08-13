@@ -9,6 +9,9 @@ final class HotkeyManager {
         // The clipboard fallback for apps where Accessibility insertion does not
         // work (Google Docs, Electron): copy, press, paste. Issue #12.
         case clipboardRewrite = 3
+        // Push-to-talk like dictation, but the utterance is an *intent* — the
+        // reply is drafted from the visible conversation and inserted.
+        case draftReply = 4
     }
 
     var onPress: ((Slot) -> Void)?

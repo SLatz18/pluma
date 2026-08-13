@@ -48,6 +48,7 @@
 		500D49ECB5E968AD16EE9441 /* CleanupDirective.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F1441028AE9D0422CEADEE0 /* CleanupDirective.swift */; };
 		50BDCC0E316172EB383327C7 /* ComponentPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3840F0DE7C1F8D8948F774D2 /* ComponentPreviews.swift */; };
 		52219644022864A0730816CC /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA9C4ACD202C31BC55A92619 /* AppDelegate.swift */; };
+		56C946D8813A86F5105A810B /* ConversationContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B0E41AF8F4CC65C04CC6087 /* ConversationContextTests.swift */; };
 		598B8FDC1B317613E4707C75 /* DebugLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8D9B57E93190B904281F60E /* DebugLog.swift */; };
 		5C8CFD6890D6233B6D27C2FB /* MemoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E448CA67FEDDB8A3AEFBD7 /* MemoryStoreTests.swift */; };
 		5CD37B181CD38C5625322D46 /* TextEnvelope.swift in Sources */ = {isa = PBXBuildFile; fileRef = C665AB90507A3053E945A917 /* TextEnvelope.swift */; };
@@ -83,6 +84,7 @@
 		994262054C6D6DF40E4112E4 /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = D061800E11B022E95219D27E /* LaunchAtLogin.swift */; };
 		9F0D797A3F6651565628F6E5 /* DictationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B58E03E536B1FB6D5C93EDB3 /* DictationView.swift */; };
 		9F536E04A17B88A856871FB3 /* AppleFileTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7012B71DC824910516B61471 /* AppleFileTranscriber.swift */; };
+		A04C417BBA83DA6276CDFE15 /* ConversationContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B7F4FC5AC17B5068C7F0E74 /* ConversationContext.swift */; };
 		A2BE7C168ED35C8B5AD25296 /* ClipboardFallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1762099D540BF0A1E00A9C /* ClipboardFallbackTests.swift */; };
 		A4A32B81253F5ACED5133A23 /* RewriteServiceProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F217FE27D3D5E4D6007ECE03 /* RewriteServiceProviderTests.swift */; };
 		A587572DA8B3A2AE1BB2B56F /* RecipeActionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D626BF4CC67BB0E9C73E949 /* RecipeActionCard.swift */; };
@@ -208,7 +210,9 @@
 		83210C17AA6C5F8B68DFF605 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
 		84FF3614732873A2282CA8D4 /* DebugLogLevelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLogLevelTests.swift; sourceTree = "<group>"; };
 		862C9C8BA2AC430416228D6D /* PromptComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposerTests.swift; sourceTree = "<group>"; };
+		8B7F4FC5AC17B5068C7F0E74 /* ConversationContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConversationContext.swift; path = Pluma/Services/ConversationContext.swift; sourceTree = SOURCE_ROOT; };
 		8D270BCC126787DB5A1D388A /* CompletionSuggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionSuggestion.swift; sourceTree = "<group>"; };
+		9B0E41AF8F4CC65C04CC6087 /* ConversationContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ConversationContextTests.swift; path = PlumaTests/ConversationContextTests.swift; sourceTree = SOURCE_ROOT; };
 		9B77840FF3F78472A37B0E24 /* PlumaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlumaTheme.swift; sourceTree = "<group>"; };
 		9CDD0EC54AB47BD89FEA2B82 /* PlumaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlumaApp.swift; sourceTree = "<group>"; };
 		9D67E30C64DBB1C2BDDCEA98 /* PlumaNavigationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlumaNavigationUITests.swift; sourceTree = "<group>"; };
@@ -328,6 +332,7 @@
 				5140C9E93B800CBAFC626E5F /* RewriteServiceProvider.swift */,
 				9F7BE0B5A1CFEC17A07C571C /* RewriteViewModel.swift */,
 				C665AB90507A3053E945A917 /* TextEnvelope.swift */,
+				8B7F4FC5AC17B5068C7F0E74 /* ConversationContext.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -370,6 +375,7 @@
 				F9A5CC6ACFFA67545F78B6CB /* TextEnvelopeTests.swift */,
 				6DF54608B9721506505F4A3F /* DirectiveChainTests.swift */,
 				2CA94CAAAC2CF3959219ECDD /* ChainReorderTests.swift */,
+				9B0E41AF8F4CC65C04CC6087 /* ConversationContextTests.swift */,
 			);
 			path = PlumaTests;
 			sourceTree = "<group>";
@@ -651,6 +657,7 @@
 				21754A84AE980E674F49F2FF /* TextEnvelopeTests.swift in Sources */,
 				8B5444C8AE93CC97C85F0CB4 /* DirectiveChainTests.swift in Sources */,
 				8FC343B6B85FBA2155B3A264 /* ChainReorderTests.swift in Sources */,
+				56C946D8813A86F5105A810B /* ConversationContextTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -742,6 +749,7 @@
 				5CD37B181CD38C5625322D46 /* TextEnvelope.swift in Sources */,
 				E9214E7DA7A51442EC905582 /* CompletionDirective.swift in Sources */,
 				500D49ECB5E968AD16EE9441 /* CleanupDirective.swift in Sources */,
+				A04C417BBA83DA6276CDFE15 /* ConversationContext.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

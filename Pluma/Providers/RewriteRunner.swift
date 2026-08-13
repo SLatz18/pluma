@@ -154,6 +154,7 @@ enum RewriteRunner {
         provider: RewriteProviderChoice,
         context: String,
         surrounding: String? = nil,
+        conversation: String? = nil,
         memory: String? = nil,
         styleProfile: String? = nil,
         directives: [CompletionDirective] = CompletionDirective.defaultChain,
@@ -168,21 +169,56 @@ enum RewriteRunner {
                     styleProfile: styleProfile, directives: directives
                 ),
                 prompt: PromptComposer.completionUserPrompt(
-                    context: context, surrounding: surrounding, memory: memory
+                    context: context, surrounding: surrounding,
+                    conversation: conversation, memory: memory
                 )
             )
         }
         switch provider {
         case .appleIntelligence:
             return try await AppleIntelligenceEngine.complete(
-                context, surrounding: surrounding, memory: memory, styleProfile: styleProfile,
-                directives: directives
+                context, surrounding: surrounding, conversation: conversation,
+                memory: memory, styleProfile: styleProfile, directives: directives
             )
         case .ollama:
             return try await OllamaEngine().complete(
-                context, model: ollamaModel, surrounding: surrounding, memory: memory,
-                styleProfile: styleProfile, directives: directives
+                context, model: ollamaModel, surrounding: surrounding,
+                conversation: conversation, memory: memory, styleProfile: styleProfile,
+                directives: directives
             )
         }
+    }
+
+    // Composes a full reply from the visible thread plus the user's spoken or
+    // typed intent. Rides the cleanup provider choice deliberately: drafting
+    // happens at the end of a dictation, so the model the user picked for
+    // "after you speak" is the model that speaks for them.
+    static func draftReply(
+        provider: CleanupProviderChoice,
+        openAIModel: OpenAIChatModel,
+        ollamaModel: String,
+        intent: String,
+        conversation: String?,
+        memory: String? = nil,
+        styleProfile: String? = nil
+    ) async throws -> String {
+        let output = switch provider {
+        case .appleOnDevice:
+            try await AppleIntelligenceEngine.draftReply(
+                intent: intent, conversation: conversation,
+                memory: memory, styleProfile: styleProfile
+            )
+        case .ollama:
+            try await OllamaEngine().draftReply(
+                intent: intent, conversation: conversation, model: ollamaModel,
+                memory: memory, styleProfile: styleProfile
+            )
+        case .openAI:
+            try await OpenAIChatEngine.draftReply(
+                intent: intent, conversation: conversation, model: openAIModel,
+                memory: memory, styleProfile: styleProfile
+            )
+        }
+        return try validatedOutput(output)
     }
 }

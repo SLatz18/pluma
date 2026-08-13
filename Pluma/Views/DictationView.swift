@@ -6,6 +6,7 @@ struct DictationView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var isRecording = false
+    @State private var isRecordingDraft = false
     @State private var apiKeyDraft = ""
     @State private var hasKey = OpenAIKey.isPresent
     @State private var ollamaModels: [String] = []
@@ -24,6 +25,8 @@ struct DictationView: View {
             heroCard
 
             shortcutCard
+
+            draftReplyCard
 
             transcriptionCard
 
@@ -106,6 +109,61 @@ struct DictationView: View {
             }
         }
         .dsCard()
+    }
+
+    // MARK: Draft a reply
+
+    private var draftReplyCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            DSEyebrow(trigger: "Speak an intent", action: "get a drafted reply")
+
+            VStack(spacing: 0) {
+                DSToggleRow(
+                    title: "Draft replies from the conversation",
+                    detail: "Hold \(controller.draftShortcut.display) and say what the reply should do — "
+                        + "\u{201C}decline politely, suggest Thursday\u{201D}. pluma reads the visible thread and "
+                        + "composes the reply at your cursor for you to review. The thread is read once and never stored.",
+                    isOn: $controller.draftReplyEnabled,
+                    disabled: !controller.isEnabled
+                )
+
+                if controller.draftReplyEnabled {
+                    DSRowDivider()
+
+                    HStack(spacing: 14) {
+                        Text(
+                            isRecordingDraft
+                                ? "Press and hold the new shortcut. Esc cancels."
+                                : "Hold to speak an intent. Uses the same cleanup model below to write the reply."
+                        )
+                        .font(DS.meta)
+                        .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        ShortcutRecorderView(
+                            shortcut: controller.draftShortcut,
+                            isRecording: $isRecordingDraft
+                        ) { shortcut in
+                            controller.recordDraftShortcut(shortcut)
+                        }
+                    }
+                    .padding(.top, DS.Spacing.medium)
+
+                    if !autocomplete.screenContextEnabled
+                        || !autocomplete.conversationContextEnabled {
+                        DSRowDivider()
+                        DSNoticeRow(
+                            systemImage: "rectangle.dashed",
+                            tint: .orange,
+                            text: "Turn on Screen context and Conversation awareness in Settings → Writing so pluma can see the thread. Without them, this shortcut inserts plain dictation."
+                        )
+                        .padding(.top, DS.Spacing.medium)
+                    }
+                }
+            }
+            .dsCard()
+        }
     }
 
     // MARK: Transcription & cleanup

@@ -308,6 +308,13 @@ struct SettingsView: View {
                     )
                     Divider().padding(.vertical, DS.Spacing.medium)
                     DSToggleRow(
+                        title: "Conversation awareness",
+                        detail: "Read the visible conversation thread (Slack, Mail, Messages) to draft replies and keep suggestions on-topic. Uses Accessibility, with the screen as fallback. Read once per request, never stored.",
+                        isOn: $autocomplete.conversationContextEnabled,
+                        disabled: !autocomplete.screenContextEnabled
+                    )
+                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSToggleRow(
                         title: "Learn my style",
                         detail: "Store accepted suggestions locally to steer future writing.",
                         isOn: $autocomplete.memoryEnabled

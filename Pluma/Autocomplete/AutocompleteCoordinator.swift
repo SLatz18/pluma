@@ -33,6 +33,12 @@ final class AutocompleteCoordinator: ObservableObject {
         }
     }
 
+    @Published var conversationContextEnabled: Bool {
+        didSet {
+            Preferences.setConversationContextEnabled(conversationContextEnabled, to: defaults)
+        }
+    }
+
     @Published var memoryEnabled: Bool {
         didSet {
             defaults.set(memoryEnabled, forKey: Preferences.memoryEnabledKey)
@@ -119,6 +125,7 @@ final class AutocompleteCoordinator: ObservableObject {
         self.overlay = overlay
         isEnabled = Preferences.autocompleteEnabled(from: defaults)
         screenContextEnabled = Preferences.screenContextEnabled(from: defaults)
+        conversationContextEnabled = Preferences.conversationContextEnabled(from: defaults)
         memoryEnabled = Preferences.memoryEnabled(from: defaults)
         inlineSuggestions = Preferences.inlineSuggestions(from: defaults)
         spellCorrectionEnabled = Preferences.spellCorrectionEnabled(from: defaults)
@@ -533,10 +540,22 @@ final class AutocompleteCoordinator: ObservableObject {
         let provider = Preferences.provider(from: defaults)
         let ollamaModel = Preferences.ollamaModel(from: defaults)
 
+        // The conversation extractor supersedes raw OCR when it yields a
+        // thread (it falls back to OCR internally), and its capture is cached
+        // per focused window so the AX walk is not repaid on every pause.
         var surrounding: String?
-        if screenContextEnabled, screenContext.isPermitted {
-            surrounding = await ScreenContextProvider.surroundingText()
-            DebugLog.log("screen context: \(surrounding?.count ?? 0) chars")
+        var conversation: String?
+        if screenContextEnabled {
+            if conversationContextEnabled,
+               let captured = await ConversationContextProvider.cachedCapture() {
+                conversation = captured.text
+                DebugLog.log(
+                    "conversation context (\(captured.source.rawValue)): \(captured.text.count) chars"
+                )
+            } else if screenContext.isPermitted {
+                surrounding = await ScreenContextProvider.surroundingText()
+                DebugLog.log("screen context: \(surrounding?.count ?? 0) chars")
+            }
         }
         let memoryDigest = memoryEnabled ? memory.digest() : nil
         let styleProfile = StyleProfileStore.shared.isEmpty ? nil : StyleProfileStore.shared.text
@@ -547,6 +566,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
+                conversation: conversation,
                 memory: memoryDigest,
                 styleProfile: styleProfile,
                 ollamaModel: ollamaModel,
@@ -585,6 +605,7 @@ final class AutocompleteCoordinator: ObservableObject {
                     provider: provider,
                     context: context,
                     surrounding: surrounding,
+                    conversation: conversation,
                     memory: memoryDigest,
                     styleProfile: styleProfile,
                     ollamaModel: ollamaModel,
@@ -649,6 +670,7 @@ final class AutocompleteCoordinator: ObservableObject {
         provider: RewriteProviderChoice,
         context: String,
         surrounding: String?,
+        conversation: String?,
         memory: String?,
         styleProfile: String?,
         ollamaModel: String,
@@ -660,6 +682,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
+                conversation: conversation,
                 memory: memory,
                 styleProfile: styleProfile,
                 directives: directiveChain,
@@ -697,6 +720,7 @@ final class AutocompleteCoordinator: ObservableObject {
                 provider: provider,
                 context: context,
                 surrounding: surrounding,
+                conversation: conversation,
                 memory: memory,
                 styleProfile: styleProfile,
                 directives: directiveChain,

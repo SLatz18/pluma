@@ -33,6 +33,14 @@ struct GlobalShortcut: Equatable, Sendable {
         display: "⇪R"
     )
 
+    // Draft-a-reply is push-to-talk like dictation, so it rides the same Caps
+    // Lock modifier: D for "draft". Hold it, speak the intent, release.
+    static let draftReplyDefault = GlobalShortcut(
+        keyCode: UInt32(kVK_ANSI_D),
+        carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
+        display: "⇪D"
+    )
+
     private static let hyperChords: Set<UInt32> = [
         UInt32(controlKey | optionKey | cmdKey),
         UInt32(controlKey | optionKey | shiftKey | cmdKey)

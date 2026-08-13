@@ -67,14 +67,31 @@ enum AppleIntelligenceEngine {
     static func complete(
         _ context: String,
         surrounding: String? = nil,
+        conversation: String? = nil,
         memory: String? = nil,
         styleProfile: String? = nil,
         directives: [CompletionDirective] = CompletionDirective.defaultChain
     ) async throws -> String {
         try await gate.run {
             try await completeUnlocked(
-                context, surrounding: surrounding, memory: memory, styleProfile: styleProfile,
-                directives: directives
+                context, surrounding: surrounding, conversation: conversation,
+                memory: memory, styleProfile: styleProfile, directives: directives
+            )
+        }
+    }
+
+    // A full reply from the visible thread plus the user's intent. Shares the
+    // session gate: a draft racing a completion would cancel both.
+    static func draftReply(
+        intent: String,
+        conversation: String?,
+        memory: String? = nil,
+        styleProfile: String? = nil
+    ) async throws -> String {
+        try await gate.run {
+            try await draftReplyUnlocked(
+                intent: intent, conversation: conversation,
+                memory: memory, styleProfile: styleProfile
             )
         }
     }
@@ -107,6 +124,7 @@ enum AppleIntelligenceEngine {
     private static func completeUnlocked(
         _ context: String,
         surrounding: String?,
+        conversation: String?,
         memory: String?,
         styleProfile: String?,
         directives: [CompletionDirective]
@@ -123,9 +141,40 @@ enum AppleIntelligenceEngine {
         )
         let response = try await session.respond(
             to: PromptComposer.completionUserPrompt(
-                context: context, surrounding: surrounding, memory: memory
+                context: context, surrounding: surrounding,
+                conversation: conversation, memory: memory
             ),
             options: GenerationOptions(temperature: 0.3, maximumResponseTokens: 80)
+        )
+        let output = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !output.isEmpty else {
+            throw RewriteEngineError.invalidResponse
+        }
+        return output
+    }
+
+    private static func draftReplyUnlocked(
+        intent: String,
+        conversation: String?,
+        memory: String?,
+        styleProfile: String?
+    ) async throws -> String {
+        guard model.isAvailable else {
+            throw RewriteEngineError.modelUnavailable(status().detail)
+        }
+
+        let session = LanguageModelSession(
+            model: model,
+            instructions: PromptComposer.draftReplyInstructions(styleProfile: styleProfile)
+        )
+        // A drafted reply is a whole message, not a phrase, so the token budget
+        // is far larger than a completion's — but still bounded, because the
+        // result lands at a caret the user has to review.
+        let response = try await session.respond(
+            to: PromptComposer.draftReplyUserPrompt(
+                intent: intent, conversation: conversation, memory: memory
+            ),
+            options: GenerationOptions(temperature: 0.4, maximumResponseTokens: 500)
         )
         let output = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !output.isEmpty else {
