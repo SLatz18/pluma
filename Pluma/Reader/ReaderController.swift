@@ -19,7 +19,6 @@ final class ReaderController: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var voiceEntries: [ReaderVoiceCatalog.Entry] = []
     @Published private(set) var openAIModels: [OpenAITTSCatalogOption] = OpenAITTSCatalog.fallbackModels
-    @Published private(set) var openAICustomVoices: [OpenAITTSCatalogOption] = []
     @Published private(set) var openAICatalogStatus: String?
     @Published private(set) var isRefreshingOpenAICatalog = false
 
@@ -109,10 +108,7 @@ final class ReaderController: ObservableObject {
     }
 
     var openAIVoiceOptions: [OpenAITTSCatalogOption] {
-        OpenAITTSCatalog.voices(
-            compatibleWithModel: openAITTSModelID,
-            customVoices: openAICustomVoices
-        )
+        OpenAITTSCatalog.voices(compatibleWithModel: openAITTSModelID)
     }
 
     var selectedOpenAIModelDetail: String {
@@ -212,8 +208,8 @@ final class ReaderController: ObservableObject {
         guard isRefreshingOpenAICatalog == false else { return }
         isRefreshingOpenAICatalog = true
         openAICatalogStatus = openAIKeyPresent()
-            ? "Refreshing OpenAI options…"
-            : "Using built-in OpenAI options until an API key is saved."
+            ? "Checking model availability with OpenAI…"
+            : "Voices come from OpenAI’s documented catalog. Add an API key to check model availability."
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -225,7 +221,6 @@ final class ReaderController: ObservableObject {
 
     private func applyOpenAICatalog(_ snapshot: OpenAITTSCatalogClient.Snapshot) {
         openAIModels = snapshot.models
-        openAICustomVoices = snapshot.customVoices
         openAITTSModelID = OpenAITTSCatalog.resolveModelID(
             preferred: openAITTSModelID,
             available: snapshot.models
@@ -235,12 +230,9 @@ final class ReaderController: ObservableObject {
         if let errorMessage = snapshot.errorMessage, snapshot.modelsFromAPI == false {
             openAICatalogStatus = errorMessage
         } else if snapshot.modelsFromAPI {
-            let customNote = snapshot.customVoices.isEmpty
-                ? ""
-                : " · \(snapshot.customVoices.count) custom voice\(snapshot.customVoices.count == 1 ? "" : "s")"
-            openAICatalogStatus = "Loaded \(snapshot.models.count) TTS model\(snapshot.models.count == 1 ? "" : "s") from OpenAI\(customNote)."
+            openAICatalogStatus = "Confirmed \(snapshot.models.count) available TTS model\(snapshot.models.count == 1 ? "" : "s") with OpenAI. Voice names use OpenAI’s documented catalog."
         } else {
-            openAICatalogStatus = "Showing built-in OpenAI options."
+            openAICatalogStatus = "Showing OpenAI’s documented voice catalog and fallback models."
         }
     }
 
@@ -449,9 +441,6 @@ final class ReaderController: ObservableObject {
         guard let openAI = speech as? OpenAISpeechEngine else { return }
         openAI.voiceID = openAIVoiceID
         openAI.modelID = openAITTSModelID
-        openAI.isCustomVoice = openAIVoiceOptions.contains(where: {
-            $0.id == openAIVoiceID && $0.isCustomVoice
-        })
     }
 
     private static func makeSpeechEngine(

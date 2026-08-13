@@ -60,20 +60,6 @@ final class OpenAITTSClientTests: XCTestCase {
         XCTAssertEqual(json["speed"] as? Double, 0.25)
     }
 
-    func testRequestBodyEncodesCustomVoiceAsObject() throws {
-        let data = try OpenAITTSClient.requestBody(
-            text: "Custom",
-            voiceID: "voice_abc123",
-            modelID: "gpt-4o-mini-tts",
-            speed: 1.0,
-            isCustomVoice: true
-        )
-        let json = try XCTUnwrap(
-            JSONSerialization.jsonObject(with: data) as? [String: Any]
-        )
-        let voice = try XCTUnwrap(json["voice"] as? [String: Any])
-        XCTAssertEqual(voice["id"] as? String, "voice_abc123")
-    }
 }
 
 final class OpenAITTSCatalogTests: XCTestCase {

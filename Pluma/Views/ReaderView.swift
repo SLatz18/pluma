@@ -275,7 +275,7 @@ struct ReaderView: View {
     private var openAIVoiceControls: some View {
         DSSettingRow(
             "Voice",
-            detail: "OpenAI neural voices. Text is sent for synthesis, then played locally."
+            detail: "OpenAI’s documented built-in voices. The API does not provide a voice-list endpoint."
         ) {
             Picker("OpenAI voice", selection: $controller.openAIVoiceID) {
                 ForEach(controller.openAIVoiceOptions) { voice in
@@ -314,9 +314,9 @@ struct ReaderView: View {
                     if controller.isRefreshingOpenAICatalog {
                         ProgressView()
                             .controlSize(.small)
-                        Text("Refreshing…")
+                        Text("Checking…")
                     } else {
-                        Text("Refresh OpenAI options")
+                        Text("Refresh model availability")
                     }
                 }
                 .controlSize(.small)

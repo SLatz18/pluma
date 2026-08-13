@@ -8,7 +8,6 @@ enum OpenAITTSClient {
         voiceID: String,
         modelID: String,
         speed: Double,
-        isCustomVoice: Bool = false,
         session: URLSession = .shared
     ) async throws -> Data {
         guard let key = OpenAIKey.current else {
@@ -23,8 +22,7 @@ enum OpenAITTSClient {
             text: text,
             voiceID: voiceID,
             modelID: modelID,
-            speed: speed,
-            isCustomVoice: isCustomVoice
+            speed: speed
         )
 
         let (data, response) = try await session.data(for: request)
@@ -40,17 +38,13 @@ enum OpenAITTSClient {
         text: String,
         voiceID: String,
         modelID: String,
-        speed: Double,
-        isCustomVoice: Bool = false
+        speed: Double
     ) throws -> Data {
         let clampedSpeed = min(max(speed, 0.25), 4.0)
-        let voiceValue: Any = isCustomVoice || voiceID.hasPrefix("voice_")
-            ? ["id": voiceID]
-            : voiceID
         return try JSONSerialization.data(withJSONObject: [
             "model": modelID,
             "input": text,
-            "voice": voiceValue,
+            "voice": voiceID,
             "response_format": "mp3",
             "speed": clampedSpeed
         ])

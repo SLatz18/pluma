@@ -8,7 +8,6 @@ import Foundation
 struct OpenAITTSCatalogOption: Identifiable, Hashable, Sendable {
     enum Kind: String, Sendable {
         case builtInVoice
-        case customVoice
         case model
     }
 
@@ -17,7 +16,6 @@ struct OpenAITTSCatalogOption: Identifiable, Hashable, Sendable {
     let detail: String
     let kind: Kind
 
-    var isCustomVoice: Bool { kind == .customVoice }
 }
 
 enum OpenAITTSCatalog {
@@ -72,17 +70,14 @@ enum OpenAITTSCatalog {
         return false
     }
 
-    static func voices(
-        compatibleWithModel modelID: String,
-        customVoices: [OpenAITTSCatalogOption] = []
-    ) -> [OpenAITTSCatalogOption] {
+    static func voices(compatibleWithModel modelID: String) -> [OpenAITTSCatalogOption] {
         let builtIn: [OpenAITTSCatalogOption]
         if usesClassicVoiceSet(modelID: modelID) {
             builtIn = builtInVoices.filter { classicModelVoiceIDs.contains($0.id) }
         } else {
             builtIn = builtInVoices
         }
-        return builtIn + customVoices
+        return builtIn
     }
 
     static func usesClassicVoiceSet(modelID: String) -> Bool {
@@ -117,9 +112,6 @@ enum OpenAITTSCatalog {
     }
 
     static func displayTitle(forVoiceID id: String) -> String {
-        if id.hasPrefix("voice_") {
-            return "Custom voice"
-        }
         return id.replacingOccurrences(of: "-", with: " ").capitalized
     }
 
