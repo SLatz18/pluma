@@ -8,6 +8,7 @@ struct DictationView: View {
     @State private var apiKeyDraft = ""
     @State private var hasKey = OpenAIKey.isPresent
     @State private var ollamaModels: [String] = []
+    @State private var showAdvanced = false
 
     var body: some View {
         DSFeaturePage(
@@ -45,40 +46,24 @@ struct DictationView: View {
     // MARK: Hero
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 14) {
-                DSIconTile(systemImage: "mic", tint: DS.Feature.dictation.color)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Push-to-talk, anywhere")
-                        .font(DS.cardTitle)
-                    Text("Recording runs only while the shortcut is held. Nothing is inserted until you let go, so partial guesses never reach your document.")
-                        .font(DS.cardBody)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                Toggle("Dictation", isOn: $controller.isEnabled)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
+        DSFeatureHero(
+            systemImage: "mic",
+            tint: DS.Feature.dictation.color,
+            title: "Push-to-talk, anywhere",
+            detail: "Recording runs only while the shortcut is held. Nothing is inserted until you let go, so partial guesses never reach your document.",
+            isOn: $controller.isEnabled,
+            toggleLabel: "Dictation",
+            statusColor: statusColor,
+            statusText: statusText,
+            notice: controller.isMicPermitted ? nil : DSNoticeRow(
+                systemImage: "mic.slash",
+                tint: .orange,
+                text: "Dictation needs microphone access.",
+                actionTitle: "Grant Microphone Access…"
+            ) {
+                Task { await controller.requestMicrophonePermission() }
             }
-
-            DSStatusRow(color: statusColor, text: statusText)
-
-            if !controller.isMicPermitted {
-                DSNoticeRow(
-                    systemImage: "mic.slash",
-                    tint: .orange,
-                    text: "Dictation needs microphone access.",
-                    actionTitle: "Grant Microphone Access…"
-                ) {
-                    Task { await controller.requestMicrophonePermission() }
-                }
-            }
-        }
-        .dsCard()
+        )
     }
 
     // MARK: Shortcut
@@ -122,116 +107,137 @@ struct DictationView: View {
             VStack(spacing: 0) {
                 DSToggleRow(
                     title: "Clean up with AI",
-                    detail: "Removes filler words and false starts, fixes punctuation. Keeps your wording and meaning; if it fails, the raw transcript is inserted.",
+                    detail: "Removes filler words and false starts, fixes punctuation. Keeps your wording; if it fails, the raw transcript is inserted.",
                     isOn: $controller.cleanupEnabled,
                     disabled: !controller.isEnabled
                 )
 
                 DSRowDivider()
 
-                HStack(spacing: 8) {
-                    Text("Transcribe with")
-                        .font(DS.cardBody.weight(.medium))
-                    Picker("Transcribe with", selection: $controller.provider) {
-                        ForEach(DictationProviderChoice.allCases) { choice in
-                            Text(choice.title).tag(choice)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 160)
-
-                    Text(controller.provider.detail)
-                        .font(DS.meta)
-                        .foregroundStyle(.tertiary)
-
-                    Spacer()
-                }
-
-                DSRowDivider()
-
-                HStack(spacing: 8) {
-                    Text("Clean up with")
-                        .font(DS.cardBody.weight(.medium))
-                    Picker("Clean up with", selection: $controller.cleanupProvider) {
-                        ForEach(CleanupProviderChoice.allCases) { choice in
-                            Text(choice.title).tag(choice)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 160)
-                    .disabled(!controller.cleanupEnabled)
-
-                    switch controller.cleanupProvider {
-                    case .openAI:
-                        Picker("Model", selection: $controller.openAIModel) {
-                            ForEach(OpenAIChatModel.allCases) { model in
-                                Text(model.title).tag(model)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(width: 140)
-                        .disabled(!controller.cleanupEnabled)
-                    case .ollama:
-                        if ollamaModels.isEmpty {
-                            TextField("Ollama model", text: $controller.ollamaModel)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 160)
-                        } else {
-                            Picker("Ollama model", selection: $controller.ollamaModel) {
-                                ForEach(ollamaModels, id: \.self) { name in
-                                    Text(name).tag(name)
+                DisclosureGroup(isExpanded: $showAdvanced) {
+                    VStack(spacing: 0) {
+                        DSSettingRow(
+                            "Transcribe with",
+                            detail: controller.provider.detail
+                        ) {
+                            Picker("Transcribe with", selection: $controller.provider) {
+                                ForEach(DictationProviderChoice.allCases) { choice in
+                                    Text(choice.title).tag(choice)
                                 }
                             }
                             .labelsHidden()
-                            .frame(width: 180)
-                            .disabled(!controller.cleanupEnabled)
+                            .frame(width: 160)
                         }
-                    case .appleOnDevice:
-                        EmptyView()
+
+                        if controller.cleanupEnabled {
+                            DSRowDivider()
+
+                            DSSettingRow("Clean up with") {
+                                HStack(spacing: 8) {
+                                    Picker("Clean up with", selection: $controller.cleanupProvider) {
+                                        ForEach(CleanupProviderChoice.allCases) { choice in
+                                            Text(choice.title).tag(choice)
+                                        }
+                                    }
+                                    .labelsHidden()
+                                    .frame(width: 160)
+
+                                    cleanupModelControl
+                                }
+                            }
+                        }
+
+                        if usesOpenAI {
+                            DSRowDivider()
+                            apiKeyRow
+                        }
                     }
-
-                    Spacer()
-                }
-
-                if usesOpenAI {
-                    DSRowDivider()
-
-                    HStack(spacing: 10) {
-                        Image(systemName: hasKey ? "key.fill" : "key")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(hasKey ? .green : .orange)
-                            .frame(width: 18)
-                        if hasKey {
-                            Text("API key stored in the keychain")
-                                .font(DS.meta)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Button("Remove") {
-                                OpenAIKey.clear()
-                                hasKey = false
-                                apiKeyDraft = ""
-                                Task { await controller.prepare() }
-                            }
-                            .controlSize(.small)
-                        } else {
-                            SecureField("OpenAI API key", text: $apiKeyDraft)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(maxWidth: 280)
-                            Button("Save") {
-                                OpenAIKey.save(apiKeyDraft)
-                                hasKey = OpenAIKey.isPresent
-                                apiKeyDraft = ""
-                                Task { await controller.prepare() }
-                            }
-                            .controlSize(.small)
-                            .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-                            Spacer()
-                        }
+                    .padding(.top, DS.Spacing.medium)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Advanced")
+                            .font(DS.cardBody.weight(.medium))
+                        Text(advancedSummary)
+                            .font(DS.meta)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
             .dsCard()
         }
+    }
+
+    @ViewBuilder
+    private var cleanupModelControl: some View {
+        switch controller.cleanupProvider {
+        case .openAI:
+            Picker("Model", selection: $controller.openAIModel) {
+                ForEach(OpenAIChatModel.allCases) { model in
+                    Text(model.title).tag(model)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 140)
+        case .ollama:
+            if ollamaModels.isEmpty {
+                TextField("Ollama model", text: $controller.ollamaModel)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 160)
+            } else {
+                Picker("Ollama model", selection: $controller.ollamaModel) {
+                    ForEach(ollamaModels, id: \.self) { name in
+                        Text(name).tag(name)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 180)
+            }
+        case .appleOnDevice:
+            EmptyView()
+        }
+    }
+
+    private var apiKeyRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: hasKey ? "key.fill" : "key")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(hasKey ? .green : .orange)
+                .frame(width: 18)
+            if hasKey {
+                Text("API key stored in the keychain")
+                    .font(DS.meta)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Remove") {
+                    OpenAIKey.clear()
+                    hasKey = false
+                    apiKeyDraft = ""
+                    Task { await controller.prepare() }
+                }
+                .controlSize(.small)
+            } else {
+                SecureField("OpenAI API key", text: $apiKeyDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 280)
+                Button("Save") {
+                    OpenAIKey.save(apiKeyDraft)
+                    hasKey = OpenAIKey.isPresent
+                    apiKeyDraft = ""
+                    Task { await controller.prepare() }
+                }
+                .controlSize(.small)
+                .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                Spacer()
+            }
+        }
+    }
+
+    private var advancedSummary: String {
+        var parts = ["Transcribe: \(controller.provider.title)"]
+        if controller.cleanupEnabled {
+            parts.append("Clean up: \(controller.cleanupProvider.title)")
+        }
+        return parts.joined(separator: " · ")
     }
 
     // MARK: Logic carried from the old card

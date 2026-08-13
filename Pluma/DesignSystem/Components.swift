@@ -4,9 +4,9 @@ import SwiftUI
 // and status row comes from here so a feature page and the playground can
 // never drift into different dialects.
 //
-// The grammar is trigger → action: an uppercase eyebrow names the trigger
-// ("SELECTED TEXT", "AS YOU TYPE"), an arrow, then the outcome. If a new
-// surface can't state its trigger, it doesn't get an eyebrow.
+// The grammar is WHEN → THEN → RESULT: an uppercase eyebrow names the
+// trigger ("SELECTED TEXT", "AS YOU TYPE"), an arrow, then the outcome. If a
+// new surface can't state its trigger, it doesn't get an eyebrow.
 // MARK: - Card surface
 
 struct DSCard<Content: View>: View {
@@ -173,6 +173,55 @@ struct DSToggleRow: View {
         }
         .disabled(disabled)
         .foregroundStyle(disabled ? .tertiary : .primary)
+    }
+}
+
+// MARK: - Feature hero
+
+/// The lead card on a feature page: icon tile, title, description, trailing
+/// enable switch, a status row, and an optional permission notice. Keeps
+/// Autocomplete and Dictation (and future features) visually identical.
+struct DSFeatureHero: View {
+    let systemImage: String
+    let tint: Color
+    let title: String
+    let detail: String
+    @Binding var isOn: Bool
+    var toggleLabel: String = "Enabled"
+    var toggleDisabled: Bool = false
+    let statusColor: Color
+    let statusText: String
+    var notice: DSNoticeRow? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                DSIconTile(systemImage: systemImage, tint: tint)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(DS.cardTitle)
+                    Text(detail)
+                        .font(DS.cardBody)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 12)
+
+                Toggle(toggleLabel, isOn: $isOn)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .disabled(toggleDisabled)
+            }
+
+            DSStatusRow(color: statusColor, text: statusText)
+
+            if let notice {
+                notice
+            }
+        }
+        .dsCard()
     }
 }
 

@@ -253,18 +253,6 @@ struct SettingsView: View {
 
                     Divider().padding(.vertical, DS.Spacing.medium)
 
-                    DSSettingRow(
-                        "Menu bar",
-                        detail: "Autocomplete and dictation can be toggled without opening the main window."
-                    ) {
-                        DSBadge(text: "Always available", tone: .success, systemImage: "menubar.rectangle")
-                    }
-                }
-                .dsCard()
-            }
-
-            DSSection("Developer tools") {
-                VStack(spacing: 0) {
                     DSToggleRow(
                         title: "Developer mode",
                         detail: "Adds the hidden Developer page with diagnostics and component inspection.",
@@ -443,18 +431,22 @@ struct SettingsView: View {
                 }
                 .dsCard()
 
-                HStack {
-                    Button("Reveal style memory in Finder") {
-                        NSWorkspace.shared.activateFileViewerSelecting([memory.url])
+                DisclosureGroup("Advanced") {
+                    HStack {
+                        Button("Reveal style memory in Finder") {
+                            NSWorkspace.shared.activateFileViewerSelecting([memory.url])
+                        }
+                        Button("Reveal spelling memory") {
+                            NSWorkspace.shared.activateFileViewerSelecting([spellMemory.url])
+                        }
+                        Spacer()
+                        Button("Open Diagnostics Log") {
+                            NSWorkspace.shared.open(DebugLog.url)
+                        }
                     }
-                    Button("Reveal spelling memory") {
-                        NSWorkspace.shared.activateFileViewerSelecting([spellMemory.url])
-                    }
-                    Spacer()
-                    Button("Open Diagnostics Log") {
-                        NSWorkspace.shared.open(DebugLog.url)
-                    }
+                    .padding(.top, DS.Spacing.small)
                 }
+                .font(DS.meta)
             }
         }
         .accessibilityIdentifier("settings-privacy")
