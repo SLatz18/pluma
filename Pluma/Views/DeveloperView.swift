@@ -24,6 +24,7 @@ struct DeveloperView: View {
             eyebrow: "cheat code"
         ) {
             caretCard
+            promptEditorCard
             completionCard
             conversationCard
             componentGalleryCard
@@ -44,6 +45,12 @@ struct DeveloperView: View {
         .sheet(isPresented: $isComparing) {
             CleanupComparisonView()
         }
+    }
+
+    // MARK: Recipe prompts
+
+    private var promptEditorCard: some View {
+        PromptEditorCard()
     }
 
     // MARK: Component gallery

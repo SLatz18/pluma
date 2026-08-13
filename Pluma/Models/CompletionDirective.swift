@@ -12,6 +12,8 @@ enum CompletionDirective: String, CaseIterable, Codable, Identifiable, Sendable 
 
     var id: String { rawValue }
 
+    var promptID: String { "autocomplete.\(rawValue)" }
+
     var title: String {
         switch self {
         case .matchTone: "Match My Tone"
@@ -40,8 +42,13 @@ enum CompletionDirective: String, CaseIterable, Codable, Identifiable, Sendable 
     }
 
     /// The sentence added to the completion system prompt when this card is in
-    /// the chain.
+    /// the chain. Honors a Developer-page override when one is set.
     var promptDirective: String {
+        PromptOverrides.text(for: promptID, default: shippedPromptDirective)
+    }
+
+    /// Shipped copy — the Reset target and the default for an untouched install.
+    var shippedPromptDirective: String {
         switch self {
         case .matchTone:
             "Match the writer's tone, register, and vocabulary exactly: "
@@ -60,9 +67,14 @@ enum CompletionDirective: String, CaseIterable, Codable, Identifiable, Sendable 
         }
     }
 
+    var hasCustomPrompt: Bool {
+        PromptOverrides.isCustom(promptID, default: shippedPromptDirective)
+    }
+
     /// Matching today's shipped behavior: the base instructions already tell
     /// the model to continue in the writer's language and tone, so the default
     /// chain is the one card that restates it. When the chain equals this
-    /// default, the composer emits exactly the legacy prompt.
+    /// default and no card is customized, the composer emits exactly the
+    /// legacy prompt.
     static let defaultChain: [CompletionDirective] = [.matchTone]
 }
