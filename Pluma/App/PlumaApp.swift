@@ -17,10 +17,15 @@ struct PlumaApp: App {
         // One overlay panel for ghost text, rewrite status, dictation, and
         // reader, so they can never stack on top of each other at the caret.
         let overlay = SuggestionOverlayController()
+        let rewriteFeedback = RewriteFeedbackController()
         _model = StateObject(wrappedValue: RewriteViewModel())
         _autocomplete = StateObject(wrappedValue: AutocompleteCoordinator(overlay: overlay))
-        _selectionRewrite = StateObject(wrappedValue: SelectionRewriteController(overlay: overlay))
-        _clipboardRewrite = StateObject(wrappedValue: ClipboardRewriteController(overlay: overlay))
+        _selectionRewrite = StateObject(
+            wrappedValue: SelectionRewriteController(overlay: overlay, feedback: rewriteFeedback)
+        )
+        _clipboardRewrite = StateObject(
+            wrappedValue: ClipboardRewriteController(overlay: overlay, feedback: rewriteFeedback)
+        )
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
         _reader = StateObject(wrappedValue: ReaderController(overlay: overlay))
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
