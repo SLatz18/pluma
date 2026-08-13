@@ -4,9 +4,9 @@ import SwiftUI
 // and status row comes from here so a feature page and the playground can
 // never drift into different dialects.
 //
-// The grammar is trigger → action: an uppercase eyebrow names the trigger
-// ("SELECTED TEXT", "AS YOU TYPE"), an arrow, then the outcome. If a new
-// surface can't state its trigger, it doesn't get an eyebrow.
+// The grammar is WHEN → THEN → RESULT: an uppercase eyebrow names the
+// trigger ("SELECTED TEXT", "AS YOU TYPE"), an arrow, then the outcome. If a
+// new surface can't state its trigger, it doesn't get an eyebrow.
 // MARK: - Card surface
 
 struct DSCard<Content: View>: View {
@@ -29,6 +29,7 @@ extension View {
                 RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
                     .strokeBorder(DS.hairline)
             }
+            .shadow(color: .black.opacity(0.05), radius: 1.5, y: 1)
     }
 
     func dsInsetSurface() -> some View {
@@ -176,6 +177,55 @@ struct DSToggleRow: View {
     }
 }
 
+// MARK: - Feature hero
+
+/// The lead card on a feature page: icon tile, title, description, trailing
+/// enable switch, a status row, and an optional permission notice. Keeps
+/// Autocomplete and Dictation (and future features) visually identical.
+struct DSFeatureHero: View {
+    let systemImage: String
+    let tint: Color
+    let title: String
+    let detail: String
+    @Binding var isOn: Bool
+    var toggleLabel: String = "Enabled"
+    var toggleDisabled: Bool = false
+    let statusColor: Color
+    let statusText: String
+    var notice: DSNoticeRow? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 14) {
+                DSIconTile(systemImage: systemImage, tint: tint)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(DS.cardTitle)
+                    Text(detail)
+                        .font(DS.cardBody)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 12)
+
+                Toggle(toggleLabel, isOn: $isOn)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+                    .disabled(toggleDisabled)
+            }
+
+            DSStatusRow(color: statusColor, text: statusText)
+
+            if let notice {
+                notice
+            }
+        }
+        .dsCard()
+    }
+}
+
 // MARK: - Page scaffold
 
 /// Every sidebar page: optional eyebrow, big rounded title, subtitle, then
@@ -276,19 +326,19 @@ struct DSAutomationFlow: View {
         .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
         .padding(DS.Spacing.medium)
         .background(
-            DS.insetBackground,
+            definition.tint.color.opacity(0.05),
             in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
         )
         .overlay {
             RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
-                .strokeBorder(DS.hairline)
+                .strokeBorder(definition.tint.color.opacity(0.16))
         }
     }
 
     private var connector: some View {
         Image(systemName: "arrow.right")
             .font(.caption.weight(.bold))
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(definition.tint.color.opacity(0.55))
             .frame(width: 12, height: 62)
     }
 }
@@ -496,7 +546,11 @@ struct DSPipelineStep: View {
     let title: String
     let number: Int
     let tint: Color
+    var moveLeft: (() -> Void)? = nil
+    var moveRight: (() -> Void)? = nil
     let remove: () -> Void
+
+    private var isReorderable: Bool { moveLeft != nil || moveRight != nil }
 
     var body: some View {
         HStack(spacing: DS.Spacing.small) {
@@ -505,6 +559,27 @@ struct DSPipelineStep: View {
                 .foregroundStyle(tint)
             Text(title)
                 .font(DS.meta.weight(.medium))
+            if isReorderable {
+                HStack(spacing: 2) {
+                    Button(action: { moveLeft?() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(moveLeft == nil ? .quaternary : .tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(moveLeft == nil)
+                    .accessibilityLabel("Move \(title) earlier in pipeline")
+
+                    Button(action: { moveRight?() }) {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(moveRight == nil ? .quaternary : .tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(moveRight == nil)
+                    .accessibilityLabel("Move \(title) later in pipeline")
+                }
+            }
             Button(action: remove) {
                 Image(systemName: "xmark")
                     .font(.caption2.weight(.bold))
@@ -512,6 +587,15 @@ struct DSPipelineStep: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Remove \(title) from pipeline")
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityActions {
+            if let moveLeft {
+                Button("Move \(title) earlier", action: moveLeft)
+            }
+            if let moveRight {
+                Button("Move \(title) later", action: moveRight)
+            }
         }
         .padding(.horizontal, DS.Spacing.medium)
         .padding(.vertical, DS.Spacing.small)

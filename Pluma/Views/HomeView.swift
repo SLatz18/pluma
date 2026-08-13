@@ -80,7 +80,13 @@ struct HomeView: View {
                             DSPipelineStep(
                                 title: intent.title,
                                 number: index + 1,
-                                tint: intent.feature.color
+                                tint: intent.feature.color,
+                                moveLeft: index > 0
+                                    ? { model.moveInChain(intent, offset: -1) }
+                                    : nil,
+                                moveRight: index < model.chain.count - 1
+                                    ? { model.moveInChain(intent, offset: 1) }
+                                    : nil
                             ) {
                                 model.removeFromChain(intent)
                             }

@@ -4,7 +4,7 @@ enum GhostStyle: Equatable {
     case suggestion, dictation
 }
 
-// A breathing red mark that says "live". Shared by the pill and the ghost text.
+// A breathing mark that says "live". Shared by the pill and the ghost text.
 // It animates opacity only — never a colour — so a light/dark switch mid-pulse
 // needs no CGColor bookkeeping.
 @MainActor
@@ -71,7 +71,9 @@ final class GhostTextView: NSView {
         textLayout.addTextContainer(container)
         storage.addLayoutManager(textLayout)
 
-        dot.contentTintColor = .systemRed
+        // Dictation's feature tint from the design system, so the dot at the
+        // caret and the mic in the pill say "dictation" in the same colour.
+        dot.contentTintColor = DS.FeatureColor.dictation.nsColor
         dot.imageScaling = .scaleNone
         dot.isHidden = true
         addSubview(dot)
@@ -129,7 +131,11 @@ final class GhostTextView: NSView {
                 string: "⇥",
                 attributes: [
                     .font: NSFont.systemFont(ofSize: max(9, font.pointSize - 2), weight: .medium),
-                    .foregroundColor: NSColor.quaternaryLabelColor
+                    // Autocomplete's tint, faded almost to the quaternary
+                    // weight it replaced: still a whisper, but the same
+                    // indigo whisper the feature uses everywhere else.
+                    .foregroundColor: DS.FeatureColor.autocomplete.nsColor
+                        .withAlphaComponent(0.45)
                 ]
             )
         case .dictation:
