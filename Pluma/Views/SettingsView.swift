@@ -53,19 +53,19 @@ struct SettingsView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            settingsPage {
+            DSSettingsPage {
                 generalContent
             }
             .tabItem { Label("General", systemImage: "gear") }
             .tag(SettingsDestination.general)
 
-            settingsPage {
+            DSSettingsPage {
                 writingContent
             }
             .tabItem { Label("Writing", systemImage: "brain") }
             .tag(SettingsDestination.writing)
 
-            settingsPage {
+            DSSettingsPage {
                 privacyContent
             }
             .tabItem { Label("Privacy", systemImage: "hand.raised") }
@@ -124,20 +124,6 @@ struct SettingsView: View {
         }
     }
 
-    private func settingsPage<Content: View>(
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.sectionGap) {
-                content()
-            }
-            .padding(DS.pagePadding)
-            .frame(maxWidth: DS.Control.pageMaxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .background(DS.pageBackground)
-    }
-
     // #47: the clipboard fallback is the path that works in Google Docs and
     // Electron apps, so its state and its permission have to be visible rather
     // than something the writer discovers by pressing a key and seeing nothing.
@@ -155,7 +141,7 @@ struct SettingsView: View {
                 )
 
                 if clipboardRewrite.isEnabled {
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
 
                     DSSettingRow(
                         "Shortcut",
@@ -168,7 +154,7 @@ struct SettingsView: View {
                         )
                     }
 
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
 
                     DSSettingRow(
                         "Paste from Other Apps",
@@ -187,7 +173,7 @@ struct SettingsView: View {
                     }
 
                     if let conflict = clipboardRewrite.shortcutConflict {
-                        Divider().padding(.vertical, DS.Spacing.medium)
+                        DSRowDivider()
                         DSNoticeRow(
                             systemImage: "exclamationmark.triangle",
                             tint: .red,
@@ -196,6 +182,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .dsCard()
         }
     }
 
@@ -248,7 +235,7 @@ struct SettingsView: View {
                     )
 
                     if let launchAtLoginError {
-                        Divider().padding(.vertical, DS.Spacing.medium)
+                        DSRowDivider()
                         DSNoticeRow(
                             systemImage: "exclamationmark.triangle",
                             tint: .red,
@@ -256,7 +243,7 @@ struct SettingsView: View {
                         )
                     }
 
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
 
                     DSToggleRow(
                         title: "Developer mode",
@@ -289,13 +276,13 @@ struct SettingsView: View {
                     }
 
                     if model.provider == .ollama {
-                        Divider().padding(.vertical, DS.Spacing.medium)
+                        DSRowDivider()
                         DSSettingRow("Ollama model") {
                             ollamaControl
                         }
                     }
 
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     DSStatusIndicator(
                         tone: model.status.isReady ? .success : .attention,
                         text: model.status.title
@@ -311,14 +298,14 @@ struct SettingsView: View {
                         detail: "Read terms near the cursor to improve suggestions and dictation. Screen contents are never stored.",
                         isOn: $autocomplete.screenContextEnabled
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     DSToggleRow(
                         title: "Conversation awareness",
                         detail: "Read the visible conversation thread (Slack, Mail, Messages) to draft replies and keep suggestions on-topic. Uses Accessibility, with the screen as fallback. Read once per request, never stored.",
                         isOn: $autocomplete.conversationContextEnabled,
                         disabled: !autocomplete.screenContextEnabled
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     DSToggleRow(
                         title: "Learn my style",
                         detail: "Store accepted suggestions locally to steer future writing.",
@@ -367,19 +354,19 @@ struct SettingsView: View {
                             ? "On-device with Apple Intelligence"
                             : "Local loopback through Ollama"
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     processingRow(
                         title: "Dictation audio",
                         value: dictation.provider == .openAI
                             ? "Sent to OpenAI for transcription"
                             : "Transcribed on this Mac"
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     processingRow(
                         title: "Reader",
                         value: "Spoken on this Mac. Text is not stored."
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     processingRow(
                         title: "Transcript cleanup",
                         value: cleanupPath
@@ -397,7 +384,7 @@ struct SettingsView: View {
                     ) {
                         autocomplete.requestPermission()
                     }
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     permissionRow(
                         title: "Screen Recording",
                         granted: autocomplete.isScreenContextPermitted,
@@ -405,7 +392,7 @@ struct SettingsView: View {
                     ) {
                         autocomplete.requestScreenContextPermission()
                     }
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     permissionRow(
                         title: "Microphone",
                         granted: dictation.isMicPermitted,
@@ -424,13 +411,13 @@ struct SettingsView: View {
                         value: "\(memory.count) of 300 phrases",
                         clear: memory.count > 0 ? { clearTarget = .memory } : nil
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     dataRow(
                         title: "Spelling memory",
                         value: "\(spellMemory.count) of \(SpellMemoryStore.maxEntries) corrections",
                         clear: spellMemory.count > 0 ? { clearTarget = .spellMemory } : nil
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     dataRow(
                         title: "Style profile",
                         value: styleProfile.isEmpty
@@ -438,7 +425,7 @@ struct SettingsView: View {
                             : "\(styleProfile.text.count) characters",
                         clear: styleProfile.isEmpty ? nil : { clearTarget = .profile }
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     DSSettingRow(
                         "Audio and transcripts",
                         detail: "Never persisted by pluma."
