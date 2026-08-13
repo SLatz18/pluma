@@ -19,9 +19,18 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
   add/remove files and regenerate. Regenerate AFTER file writes land (parallel
   tool calls race it).
 - Signing is the stable "Local Self-Signed" identity so Accessibility/TCC
-  grants survive rebuilds. Keep it.
+  grants and Keychain ACLs survive rebuilds. Keep it.
 - Install: `ditto DerivedData/Build/Products/Debug/Pluma.app ~/Applications/Pluma.app`
   (`/Applications` needs admin; `~/Applications` behaves identically).
+- **Once Pluma has a Developer ID (or Apple Development team):** migrate
+  `Services/KeychainStore.swift` from the file-based keychain to the data
+  protection keychain (`kSecUseDataProtectionKeychain` +
+  `keychain-access-groups` entitlement authorized by a provisioning profile).
+  Self-signed builds get `errSecMissingEntitlement (-34018)` on that path, so
+  today's file-based store is intentional — but it uses ACL prompts when the
+  signing leaf hash changes. Data protection has no ACLs, so reads stay silent
+  across updates. Also update `OpenAIKey`'s process cache comment (it
+  currently papers over those prompts). See Apple TN3137.
 
 ## Architecture map
 

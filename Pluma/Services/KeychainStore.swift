@@ -3,6 +3,12 @@ import Security
 
 // API keys belong in the keychain, not in UserDefaults where any process that
 // can read a plist can read the key.
+//
+// TODO(Developer ID): switch this store to the data protection keychain
+// (`kSecUseDataProtectionKeychain` + `keychain-access-groups`). Self-signed
+// builds cannot carry that entitlement (errSecMissingEntitlement -34018), so
+// we stay on the file-based keychain and accept ACL prompts when the signing
+// leaf changes. Once Pluma has a Developer ID / team, migrate — see CLAUDE.md.
 enum KeychainStore {
     private static let service = "com.scottlatz.Pluma"
     // Keys saved before the pluma rename sit under the old service name. Without
