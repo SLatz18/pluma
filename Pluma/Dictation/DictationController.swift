@@ -315,18 +315,23 @@ final class DictationController: ObservableObject {
             return
         }
 
-        var output = transcript
-        if cleanupEnabled, let cleaned = await RewriteRunner.cleanUpDictation(
+        let output = await cleanedOutput(for: transcript)
+
+        await insert(DictationTranscript.withoutFragmentPeriod(output))
+    }
+
+    // The cleanup half of endListening, factored out so tests can prove the
+    // stacked chain reaches the actual request. Falls back to the raw
+    // transcript on any failure — losing the user's words is never acceptable.
+    func cleanedOutput(for transcript: String) async -> String {
+        guard cleanupEnabled else { return transcript }
+        return await RewriteRunner.cleanUpDictation(
             provider: cleanupProvider,
             openAIModel: openAIModel,
             ollamaModel: ollamaModel,
             transcript: transcript,
             directives: cleanupChain
-        ) {
-            output = cleaned
-        }
-
-        await insert(DictationTranscript.withoutFragmentPeriod(output))
+        ) ?? transcript
     }
 
     // Tap order is run order, same contract as the rewrite chain.

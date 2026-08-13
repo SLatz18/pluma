@@ -643,7 +643,9 @@ final class AutocompleteCoordinator: ObservableObject {
         )
     }
 
-    private func generateCompletion(
+    // Internal (not private) so tests can drive the real request path with a
+    // spy engine installed on RewriteRunner.
+    func generateCompletion(
         provider: RewriteProviderChoice,
         context: String,
         surrounding: String?,
