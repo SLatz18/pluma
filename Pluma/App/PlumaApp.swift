@@ -13,9 +13,11 @@ struct PlumaApp: App {
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
-        // Recover Caps Lock if a prior crash left the HID remap applied.
-        if !Preferences.capsShortcutsEnabled() {
-            try? CapsLockHIDRemap.clear()
+        // If Caps shortcuts are off and a prior crash left *our* Caps→F18
+        // mapping, remove only that entry — never wipe the user's other remaps.
+        if !Preferences.capsShortcutsEnabled(), CapsLockHIDRemap.isOurMappingPresent() {
+            try? CapsLockHIDRemap.clearOurMapping()
+            CapsLockState.turnOff()
         }
 
         // One overlay panel for ghost text, rewrite status, dictation, and

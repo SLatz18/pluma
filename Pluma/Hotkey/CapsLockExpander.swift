@@ -8,10 +8,11 @@ extension Notification.Name {
 
 /// Turns Caps Lock into Pluma's shortcut modifier without Hyperkey.
 ///
-/// Layer 1: HID remap Caps → F18 (kills toggle/LED).
-/// Layer 2: session CGEventTap treats F18 as hold-to-modify, ORing the
-/// chosen Caps chord (⌃⌥⌘ or ⌃⌥⌘⇧) onto other keys.
-/// Layer 3: re-arm on tapDisabled + wake/lock — the reliability Hyperkey lacks.
+/// Layer 1: HID remap Caps → F18 (surgical — never wipes other remaps).
+/// Layer 2: session CGEventTap on a **dedicated** run-loop thread treats F18
+/// as hold-to-modify, ORing the Caps chord (⌃⌥⌘ or ⌃⌥⌘⇧) onto other keys.
+/// Layer 3: re-arm on tapDisabled + wake/lock, with machine reset so a lost
+/// key-up cannot strand the modifier on every keystroke.
 @MainActor
 final class CapsLockExpander: ObservableObject {
     static let shared = CapsLockExpander()
@@ -36,15 +37,45 @@ final class CapsLockExpander: ObservableObject {
 
     enum TapVerdict: Sendable {
         case consume
+        case consumeAndToggleCapsLock
         case passUnmodified
         case passWithCapsChord
     }
 
+    /// Shared with the C callback — no actor hops, NSLock only.
     final class TapState: @unchecked Sendable {
         let lock = NSLock()
         var machine = CapsLockStateMachine()
         var tap: CFMachPort?
         var capsFlags: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand]
+        /// Run-loop the tap source lives on (dedicated thread).
+        var runLoop: CFRunLoop?
+
+        func configure(tapToggles: Bool, threshold: TimeInterval) {
+            lock.lock()
+            machine.tapTogglesCapsLock = tapToggles
+            machine.tapThreshold = threshold
+            lock.unlock()
+        }
+
+        func forceReleaseHold() {
+            lock.lock()
+            _ = machine.handle(.forceRelease, at: CFAbsoluteTimeGetCurrent())
+            lock.unlock()
+        }
+
+        /// Poll path: only clear if the hold exceeded maxHold (lost key-up).
+        func abandonStrandedHold() {
+            lock.lock()
+            let now = CFAbsoluteTimeGetCurrent()
+            // Feed a no-op keyUp path? Ceiling runs at the top of handle for
+            // any non-forceRelease event — use otherKeyUp which is a no-op when
+            // not held / past ceiling.
+            if machine.capsHeld {
+                _ = machine.handle(.otherKeyUp, at: now)
+            }
+            lock.unlock()
+        }
 
         func verdict(type: CGEventType, keyCode: Int64) -> TapVerdict {
             lock.lock()
@@ -53,25 +84,35 @@ final class CapsLockExpander: ObservableObject {
             if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
                 if let tap {
                     CGEvent.tapEnable(tap: tap, enable: true)
-                    DebugLog.log("caps expander: re-enabled after system disabled it")
                 }
+                // A disable mid-hold loses the Caps key-up — abandon the hold
+                // so ordinary typing does not inherit the Caps chord.
+                _ = machine.handle(.forceRelease, at: CFAbsoluteTimeGetCurrent())
                 return .passUnmodified
             }
 
             let isCapsAlias = keyCode == Int64(CapsLockExpander.capsAliasKeyCode)
-            let event: CapsLockExpanderEvent
-            if isCapsAlias, type == .keyDown {
-                event = .capsDown
-            } else if isCapsAlias, type == .keyUp {
-                event = .capsUp
-            } else if type == .keyDown || type == .keyUp {
-                event = .otherKey
-            } else {
-                return .passUnmodified
-            }
+            let now = CFAbsoluteTimeGetCurrent()
 
-            switch machine.handle(event) {
+            if isCapsAlias, type == .keyDown {
+                return map(machine.handle(.capsDown, at: now))
+            }
+            if isCapsAlias, type == .keyUp {
+                return map(machine.handle(.capsUp, at: now))
+            }
+            if type == .keyDown {
+                return map(machine.handle(.otherKeyDown, at: now))
+            }
+            if type == .keyUp {
+                return map(machine.handle(.otherKeyUp, at: now))
+            }
+            return .passUnmodified
+        }
+
+        private func map(_ output: CapsLockStateMachine.Output) -> TapVerdict {
+            switch output {
             case .consume: return .consume
+            case .consumeAndToggleCapsLock: return .consumeAndToggleCapsLock
             case .passUnmodified: return .passUnmodified
             case .passWithCapsChord: return .passWithCapsChord
             }
@@ -80,11 +121,14 @@ final class CapsLockExpander: ObservableObject {
 
     private let tapState = TapState()
     private let defaults: UserDefaults
-    private var runLoopSource: CFRunLoopSource?
     private var pollTask: Task<Void, Never>?
     private var remapApplied = false
     private var workspaceObservers: [NSObjectProtocol] = []
     private var distributedObservers: [NSObjectProtocol] = []
+    private var tapThread: Thread?
+
+    /// Serial queue for IOKit toggles — never block the event-tap callback.
+    private static let ioQueue = DispatchQueue(label: "com.scottlatz.Pluma.capsLockIO")
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -98,7 +142,7 @@ final class CapsLockExpander: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3))
                 guard !Task.isCancelled else { return }
-                self?.reevaluate()
+                await MainActor.run { self?.reevaluate() }
             }
         }
     }
@@ -109,6 +153,15 @@ final class CapsLockExpander: ObservableObject {
         removeLifecycleObservers()
         stopTapAndClearRemap()
         status = .off
+    }
+
+    /// Manual recovery: clear our Caps→F18 mapping and turn Caps Lock off.
+    func restoreCapsLock() {
+        Preferences.setCapsShortcutsEnabled(false, to: defaults)
+        stopTapAndClearRemap()
+        status = .off
+        lastError = nil
+        NotificationCenter.default.post(name: .capsShortcutsSettingsDidChange, object: self)
     }
 
     func reevaluate() {
@@ -122,8 +175,22 @@ final class CapsLockExpander: ObservableObject {
             includesShift: Preferences.capsChordIncludesShift(from: defaults)
         )
         tapState.lock.unlock()
+        tapState.configure(
+            tapToggles: Preferences.capsTapTogglesCapsLock(from: defaults),
+            threshold: Preferences.capsTapThreshold(from: defaults)
+        )
+
+        // Abandon a stranded hold on every poll tick (max-hold ceiling only).
+        tapState.abandonStrandedHold()
 
         guard enabled else {
+            // If a prior crash left our mapping while the feature is off, remove
+            // only our entry — never wipe the user's other remaps.
+            if CapsLockHIDRemap.isOurMappingPresent() {
+                try? CapsLockHIDRemap.clearOurMapping()
+                CapsLockState.turnOff()
+                remapApplied = false
+            }
             stopTapAndClearRemap()
             status = .off
             lastError = nil
@@ -141,6 +208,11 @@ final class CapsLockExpander: ObservableObject {
             // Tap first: a failed tap must not leave Caps aliased to a dead key.
             try startTap()
             try ensureRemap()
+            // Confirm the world matches our in-memory claim.
+            if !CapsLockHIDRemap.isOurMappingPresent() {
+                remapApplied = false
+                try ensureRemap()
+            }
             status = .active
             lastError = nil
         } catch {
@@ -164,47 +236,57 @@ final class CapsLockExpander: ObservableObject {
     // MARK: - Remap
 
     private func ensureRemap() throws {
-        guard !remapApplied else { return }
+        if remapApplied, CapsLockHIDRemap.isOurMappingPresent() { return }
         try CapsLockHIDRemap.apply()
         remapApplied = true
         DebugLog.log("caps expander: HID Caps→F18 applied")
     }
 
     private func clearRemapIfNeeded() {
-        guard remapApplied else { return }
+        // Always probe the world — in-memory remapApplied can lie after a crash
+        // recovery or a failed ensureRemap that still wrote.
+        let present = CapsLockHIDRemap.isOurMappingPresent()
+        guard remapApplied || present else { return }
         do {
-            try CapsLockHIDRemap.clear()
+            try CapsLockHIDRemap.clearOurMapping()
             DebugLog.log("caps expander: HID Caps mapping cleared")
         } catch {
             DebugLog.log("caps expander: failed to clear HID mapping: \(error.localizedDescription)")
         }
         remapApplied = false
+        CapsLockState.turnOff()
     }
 
-    // MARK: - Tap
+    // MARK: - Tap (dedicated thread)
 
     private func startTap() throws {
         tapState.lock.lock()
-        let alreadyRunning = tapState.tap != nil
+        let existing = tapState.tap
+        let existingValid = existing.map { CFMachPortIsValid($0) } ?? false
         tapState.lock.unlock()
-        guard !alreadyRunning else { return }
+
+        if existingValid { return }
+
+        // Stale port — tear down before recreating.
+        if existing != nil {
+            stopTapOnly()
+        }
 
         tapState.lock.lock()
         tapState.machine = CapsLockStateMachine()
+        tapState.machine.tapTogglesCapsLock = Preferences.capsTapTogglesCapsLock(from: defaults)
+        tapState.machine.tapThreshold = Preferences.capsTapThreshold(from: defaults)
         tapState.lock.unlock()
 
         let mask: CGEventMask =
             (1 << CGEventType.keyDown.rawValue)
             | (1 << CGEventType.keyUp.rawValue)
-            | (1 << CGEventType.flagsChanged.rawValue)
 
         let userInfo = Unmanaged.passUnretained(tapState).toOpaque()
         guard
             let tap = CGEvent.tapCreate(
-                // Session tap, not `.cghidEventTap`: HID-level taps are gated
-                // behind Input Monitoring, while a session tap needs only the
-                // Accessibility grant Pluma already holds. This is the level
-                // Hyperkey works at, and it still sees keys before any app.
+                // Session tap: Accessibility only (Hyperkey's level). HID-level
+                // taps require Input Monitoring.
                 tap: .cgSessionEventTap,
                 place: .headInsertEventTap,
                 options: .defaultTap,
@@ -217,6 +299,10 @@ final class CapsLockExpander: ObservableObject {
                     let verdict = state.verdict(type: type, keyCode: keyCode)
                     switch verdict {
                     case .consume:
+                        return nil
+                    case .consumeAndToggleCapsLock:
+                        // Never do IOKit on the tap thread — hop to a serial queue.
+                        CapsLockExpander.ioQueue.async { CapsLockState.toggle() }
                         return nil
                     case .passUnmodified:
                         return Unmanaged.passUnretained(event)
@@ -234,31 +320,84 @@ final class CapsLockExpander: ObservableObject {
             throw CapsLockExpanderError.tapCreateFailed
         }
 
+        guard let source = CFMachPortCreateRunLoopSource(nil, tap, 0) else {
+            CFMachPortInvalidate(tap)
+            throw CapsLockExpanderError.tapCreateFailed
+        }
+        let started = startTapThread(tap: tap, source: source)
+        guard started else {
+            CFMachPortInvalidate(tap)
+            throw CapsLockExpanderError.tapCreateFailed
+        }
+
         tapState.lock.lock()
         tapState.tap = tap
         tapState.lock.unlock()
+        DebugLog.log("caps expander: session tap active (dedicated thread)")
+    }
 
-        let source = CFMachPortCreateRunLoopSource(nil, tap, 0)
-        runLoopSource = source
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-        DebugLog.log("caps expander: HID tap active")
+    private func startTapThread(tap: CFMachPort, source: CFRunLoopSource) -> Bool {
+        final class ReadyBox: @unchecked Sendable {
+            let lock = NSLock()
+            var ready = false
+            var runLoop: CFRunLoop?
+        }
+        let box = ReadyBox()
+
+        let thread = Thread {
+            let rl = CFRunLoopGetCurrent()
+            CFRunLoopAddSource(rl, source, .commonModes)
+            CGEvent.tapEnable(tap: tap, enable: true)
+            box.lock.lock()
+            box.runLoop = rl
+            box.ready = true
+            box.lock.unlock()
+            CFRunLoopRun()
+            CFRunLoopRemoveSource(rl, source, .commonModes)
+        }
+        thread.name = "pluma.caps-event-tap"
+        thread.qualityOfService = .userInteractive
+        tapThread = thread
+        thread.start()
+
+        // Wait briefly for the thread to publish its run loop.
+        let deadline = Date().addingTimeInterval(1)
+        while Date() < deadline {
+            box.lock.lock()
+            let isReady = box.ready
+            let rl = box.runLoop
+            box.lock.unlock()
+            if isReady {
+                tapState.lock.lock()
+                tapState.runLoop = rl
+                tapState.lock.unlock()
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.01)
+        }
+        return false
+    }
+
+    private func stopTapOnly() {
+        tapState.lock.lock()
+        let tap = tapState.tap
+        let rl = tapState.runLoop
+        tapState.tap = nil
+        tapState.runLoop = nil
+        tapState.machine = CapsLockStateMachine()
+        tapState.lock.unlock()
+
+        if let rl {
+            CFRunLoopStop(rl)
+        }
+        if let tap, CFMachPortIsValid(tap) {
+            CFMachPortInvalidate(tap)
+        }
+        tapThread = nil
     }
 
     private func stopTapAndClearRemap() {
-        if let runLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
-        }
-        runLoopSource = nil
-
-        tapState.lock.lock()
-        let tap = tapState.tap
-        tapState.tap = nil
-        tapState.machine = CapsLockStateMachine()
-        tapState.lock.unlock()
-        if let tap {
-            CFMachPortInvalidate(tap)
-        }
+        stopTapOnly()
         clearRemapIfNeeded()
     }
 
@@ -267,8 +406,18 @@ final class CapsLockExpander: ObservableObject {
     private func installLifecycleObservers() {
         guard workspaceObservers.isEmpty else { return }
         let workspace = NSWorkspace.shared.notificationCenter
-        let wake: (Notification) -> Void = { [weak self] _ in
-            Task { @MainActor in self?.reevaluate() }
+        let wake: @Sendable (Notification) -> Void = { [weak self] _ in
+            Task { @MainActor in
+                self?.tapState.forceReleaseHold()
+                self?.reevaluate()
+            }
+        }
+        // On lock: clear remap so Caps works at the login/lock UI; re-apply on unlock.
+        let onLock: @Sendable (Notification) -> Void = { [weak self] _ in
+            Task { @MainActor in
+                self?.tapState.forceReleaseHold()
+                self?.stopTapAndClearRemap()
+            }
         }
         workspaceObservers = [
             workspace.addObserver(
@@ -284,7 +433,7 @@ final class CapsLockExpander: ObservableObject {
         let lock = Notification.Name("com.apple.screenIsLocked")
         distributedObservers = [
             dnc.addObserver(forName: unlock, object: nil, queue: .main, using: wake),
-            dnc.addObserver(forName: lock, object: nil, queue: .main, using: wake)
+            dnc.addObserver(forName: lock, object: nil, queue: .main, using: onLock)
         ]
     }
 

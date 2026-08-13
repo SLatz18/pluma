@@ -49,6 +49,10 @@ enum Preferences {
     static let capsShortcutsEnabledKey = "pluma.capsShortcutsEnabled"
     /// When Caps shortcuts are on, include Shift in the Caps chord (⌃⌥⌘⇧).
     static let capsChordIncludesShiftKey = "pluma.capsChordIncludesShift"
+    /// Lone Caps tap toggles real Caps Lock (default on).
+    static let capsTapTogglesCapsLockKey = "pluma.capsTapTogglesCapsLock"
+    /// Max Caps press duration still counted as a tap (seconds).
+    static let capsTapThresholdKey = "pluma.capsTapThreshold"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -166,6 +170,27 @@ enum Preferences {
 
     static func setCapsChordIncludesShift(_ includesShift: Bool, to defaults: UserDefaults = .standard) {
         defaults.set(includesShift, forKey: capsChordIncludesShiftKey)
+    }
+
+    /// Default on — matches CapsSpike dual-role proof. Missing key → true.
+    static func capsTapTogglesCapsLock(from defaults: UserDefaults = .standard) -> Bool {
+        if defaults.object(forKey: capsTapTogglesCapsLockKey) == nil { return true }
+        return defaults.bool(forKey: capsTapTogglesCapsLockKey)
+    }
+
+    static func setCapsTapTogglesCapsLock(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: capsTapTogglesCapsLockKey)
+    }
+
+    /// Default 0.3s. Clamped to a sane range.
+    static func capsTapThreshold(from defaults: UserDefaults = .standard) -> TimeInterval {
+        let raw = defaults.double(forKey: capsTapThresholdKey)
+        if raw == 0 { return CapsLockStateMachine.defaultTapThreshold }
+        return min(0.6, max(0.15, raw))
+    }
+
+    static func setCapsTapThreshold(_ seconds: TimeInterval, to defaults: UserDefaults = .standard) {
+        defaults.set(min(0.6, max(0.15, seconds)), forKey: capsTapThresholdKey)
     }
 
     /// Rewrite stored Caps-chord shortcuts to match the current Caps chord setting.

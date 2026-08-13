@@ -229,12 +229,12 @@ struct SettingsView: View {
 
             DSSection(
                 "Caps Lock",
-                detail: "Use Caps Lock as pluma’s shortcut modifier (⇪E rewrite, ⇪Space dictate, and the other factory chords). While on, Caps Lock’s own toggle is suspended."
+                detail: "Use Caps Lock as pluma’s shortcut modifier (⇪E rewrite, ⇪Space dictate, and the other factory chords). Hold Caps with a letter for the chord; tap Caps alone for real Caps Lock."
             ) {
                 VStack(spacing: 0) {
                     DSToggleRow(
                         title: "Use Caps Lock for shortcuts",
-                        detail: "Hold Caps Lock with a letter instead of installing Hyperkey. Off restores normal Caps Lock.",
+                        detail: "Hold Caps Lock with a letter instead of installing Hyperkey. Off restores normal Caps Lock on a clean quit; use Restore if Caps feels stuck after a crash.",
                         isOn: capsShortcutsBinding
                     )
 
@@ -251,7 +251,24 @@ struct SettingsView: View {
                         }
 
                         DSRowDivider()
+                        DSToggleRow(
+                            title: "Tap Caps for Caps Lock",
+                            detail: "A quick Caps tap toggles real Caps Lock (LED included). Off makes Caps modifier-only.",
+                            isOn: capsTapTogglesBinding
+                        )
+
+                        DSRowDivider()
                         capsStatusRow
+
+                        DSRowDivider()
+                        HStack {
+                            Spacer()
+                            Button("Restore Caps Lock") {
+                                capsLock.restoreCapsLock()
+                            }
+                        }
+                        .padding(.horizontal, DS.Spacing.medium)
+                        .padding(.vertical, DS.Spacing.small)
                     }
                 }
                 .dsCard()
@@ -324,6 +341,16 @@ struct SettingsView: View {
             get: { Preferences.capsChordIncludesShift() },
             set: { newValue in
                 Preferences.setCapsChordIncludesShift(newValue)
+                capsLock.applySettingsChange()
+            }
+        )
+    }
+
+    private var capsTapTogglesBinding: Binding<Bool> {
+        Binding(
+            get: { Preferences.capsTapTogglesCapsLock() },
+            set: { newValue in
+                Preferences.setCapsTapTogglesCapsLock(newValue)
                 capsLock.applySettingsChange()
             }
         )
