@@ -2,40 +2,34 @@
 
 Standalone harness notes for Caps Lock as pluma’s shortcut modifier.
 
-## Mechanism chosen
+## Mechanism chosen (proven on device 2026-08-13)
 
-**A — inert alias (Caps → F18 via `hidutil`) + HID `CGEventTap`.**
-
-Priority from the plan:
+**A — inert alias (Caps → F18 via `hidutil`) + session `CGEventTap` + dual-role tap.**
 
 | Candidate | Result |
 |---|---|
-| **C — no alias / force caps state off** | Not shipped. Issue #23 already showed Caps toggle/LED is applied before taps; synthetic anti-toggle reverted. Skipping as primary. |
-| **A — Caps → F18** | **Chosen.** Same structural approach as open Hyperkey clones; Hyperkey on this Mac aliases Caps to Right Command (`capsLockKeycode=231`) then expands flags — F18 is the safer inert alias (does not steal physical Right ⌘). |
-| **B — Right Command alias** | Rejected for pluma: cannot distinguish aliased Caps from real Right ⌘. |
+| **C — no alias / force caps state off** | Not shipped. Issue #23 already showed Caps toggle/LED is applied before taps. |
+| **A — Caps → F18** | **Chosen.** Safe inert alias; does not steal physical Right ⌘. |
+| **B — Right Command alias** | Rejected: cannot distinguish aliased Caps from real Right ⌘. |
+| **HID-level tap** | Rejected: requires Input Monitoring. Hyperkey uses a **session** tap (Accessibility only). |
+| **Dual-role** | **Required.** Hold = modifier; quick lone tap = real Caps Lock via `IOHIDSetModifierLockState` (LED included). Consuming Caps alone made Caps Lock unusable. |
 
-## Observe (Hyperkey ON vs OFF)
+## Reliability (must-haves from review panel)
 
-From `~/Library/Preferences/com.knollsoft.Hyperkey.plist` (2026-08-13):
+1. **Surgical hidutil clear** — remove only Caps→F18; never write `UserKeyMapping:[]`.
+2. **Reset machine on `tapDisabled*`** + **max-hold ceiling (~2.5s)** — a lost Caps key-up must not OR ⌃⌥⌘ onto all typing.
+3. **`CapsLockState.turnOff()` on teardown** + **Restore Caps Lock** Settings action.
+4. **Dedicated run-loop thread** for the tap — never the SwiftUI main thread.
+5. **Clear remap on screen lock**; re-apply on unlock/wake.
+6. Probe real mapping with `--get`, not only in-memory `remapApplied`.
 
-- Caps physical keycode 57
-- Aliased to keycode 231 (Right Command) when `keyRemap=1`
-- `hyperFlags` on disk: `1835008` = ⌃⌥⌘; June backup had `1966080` = ⌃⌥⌘⇧
-- Global `hidutil UserKeyMapping` is null — Hyperkey uses per-service / in-app mapping
+## Physical checklist
 
-Live event logging belongs in a future CapsSpike UI run with Input Monitoring; pluma embeds the same stack.
+With Hyperkey quit and CapsSpike (or Pluma Caps shortcuts) started + Accessibility granted:
 
-## Reliability
-
-Hyperkey’s tap dies on wake/lock (`hyperkey-rearm.py`). pluma’s `CapsLockExpander` re-enables on `tapDisabled*` and reevaluates on wake / screens-wake / lock / unlock.
-
-## Physical checklist (for Scott)
-
-With Hyperkey quit and Settings → **Use Caps Lock for shortcuts** on:
-
-1. Caps+E fires rewrite; no LED / no caps state
-2. Lone Caps tap does nothing
+1. Caps+letter fires chord; no capitalization of that letter
+2. Lone Caps tap toggles Caps Lock + LED
 3. Ordinary typing unchanged when Caps not held
-4. Caps+Space press/release for dictation
-5. Sleep/wake / lock — still works without relaunch
-6. Toggle off restores normal Caps; quit clears HID remap
+4. Sleep/wake / lock — still works without relaunch
+5. Stop / quit restores Caps; other hidutil remaps (e.g. Caps→Esc) survive
+6. Force-quit while enabled → relaunch or Restore Caps Lock recovers
