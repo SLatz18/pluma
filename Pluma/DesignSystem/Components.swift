@@ -359,28 +359,6 @@ struct DSFeaturePage<Content: View>: View {
     }
 }
 
-/// Settings window tabs: the same page padding and width as `DSPage`, without
-/// a title block — the TabView labels own that role.
-struct DSSettingsPage<Content: View>: View {
-    let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.sectionGap) {
-                content
-            }
-            .padding(DS.pagePadding)
-            .frame(maxWidth: DS.Control.pageMaxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .background(DS.pageBackground)
-    }
-}
-
 /// Tertiary privacy or processing note at the bottom of a feature page.
 struct DSPageFootnote: View {
     let text: String
@@ -506,7 +484,11 @@ struct DSSharedSettingLink: View {
     var destination: SettingsDestination = .writing
 
     var body: some View {
-        SettingsLink {
+        // Settings are sidebar pages in the same window, so a shared-setting
+        // link is plain navigation — the page it names is the page it shows.
+        Button {
+            MainNavigation.shared.page = destination.mainPage
+        } label: {
             HStack(spacing: DS.Spacing.medium) {
                 Image(systemName: systemImage)
                     .foregroundStyle(.secondary)

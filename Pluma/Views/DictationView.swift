@@ -150,7 +150,7 @@ struct DictationView: View {
 
     private var transcriptionSection: some View {
         DSSection(
-            "Transcription & cleanup",
+            "Transcription and cleanup",
             detail: "After you speak, polish and insert."
         ) {
             VStack(spacing: 0) {

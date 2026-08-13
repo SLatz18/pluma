@@ -23,12 +23,33 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
         case .privacy: "hand.raised"
         }
     }
+
+    /// The sidebar page carrying this destination. Settings are ordinary main
+    /// window pages — there is no separate Settings window.
+    var mainPage: MainPage {
+        switch self {
+        case .general: .general
+        case .writing: .writing
+        case .privacy: .privacy
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .general: "Caps Lock shortcuts and how pluma starts."
+        case .writing: "The shared model, context, and style that power every feature."
+        case .privacy: "Where text goes, what pluma can access, and what it stores."
+        }
+    }
 }
 
-struct SettingsView: View {
+/// One settings destination rendered as an ordinary main-window page, so
+/// settings navigate exactly like features do.
+struct SettingsPageView: View {
+    let destination: SettingsDestination
+
     @EnvironmentObject private var model: RewriteViewModel
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
-    @EnvironmentObject private var clipboardRewrite: ClipboardRewriteController
     @EnvironmentObject private var dictation: DictationController
     @EnvironmentObject private var memory: MemoryStore
     @EnvironmentObject private var spellMemory: SpellMemoryStore
@@ -36,7 +57,6 @@ struct SettingsView: View {
     @EnvironmentObject private var developer: DeveloperMode
     @EnvironmentObject private var capsLock: CapsLockExpander
 
-    @State private var selection: SettingsDestination = .general
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
     @State private var showImporter = false
@@ -53,26 +73,16 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        TabView(selection: $selection) {
-            DSSettingsPage {
+        DSPage(title: destination.title, subtitle: destination.subtitle) {
+            switch destination {
+            case .general:
                 generalContent
-            }
-            .tabItem { Label("General", systemImage: "gear") }
-            .tag(SettingsDestination.general)
-
-            DSSettingsPage {
+            case .writing:
                 writingContent
-            }
-            .tabItem { Label("Writing", systemImage: "brain") }
-            .tag(SettingsDestination.writing)
-
-            DSSettingsPage {
+            case .privacy:
                 privacyContent
             }
-            .tabItem { Label("Privacy", systemImage: "hand.raised") }
-            .tag(SettingsDestination.privacy)
         }
-        .frame(width: 640, height: 560)
         .task {
             await model.refreshStatus()
         }
@@ -125,108 +135,8 @@ struct SettingsView: View {
         }
     }
 
-    // #47: the clipboard fallback is the path that works in Google Docs and
-    // Electron apps, so its state and its permission have to be visible rather
-    // than something the writer discovers by pressing a key and seeing nothing.
-    private var clipboardFallbackSection: some View {
-        DSSection("Clipboard fallback") {
-            VStack(spacing: 0) {
-                DSToggleRow(
-                    title: "Rewrite what I copy",
-                    detail: "For apps where selecting text does not work, like Google Docs "
-                        + "and Discord. Copy, press \(clipboardRewrite.shortcut.display), then paste.",
-                    isOn: Binding(
-                        get: { clipboardRewrite.isEnabled },
-                        set: { clipboardRewrite.setEnabled($0) }
-                    )
-                )
-
-                if clipboardRewrite.isEnabled {
-                    DSRowDivider()
-
-                    DSSettingRow(
-                        "Shortcut",
-                        detail: "Press this after copying. Rewrites the clipboard in place."
-                    ) {
-                        DSBadge(
-                            text: clipboardRewrite.shortcut.display,
-                            tone: .neutral,
-                            systemImage: "keyboard"
-                        )
-                    }
-
-                    DSRowDivider()
-
-                    DSSettingRow(
-                        "Paste from Other Apps",
-                        detail: pasteboardPermissionDetail
-                    ) {
-                        HStack(spacing: DS.Spacing.small) {
-                            DSBadge(
-                                text: pasteboardPermissionLabel,
-                                tone: pasteboardPermissionTone,
-                                systemImage: pasteboardPermissionSymbol
-                            )
-                            Button("Manage…") {
-                                PasteboardAccess.openPrivacySettings()
-                            }
-                        }
-                    }
-
-                    if let conflict = clipboardRewrite.shortcutConflict {
-                        DSRowDivider()
-                        DSNoticeRow(
-                            systemImage: "exclamationmark.triangle",
-                            tint: .red,
-                            text: conflict
-                        )
-                    }
-                }
-            }
-            .dsCard()
-        }
-    }
-
-    private var pasteboardPermissionDetail: String {
-        switch PasteboardAccess.accessBehavior {
-        case .alwaysDeny:
-            "macOS is blocking clipboard reads, so this shortcut cannot work. "
-                + "Allow pluma under Privacy & Security."
-        case .alwaysAllow:
-            "pluma can read the clipboard without prompting. Reader uses this as a fallback in Google Docs."
-        default:
-            "macOS may ask once the first time pluma reads your clipboard."
-        }
-    }
-
-    private var pasteboardPermissionLabel: String {
-        switch PasteboardAccess.accessBehavior {
-        case .alwaysDeny: "Denied"
-        case .alwaysAllow: "Allowed"
-        default: "Asks once"
-        }
-    }
-
-    private var pasteboardPermissionTone: DS.Tone {
-        switch PasteboardAccess.accessBehavior {
-        case .alwaysDeny: .attention
-        case .alwaysAllow: .success
-        default: .neutral
-        }
-    }
-
-    private var pasteboardPermissionSymbol: String {
-        switch PasteboardAccess.accessBehavior {
-        case .alwaysDeny: "hand.raised"
-        case .alwaysAllow: "checkmark.shield"
-        default: "questionmark.circle"
-        }
-    }
-
     private var generalContent: some View {
         Group {
-            clipboardFallbackSection
-
             DSSection(
                 "Caps Lock",
                 detail: "Use Caps Lock as pluma’s shortcut modifier (⇪E rewrite, ⇪Space dictate, and the other factory chords). Hold Caps with a letter for the chord; tap Caps alone for real Caps Lock."

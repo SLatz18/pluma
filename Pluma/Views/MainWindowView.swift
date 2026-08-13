@@ -6,6 +6,9 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
     case autocomplete
     case dictation
     case reader
+    case general
+    case writing
+    case privacy
     // Only ever in the sidebar once the cheat code has been entered.
     case developer
 
@@ -18,6 +21,9 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .autocomplete: "Autocomplete"
         case .dictation: "Dictation"
         case .reader: "Reader"
+        case .general: "General"
+        case .writing: "Writing"
+        case .privacy: "Privacy"
         case .developer: "Developer"
         }
     }
@@ -29,6 +35,9 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .autocomplete: "character.cursor.ibeam"
         case .dictation: "mic"
         case .reader: "speaker.wave.2"
+        case .general: "gear"
+        case .writing: "brain"
+        case .privacy: "hand.raised"
         case .developer: "hammer"
         }
     }
@@ -40,6 +49,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .autocomplete: DS.Feature.autocomplete.color
         case .dictation: DS.Feature.dictation.color
         case .reader: DS.Feature.reader.color
+        case .general, .writing, .privacy: .secondary
         case .developer: .gray
         }
     }
@@ -54,36 +64,55 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
+/// The one navigation state for the main window, shared so the menu bar
+/// extra, the ⌘, command, and in-page settings links can all land the sidebar
+/// on a specific page. There is deliberately no separate Settings window —
+/// the whole main window is pluma's control panel, and a second surface for
+/// "some" settings was the confusion, not the cure.
+@MainActor
+final class MainNavigation: ObservableObject {
+    static let shared = MainNavigation()
+
+    @Published var page: MainPage? = .overview
+}
+
 /// One window, one job per page: the sidebar routes between trying Rewrite
 /// recipes and the always-on features.
 struct MainWindowView: View {
     @EnvironmentObject private var developer: DeveloperMode
-    @State private var selection: MainPage? = .overview
+    @ObservedObject private var navigation = MainNavigation.shared
+
+    private let featurePages: [MainPage] = [
+        .overview, .rewrite, .autocomplete, .dictation, .reader
+    ]
 
     // The Dev page is filtered out rather than disabled: locked, it is not in
     // the view tree at all.
-    private var pages: [MainPage] {
-        MainPage.allCases.filter { $0 != .developer || developer.isUnlocked }
+    private var settingsPages: [MainPage] {
+        [.general, .writing, .privacy, .developer]
+            .filter { $0 != .developer || developer.isUnlocked }
     }
 
     var body: some View {
         NavigationSplitView {
-            List(pages, selection: $selection) { page in
-                Label {
-                    Text(page.title)
-                } icon: {
-                    Image(systemName: page.symbolName)
-                        .foregroundStyle(page.tint)
+            List(selection: $navigation.page) {
+                Section {
+                    ForEach(featurePages) { page in
+                        sidebarRow(page)
+                    }
                 }
-                .tag(page)
-                .accessibilityIdentifier("nav-\(page.rawValue)")
+                Section("Settings") {
+                    ForEach(settingsPages) { page in
+                        sidebarRow(page)
+                    }
+                }
             }
             .listStyle(.sidebar)
             .navigationTitle("pluma")
         } detail: {
-            switch selection ?? .overview {
+            switch navigation.page ?? .overview {
             case .overview:
-                OverviewView(selection: $selection)
+                OverviewView(selection: $navigation.page)
             case .rewrite:
                 HomeView()
             case .autocomplete:
@@ -92,6 +121,12 @@ struct MainWindowView: View {
                 DictationView()
             case .reader:
                 ReaderView()
+            case .general:
+                SettingsPageView(destination: .general)
+            case .writing:
+                SettingsPageView(destination: .writing)
+            case .privacy:
+                SettingsPageView(destination: .privacy)
             case .developer:
                 DeveloperView()
             }
@@ -102,9 +137,20 @@ struct MainWindowView: View {
         .onAppear { developer.startListeningForCheatCode() }
         .onDisappear { developer.stopListeningForCheatCode() }
         .onChange(of: developer.isUnlocked) { _, unlocked in
-            if !unlocked, selection == .developer {
-                selection = .overview
+            if !unlocked, navigation.page == .developer {
+                navigation.page = .overview
             }
         }
+    }
+
+    private func sidebarRow(_ page: MainPage) -> some View {
+        Label {
+            Text(page.title)
+        } icon: {
+            Image(systemName: page.symbolName)
+                .foregroundStyle(page.tint)
+        }
+        .tag(page)
+        .accessibilityIdentifier("nav-\(page.rawValue)")
     }
 }

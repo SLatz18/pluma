@@ -29,14 +29,6 @@ struct ReaderView: View {
 
             playgroundCard
 
-            DSSharedSettingLink(
-                title: "Writing model",
-                value: model.provider.title,
-                systemImage: "brain",
-                destination: .writing
-            )
-            .dsCard()
-
             DSPageFootnote(text: privacyText)
         }
     }

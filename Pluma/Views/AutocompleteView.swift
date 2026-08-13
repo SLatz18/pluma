@@ -119,7 +119,7 @@ struct AutocompleteView: View {
             title: "Suggestions at the caret",
             detail: "Tab takes the next word, Shift-Tab takes it all, Escape dismisses. Suggestions pause while pluma's window is frontmost.",
             isOn: $coordinator.isEnabled,
-            toggleLabel: "Suggest as I type",
+            toggleLabel: FeatureDefinition.autocomplete.name,
             toggleDisabled: !coordinator.isPermissionGranted,
             statusColor: statusColor,
             statusText: statusText,
