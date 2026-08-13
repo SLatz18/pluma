@@ -27,9 +27,16 @@ enum PromptComposer {
         """
     }
 
-    static let readerSummaryDirective = """
+    static let shippedReaderSummaryDirective = """
     Prepare this text for listening. When the source is long or detailed, summarize it in concise, natural spoken prose. Preserve the important meaning, names, numbers, dates, deadlines, decisions, and action items. When the source is already short and clear, keep it nearly verbatim instead of forcing a summary. Do not add facts, a heading, or an introduction such as "summary" or "the text says."
     """
+
+    static var readerSummaryDirective: String {
+        PromptOverrides.text(
+            for: PromptOverrides.readerSummarizeID,
+            default: shippedReaderSummaryDirective
+        )
+    }
 
     // Spoken-to-written cleanup. Deliberately conservative: a dictation pass
     // that rephrases is worse than one that does nothing, because the speaker
@@ -62,8 +69,11 @@ enum PromptComposer {
             : "Return the result as a single paragraph with no line breaks."
 
         // The default chain is the legacy behavior, byte for byte, so users
-        // who never touch the builder see exactly what shipped before it.
-        if directives == CleanupDirective.defaultChain {
+        // who never touch the builder or customize a card see exactly what
+        // shipped before either existed.
+        let usesLegacyBlob = directives == CleanupDirective.defaultChain
+            && !directives.contains(where: \.hasCustomPrompt)
+        if usesLegacyBlob {
             return "\(dictationDirective) \(layout)"
         }
 
@@ -121,8 +131,11 @@ enum PromptComposer {
         var instructions = completionSystemInstructions
 
         // The default chain restates what the base instructions already say,
-        // so it adds nothing — the legacy prompt survives byte for byte.
-        if directives != CompletionDirective.defaultChain, !directives.isEmpty {
+        // so it adds nothing — the legacy prompt survives byte for byte —
+        // unless a Developer override customized one of those cards.
+        let usesLegacyBlob = directives == CompletionDirective.defaultChain
+            && !directives.contains(where: \.hasCustomPrompt)
+        if !usesLegacyBlob, !directives.isEmpty {
             let steps = directives.enumerated()
                 .map { "\($0.offset + 1). \($0.element.promptDirective)" }
                 .joined(separator: "\n")

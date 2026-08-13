@@ -8,6 +8,8 @@ enum RewriteIntent: String, CaseIterable, Codable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    var promptID: String { "rewrite.\(rawValue)" }
+
     var title: String {
         switch self {
         case .improve: "Improve"
@@ -35,7 +37,13 @@ enum RewriteIntent: String, CaseIterable, Codable, Identifiable, Sendable {
         }
     }
 
+    /// Live editing goal. Honors a Developer-page override when one is set.
     var directive: String {
+        PromptOverrides.text(for: promptID, default: shippedDirective)
+    }
+
+    /// Shipped copy — the Reset target and the default for an untouched install.
+    var shippedDirective: String {
         switch self {
         case .improve:
             "Improve clarity, flow, and word choice while preserving the writer's voice and register. "
