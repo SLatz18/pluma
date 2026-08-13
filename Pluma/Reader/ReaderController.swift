@@ -182,7 +182,7 @@ final class ReaderController: ObservableObject {
             flash(systemImage: "lock.fill", message: "Password fields are never read")
         case .empty:
             DebugLog.log("reader: no selection or clipboard text")
-            flash(systemImage: "text.cursor", message: "Select some text first")
+            flash(systemImage: "text.cursor", message: "Select text, or copy it first")
         case .selection(let text):
             await prepareAndSpeak(text, readingMessage: "Reading…")
         case .clipboard(let text):

@@ -75,27 +75,47 @@ private struct AutocompleteMenuBarView: View {
     @EnvironmentObject private var reader: ReaderController
     @Environment(\.openWindow) private var openWindow
 
+    // A native menu renders its own type, so the rounded-title language
+    // arrives here through iconography instead: each row wears its feature's
+    // own symbol — the same ones the main window's cards lead with — tinted
+    // with the feature colour where the menu honours it.
     var body: some View {
-        Button("Open pluma") {
+        Button {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
+        } label: {
+            Label("Open pluma", systemImage: "macwindow")
         }
 
         Divider()
 
-        Toggle("Autocomplete as I type", isOn: $autocomplete.isEnabled)
-            .toggleStyle(.checkbox)
+        Toggle(isOn: $autocomplete.isEnabled) {
+            Label(
+                "Autocomplete as I type",
+                systemImage: FeatureDefinition.autocomplete.symbolName
+            )
+            .tint(FeatureDefinition.autocomplete.tint.color)
+        }
+        .toggleStyle(.checkbox)
 
-        Toggle("Dictate with \(dictation.shortcut.display)", isOn: $dictation.isEnabled)
-            .toggleStyle(.checkbox)
+        Toggle(isOn: $dictation.isEnabled) {
+            Label(
+                "Dictate with \(dictation.shortcut.display)",
+                systemImage: FeatureDefinition.dictation.symbolName
+            )
+            .tint(FeatureDefinition.dictation.tint.color)
+        }
+        .toggleStyle(.checkbox)
 
         Toggle("Read selection with \(reader.shortcut.display)", isOn: $reader.isEnabled)
             .toggleStyle(.checkbox)
 
         Divider()
 
-        Button("Open Diagnostics Log") {
+        Button {
             NSWorkspace.shared.open(DebugLog.url)
+        } label: {
+            Label("Open Diagnostics Log", systemImage: "doc.text.magnifyingglass")
         }
 
         Button("Quit pluma") {

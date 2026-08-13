@@ -2,6 +2,12 @@ import SwiftUI
 
 struct AutocompleteView: View {
     @EnvironmentObject private var coordinator: AutocompleteCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
 
     var body: some View {
         DSFeaturePage(
@@ -10,29 +16,59 @@ struct AutocompleteView: View {
         ) {
             heroCard
 
+            DSSection(
+                "Suggestion recipe",
+                detail: "Stack directives to shape suggestions. They apply in order."
+            ) {
+                LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
+                    ForEach(CompletionDirective.allCases) { directive in
+                        RecipeActionCard(
+                            title: directive.title,
+                            subtitle: directive.shortDescription,
+                            symbolName: directive.symbolName,
+                            tint: DS.Feature.autocomplete.color,
+                            eyebrow: "As you type",
+                            stepNumber: coordinator.directiveChain
+                                .firstIndex(of: directive).map { $0 + 1 }
+                        ) {
+                            coordinator.toggleDirective(directive)
+                        }
+                    }
+                }
+
+                if !coordinator.directiveChain.isEmpty {
+                    directiveStrip
+                }
+            }
+
             DSSection("Suggestion appearance") {
                 VStack(spacing: 0) {
                     DSToggleRow(
-                        title: "Draw suggestions in the line",
-                        detail: "Grey text continuing your sentence at the caret, instead of a chip below it. Needs the app to report its font and caret precisely — native apps do, most browsers and Electron apps don't, and there it will sit off the line.",
-                        isOn: $coordinator.inlineSuggestions,
-                        disabled: !coordinator.isPermissionGranted
-                    )
-                    DSRowDivider()
-                    DSToggleRow(
                         title: "Correct misspellings",
-                        detail: "When you finish a misspelled word — or pause mid-word — offer a fix on the chip before suggesting what comes next. Tab replaces the word. Uses Apple Intelligence on-device by default; Developer can switch to the Mac spelling dictionary.",
+                        detail: "Offer a fix for misspelled words before suggesting what comes next. Tab replaces the word.",
                         isOn: $coordinator.spellCorrectionEnabled,
                         disabled: !coordinator.isPermissionGranted
                     )
+
+                    if coordinator.spellCorrectionEnabled {
+                        DSRowDivider()
+                        DSToggleRow(
+                            title: "Remember corrections",
+                            detail: "Store accepted fixes locally so repeats are instant. Clear anytime in Settings → Privacy.",
+                            isOn: $coordinator.spellMemoryEnabled,
+                            disabled: !coordinator.isPermissionGranted
+                        )
+                    }
+
                     DSRowDivider()
                     DSToggleRow(
-                        title: "Remember corrections",
-                        detail: "When you accept a fix, store that misspelling locally so the next time is instant — no dictionary wait, no model call. Clear anytime in Settings → Privacy.",
-                        isOn: $coordinator.spellMemoryEnabled,
-                        disabled: !coordinator.spellCorrectionEnabled || !coordinator.isPermissionGranted
+                        title: "Draw suggestions in the line",
+                        detail: "Grey text at the caret instead of a chip below it. Works best in native apps; browsers and Electron apps may misplace it.",
+                        isOn: $coordinator.inlineSuggestions,
+                        disabled: !coordinator.isPermissionGranted
                     )
                 }
+                .animation(DS.Motion.reveal(reduceMotion: reduceMotion), value: coordinator.spellCorrectionEnabled)
                 .dsCard()
             }
 
@@ -50,42 +86,57 @@ struct AutocompleteView: View {
         }
     }
 
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 14) {
-                DSIconTile(systemImage: "character.cursor.ibeam", tint: DS.Feature.autocomplete.color)
+    private var directiveStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(
+                    Array(coordinator.directiveChain.enumerated()), id: \.element
+                ) { index, directive in
+                    if index > 0 {
+                        Image(systemName: "arrow.right")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.tertiary)
+                    }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Suggestions at the caret")
-                        .font(DS.cardTitle)
-                    Text("Tab takes the next word, Shift-Tab takes it all, Escape dismisses. Suggestions pause while pluma's window is frontmost.")
-                        .font(DS.cardBody)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                Toggle("Suggest as I type", isOn: $coordinator.isEnabled)
-                    .toggleStyle(.switch)
-                    .labelsHidden()
-                    .disabled(!coordinator.isPermissionGranted)
-            }
-
-            DSStatusRow(color: statusColor, text: statusText)
-
-            if !coordinator.isPermissionGranted {
-                DSNoticeRow(
-                    systemImage: "hand.raised",
-                    tint: .orange,
-                    text: "Autocomplete needs Accessibility access to read the field you're typing in.",
-                    actionTitle: "Grant Accessibility Access…"
-                ) {
-                    coordinator.requestPermission()
+                    DSPipelineStep(
+                        title: directive.title,
+                        number: index + 1,
+                        tint: DS.Feature.autocomplete.color,
+                        moveLeft: index > 0
+                            ? { coordinator.moveDirective(directive, offset: -1) }
+                            : nil,
+                        moveRight: index < coordinator.directiveChain.count - 1
+                            ? { coordinator.moveDirective(directive, offset: 1) }
+                            : nil
+                    ) {
+                        coordinator.removeDirective(directive)
+                    }
                 }
             }
+            .padding(.vertical, 2)
         }
-        .dsCard()
+    }
+
+    private var heroCard: some View {
+        DSFeatureHero(
+            systemImage: "character.cursor.ibeam",
+            tint: DS.Feature.autocomplete.color,
+            title: "Suggestions at the caret",
+            detail: "Tab takes the next word, Shift-Tab takes it all, Escape dismisses. Suggestions pause while pluma's window is frontmost.",
+            isOn: $coordinator.isEnabled,
+            toggleLabel: "Suggest as I type",
+            toggleDisabled: !coordinator.isPermissionGranted,
+            statusColor: statusColor,
+            statusText: statusText,
+            notice: coordinator.isPermissionGranted ? nil : DSNoticeRow(
+                systemImage: "hand.raised",
+                tint: .orange,
+                text: "Autocomplete needs Accessibility access to read the field you're typing in.",
+                actionTitle: "Grant Accessibility Access…"
+            ) {
+                coordinator.requestPermission()
+            }
+        )
     }
 
     private var statusColor: Color {

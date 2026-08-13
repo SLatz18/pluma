@@ -7,13 +7,15 @@ enum OverlayTone: String, CaseIterable, Sendable {
     case warning
     case failure
 
+    // Routed through the design system's tone palette so the pill reports
+    // status in exactly the colours the main window uses.
     var color: NSColor {
         switch self {
-        case .neutral: .secondaryLabelColor
-        case .accent: .controlAccentColor
-        case .recording: .systemRed
-        case .warning: .systemOrange
-        case .failure: .systemRed
+        case .neutral: DS.Tone.neutral.nsColor
+        case .accent: DS.FeatureColor.rewrite.nsColor
+        case .recording: DS.Tone.recording.nsColor
+        case .warning: DS.Tone.attention.nsColor
+        case .failure: DS.Tone.failure.nsColor
         }
     }
 }

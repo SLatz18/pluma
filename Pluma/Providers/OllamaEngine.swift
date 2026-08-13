@@ -49,12 +49,60 @@ struct OllamaEngine: Sendable {
         return output
     }
 
+    func draftReply(
+        intent: String,
+        conversation: String?,
+        model: String,
+        memory: String? = nil,
+        styleProfile: String? = nil
+    ) async throws -> String {
+        guard !model.isEmpty else {
+            throw RewriteEngineError.noOllamaModels
+        }
+
+        let url = baseURL.appending(path: "api/chat")
+        var request = URLRequest(url: url, timeoutInterval: 60)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(
+            ChatRequest(
+                model: model,
+                messages: [
+                    .init(
+                        role: "system",
+                        content: PromptComposer.draftReplyInstructions(styleProfile: styleProfile)
+                    ),
+                    .init(
+                        role: "user",
+                        content: PromptComposer.draftReplyUserPrompt(
+                            intent: intent, conversation: conversation, memory: memory
+                        )
+                    )
+                ],
+                stream: false,
+                options: .init(numPredict: 500, temperature: 0.4)
+            )
+        )
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response)
+
+        let payload = try JSONDecoder().decode(ChatResponse.self, from: data)
+        let output = payload.message.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !output.isEmpty else {
+            throw RewriteEngineError.invalidResponse
+        }
+        return output
+    }
+
     func complete(
         _ context: String,
         model: String,
         surrounding: String? = nil,
+        conversation: String? = nil,
         memory: String? = nil,
-        styleProfile: String? = nil
+        styleProfile: String? = nil,
+        directives: [CompletionDirective] = CompletionDirective.defaultChain
     ) async throws -> String {
         guard !model.isEmpty else {
             throw RewriteEngineError.noOllamaModels
@@ -70,12 +118,15 @@ struct OllamaEngine: Sendable {
                 messages: [
                     .init(
                         role: "system",
-                        content: PromptComposer.completionInstructions(styleProfile: styleProfile)
+                        content: PromptComposer.completionInstructions(
+                            styleProfile: styleProfile, directives: directives
+                        )
                     ),
                     .init(
                         role: "user",
                         content: PromptComposer.completionUserPrompt(
-                            context: context, surrounding: surrounding, memory: memory
+                            context: context, surrounding: surrounding,
+                            conversation: conversation, memory: memory
                         )
                     )
                 ],

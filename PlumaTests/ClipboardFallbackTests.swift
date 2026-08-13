@@ -108,6 +108,19 @@ final class ClipboardFallbackTests: XCTestCase {
         XCTAssertTrue(conflict?.contains("Reader") == true)
     }
 
+    func testConflictIsReportedAgainstTheDraftReplyShortcut() {
+        let (defaults, suiteName) = makeDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let conflict = ClipboardRewriteController.conflict(
+            for: .draftReplyDefault,
+            defaults: defaults
+        )
+
+        XCTAssertNotNil(conflict)
+        XCTAssertTrue(conflict?.contains("Draft a Reply") == true)
+    }
+
     // MARK: - Safe Undo
 
     func testClipboardUndoAllowsAnUnchangedPasteboard() {

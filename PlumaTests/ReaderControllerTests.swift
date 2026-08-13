@@ -129,6 +129,12 @@ final class ReaderControllerTests: XCTestCase {
         XCTAssertTrue(conflict?.contains("Clipboard Rewrite") == true)
     }
 
+    func testReaderConflictsWithDraftReply() {
+        let conflict = ReaderController.conflict(for: .draftReplyDefault, defaults: defaults)
+        XCTAssertNotNil(conflict)
+        XCTAssertTrue(conflict?.contains("Draft a Reply") == true)
+    }
+
     // MARK: - Controller
 
     @MainActor
