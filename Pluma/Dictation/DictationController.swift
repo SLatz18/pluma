@@ -191,6 +191,27 @@ final class DictationController: ObservableObject {
         }
         updateActivity()
         mic.startMonitoring()
+        NotificationCenter.default.addObserver(
+            forName: .capsShortcutsSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.reloadShortcutsFromPreferences()
+            }
+        }
+    }
+
+    private func reloadShortcutsFromPreferences() {
+        let updated = Preferences.dictationShortcut(from: defaults)
+        let updatedDraft = Preferences.draftShortcut(from: defaults)
+        shortcut = updated
+        draftShortcut = updatedDraft
+        guard isEnabled else { return }
+        hotkey.register(updated, in: .dictation)
+        if draftReplyEnabled {
+            hotkey.register(updatedDraft, in: .draftReply)
+        }
     }
 
     private static func makeEngine(

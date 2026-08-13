@@ -26,7 +26,7 @@ struct AnywhereCard: View {
 
     private var detail: String {
         if isRecording {
-            "Press the new shortcut. Hyperkey chords work too. Esc cancels."
+            "Press the new shortcut. Caps Lock chords work too. Esc cancels."
         } else if model.chain.isEmpty {
             "Pick a recipe above to give the shortcut a pipeline."
         } else {

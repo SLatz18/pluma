@@ -114,6 +114,25 @@ final class ReaderControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testReaderCopyWaitsForCapsChordModifiersToClear() {
+        let capsChord: CGEventFlags = [
+            .maskControl,
+            .maskAlternate,
+            .maskCommand,
+            .maskShift
+        ]
+
+        XCTAssertTrue(SystemReaderSelectionCopier.hasHeldShortcutModifiers(capsChord))
+        XCTAssertTrue(
+            SystemReaderSelectionCopier.hasHeldShortcutModifiers([.maskCommand])
+        )
+        XCTAssertFalse(
+            SystemReaderSelectionCopier.hasHeldShortcutModifiers([.maskAlphaShift])
+        )
+        XCTAssertFalse(SystemReaderSelectionCopier.hasHeldShortcutModifiers([]))
+    }
+
+    @MainActor
     func testLiveProviderCopiesSelectionWhenAccessibilityCannotExposeIt() async {
         let copier = StubReaderSelectionCopier(result: "selected in Google Docs")
         let provider = LiveReaderTextProvider(

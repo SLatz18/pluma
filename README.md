@@ -36,9 +36,9 @@ and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 | **Screen context** | Opt-in OCR of the frontmost window so names on screen bias dictation and completions. Nothing stored. |
 | **Style memory** | Opt-in local phrases from accepted suggestions (capped). Clear anytime. |
 
-Default hotkeys use Caps Lock chords via [Hyperkey](https://hyperkey.app)
-(⇪E rewrite, ⇪Space dictate, ⇪L read). Without Hyperkey, record any ordinary shortcut
-in-app with **Change…**.
+Default hotkeys use Caps Lock chords (⇪E rewrite, ⇪Space dictate, ⇪L read). Turn on
+**Use Caps Lock for shortcuts** in Settings, or keep using [Hyperkey](https://hyperkey.app),
+or record any ordinary shortcut in-app with **Change…**.
 
 ## Privacy in one screen
 
@@ -91,7 +91,7 @@ keystroke.
 - Apple Intelligence on-device model (for the default provider)
 - Accessibility permission for cross-app rewrite / autocomplete / insertion
 - Microphone for dictation; Screen Recording only if you enable screen context
-- Optional: [Hyperkey](https://hyperkey.app), [Ollama](https://ollama.com/), OpenAI API key
+- Optional: [Hyperkey](https://hyperkey.app) (if you prefer an external Caps remapper), [Ollama](https://ollama.com/), OpenAI API key
 
 ## Build
 
@@ -142,7 +142,7 @@ Services) for apps where Accessibility insertion misbehaves.
 | `Autocomplete/` | Focused-field tracking, caret probing, ghost-text overlay (AppKit) |
 | `Dictation/` | Push-to-talk capture, Apple / OpenAI transcription, cleanup |
 | `Reader/` | On-device speech synthesis of the selection or clipboard |
-| `Hotkey/` | Slot-based Carbon hotkeys; Hyperkey-aware chord display |
+| `Hotkey/` | Slot-based Carbon hotkeys; Caps Lock expander + Caps-aware chord display |
 | `Developer/` | Cheat-code unlock, caret inspector, trace panel, log viewer |
 | `DesignSystem/` | Shared tokens, WHEN → THEN → RESULT grammar, components, and overlay presentations |
 | `Services/Preferences.swift` | UserDefaults keys + migrations |
