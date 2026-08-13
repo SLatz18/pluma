@@ -6,6 +6,7 @@ struct OverviewView: View {
     @EnvironmentObject private var model: RewriteViewModel
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
     @EnvironmentObject private var dictation: DictationController
+    @EnvironmentObject private var reader: ReaderController
 
     var body: some View {
         DSPage(
@@ -89,6 +90,7 @@ struct OverviewView: View {
         case .rewrite: !model.chain.isEmpty
         case .autocomplete: autocomplete.isEnabled
         case .dictation: dictation.isEnabled
+        case .reader: reader.isEnabled
         }
     }
 
@@ -110,6 +112,17 @@ struct OverviewView: View {
             case .listening: .recording
             case .idle, .tidying: .success
             case .off: .neutral
+            }
+        case .reader:
+            if reader.isEnabled && !autocomplete.isPermissionGranted {
+                .attention
+            } else {
+                switch reader.activity {
+                case .reading: .recording
+                case .processing: .attention
+                case .idle: .success
+                case .off: .neutral
+                }
             }
         }
     }
@@ -137,6 +150,16 @@ struct OverviewView: View {
             case .listening: "Listening"
             case .tidying: "Cleaning up transcript"
             case .unavailable(let reason): reason
+            }
+        case .reader:
+            if reader.isEnabled && !autocomplete.isPermissionGranted {
+                return "Needs Accessibility access"
+            }
+            return switch reader.activity {
+            case .off: feature.disabledStatus
+            case .idle: feature.enabledStatus
+            case .processing: "Summarizing for listening"
+            case .reading: "Reading"
             }
         }
     }

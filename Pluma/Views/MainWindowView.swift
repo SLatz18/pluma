@@ -5,6 +5,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
     case rewrite
     case autocomplete
     case dictation
+    case reader
     // Only ever in the sidebar once the cheat code has been entered.
     case developer
 
@@ -16,6 +17,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .rewrite: "Rewrite"
         case .autocomplete: "Autocomplete"
         case .dictation: "Dictation"
+        case .reader: "Reader"
         case .developer: "Developer"
         }
     }
@@ -26,6 +28,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .rewrite: "sparkles.rectangle.stack"
         case .autocomplete: "character.cursor.ibeam"
         case .dictation: "mic"
+        case .reader: "speaker.wave.2"
         case .developer: "hammer"
         }
     }
@@ -36,6 +39,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .rewrite: .accentColor
         case .autocomplete: DS.Feature.autocomplete.color
         case .dictation: DS.Feature.dictation.color
+        case .reader: DS.Feature.reader.color
         case .developer: .gray
         }
     }
@@ -45,12 +49,13 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .rewrite: self = .rewrite
         case .autocomplete: self = .autocomplete
         case .dictation: self = .dictation
+        case .reader: self = .reader
         }
     }
 }
 
 /// One window, one job per page: the sidebar routes between trying Rewrite
-/// recipes (the home page) and the two always-on features.
+/// recipes and the always-on features.
 struct MainWindowView: View {
     @EnvironmentObject private var developer: DeveloperMode
     @State private var selection: MainPage? = .overview
@@ -85,6 +90,8 @@ struct MainWindowView: View {
                 AutocompleteView()
             case .dictation:
                 DictationView()
+            case .reader:
+                ReaderView()
             case .developer:
                 DeveloperView()
             }

@@ -13,6 +13,10 @@ There is no account system, no analytics SDK, and no pluma backend.
   features yourself, that is outside pluma.
 - **Apple Speech** dictation (default) transcribes on-device. Audio is not
   written to disk and is not transmitted by pluma.
+- **Reader** speaks selected (or clipboard) text with Apple’s on-device
+  voices. Optional "Summarize, then read" processing uses the configured
+  Apple Intelligence or Ollama writing provider before speech. Neither the
+  source nor summary is stored.
 
 ## Optional OpenAI path
 
@@ -37,8 +41,9 @@ The Dictation page states which path is active before you talk.
 | Spelling memory (opt-in) | Accepted misspelling → correction pairs | Local JSON, capped at 200 entries |
 | Style profile (opt-in) | Imported writing guide | Local markdown, capped at 3,000 characters |
 | Dictation | Microphone while the shortcut is held | No audio on disk; transcript in memory for one insertion |
+| Reader | Selected text, or the clipboard if nothing is selected; optional in-memory summary | No — spoken in memory, not stored |
 
-Password fields (`AXSecureTextField`) are never read for autocomplete.
+Password fields (`AXSecureTextField`) are never read for autocomplete or Reader.
 
 ## Diagnostics
 

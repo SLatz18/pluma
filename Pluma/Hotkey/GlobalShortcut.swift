@@ -33,6 +33,14 @@ struct GlobalShortcut: Equatable, Sendable {
         display: "⇪R"
     )
 
+    // L for listen. Distinct from ⇪E / ⇪Space / ⇪R so all four factory chords
+    // can be bound at once.
+    static let readerDefault = GlobalShortcut(
+        keyCode: UInt32(kVK_ANSI_L),
+        carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
+        display: "⇪L"
+    )
+
     // Draft-a-reply is push-to-talk like dictation, so it rides the same Caps
     // Lock modifier: D for "draft". Hold it, speak the intent, release.
     static let draftReplyDefault = GlobalShortcut(

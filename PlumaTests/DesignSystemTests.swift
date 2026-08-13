@@ -7,7 +7,7 @@ final class DesignSystemTests: XCTestCase {
             Set(FeatureDefinition.all.map(\.id)),
             Set(FeatureDefinition.ID.allCases)
         )
-        XCTAssertEqual(FeatureDefinition.all.map(\.name), ["Rewrite", "Autocomplete", "Dictation"])
+        XCTAssertEqual(FeatureDefinition.all.map(\.name), ["Rewrite", "Autocomplete", "Dictation", "Reader"])
     }
 
     func testEveryFeatureDefinesTheWholeAutomationSentence() {

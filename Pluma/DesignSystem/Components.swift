@@ -548,7 +548,7 @@ struct DSPipelineStep: View {
     let tint: Color
     var moveLeft: (() -> Void)? = nil
     var moveRight: (() -> Void)? = nil
-    let remove: () -> Void
+    var remove: (() -> Void)? = nil
 
     private var isReorderable: Bool { moveLeft != nil || moveRight != nil }
 
@@ -580,13 +580,15 @@ struct DSPipelineStep: View {
                     .accessibilityLabel("Move \(title) later in pipeline")
                 }
             }
-            Button(action: remove) {
-                Image(systemName: "xmark")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.tertiary)
+            if let remove {
+                Button(action: remove) {
+                    Image(systemName: "xmark")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(title) from pipeline")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove \(title) from pipeline")
         }
         .accessibilityElement(children: .contain)
         .accessibilityActions {

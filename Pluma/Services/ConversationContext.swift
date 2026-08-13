@@ -324,9 +324,13 @@ enum ConversationContextProvider {
 
     /// Collapses consecutive duplicate lines. Chat apps often expose the same
     /// string twice (a label and its value); repeating it only wastes budget.
+    /// A sender-labeled line followed by its raw message is the same duplicate
+    /// after shaping, even though the two strings are no longer identical.
     nonisolated static func normalizedLines(_ lines: [String]) -> [String] {
         var output: [String] = []
-        for line in lines where line != output.last {
+        for line in lines {
+            if line == output.last { continue }
+            if let previous = output.last, previous.hasSuffix(": \(line)") { continue }
             output.append(line)
         }
         return output

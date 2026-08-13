@@ -23,6 +23,13 @@ enum Preferences {
     static let clipboardShortcutKeyCodeKey = "pluma.clipboardShortcut.keyCode"
     static let clipboardShortcutModifiersKey = "pluma.clipboardShortcut.modifiers"
     static let clipboardShortcutDisplayKey = "pluma.clipboardShortcut.display"
+    static let readerEnabledKey = "pluma.readerEnabled"
+    static let readerShortcutKeyCodeKey = "pluma.readerShortcut.keyCode"
+    static let readerShortcutModifiersKey = "pluma.readerShortcut.modifiers"
+    static let readerShortcutDisplayKey = "pluma.readerShortcut.display"
+    static let readerVoiceIdentifierKey = "pluma.readerVoiceIdentifier"
+    static let readerRateKey = "pluma.readerRate"
+    static let readerDeliveryModeKey = "pluma.readerDeliveryMode"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
@@ -405,6 +412,112 @@ enum Preferences {
         defaults.set(Int(shortcut.keyCode), forKey: clipboardShortcutKeyCodeKey)
         defaults.set(Int(shortcut.carbonModifiers), forKey: clipboardShortcutModifiersKey)
         defaults.set(shortcut.display, forKey: clipboardShortcutDisplayKey)
+    }
+
+    static func readerEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: readerEnabledKey)
+    }
+
+    static func setReaderEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: readerEnabledKey)
+    }
+
+    static func readerShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
+        guard
+            defaults.object(forKey: readerShortcutKeyCodeKey) != nil,
+            let display = defaults.string(forKey: readerShortcutDisplayKey)
+        else {
+            return .readerDefault
+        }
+        return GlobalShortcut(
+            keyCode: UInt32(defaults.integer(forKey: readerShortcutKeyCodeKey)),
+            carbonModifiers: UInt32(defaults.integer(forKey: readerShortcutModifiersKey)),
+            display: display
+        )
+    }
+
+    static func saveReaderShortcut(
+        _ shortcut: GlobalShortcut, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(Int(shortcut.keyCode), forKey: readerShortcutKeyCodeKey)
+        defaults.set(Int(shortcut.carbonModifiers), forKey: readerShortcutModifiersKey)
+        defaults.set(shortcut.display, forKey: readerShortcutDisplayKey)
+    }
+
+    static func readerVoiceIdentifier(from defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: readerVoiceIdentifierKey) ?? ""
+    }
+
+    static func setReaderVoiceIdentifier(
+        _ identifier: String, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(identifier, forKey: readerVoiceIdentifierKey)
+    }
+
+    static let readerRateRange: ClosedRange<Double> = 0.3...0.65
+    static let defaultReaderRate: Double = 0.5
+
+    static func clampedReaderRate(_ rate: Double) -> Double {
+        min(max(rate, readerRateRange.lowerBound), readerRateRange.upperBound)
+    }
+
+    static func readerRate(from defaults: UserDefaults = .standard) -> Double {
+        guard defaults.object(forKey: readerRateKey) != nil else { return defaultReaderRate }
+        return clampedReaderRate(defaults.double(forKey: readerRateKey))
+    }
+
+    static func setReaderRate(_ rate: Double, to defaults: UserDefaults = .standard) {
+        defaults.set(clampedReaderRate(rate), forKey: readerRateKey)
+    }
+
+    static func readerDeliveryMode(
+        from defaults: UserDefaults = .standard
+    ) -> ReaderDeliveryMode {
+        guard
+            let rawValue = defaults.string(forKey: readerDeliveryModeKey),
+            let mode = ReaderDeliveryMode(rawValue: rawValue)
+        else {
+            return .verbatim
+        }
+        return mode
+    }
+
+    static func setReaderDeliveryMode(
+        _ mode: ReaderDeliveryMode,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(mode.rawValue, forKey: readerDeliveryModeKey)
+    }
+
+    /// Carbon refuses the same chord twice in one process, so a collision would
+    /// leave one feature silently dead. `ignoring` is the slot being recorded.
+    enum ShortcutOccupant: String {
+        case rewrite = "Rewrite Selection"
+        case dictation = "Dictation"
+        case clipboard = "Clipboard Rewrite"
+        case reader = "Reader"
+        case draftReply = "Draft a Reply"
+    }
+
+    static func conflictMessage(
+        for shortcut: GlobalShortcut,
+        ignoring: ShortcutOccupant? = nil,
+        from defaults: UserDefaults = .standard
+    ) -> String? {
+        let occupants: [(ShortcutOccupant, GlobalShortcut)] = [
+            (.rewrite, globalShortcut(from: defaults)),
+            (.dictation, dictationShortcut(from: defaults)),
+            (.clipboard, clipboardShortcut(from: defaults)),
+            (.reader, readerShortcut(from: defaults)),
+            (.draftReply, draftShortcut(from: defaults))
+        ]
+        for (occupant, existing) in occupants {
+            if occupant == ignoring { continue }
+            if shortcut.conflicts(with: existing) {
+                return "\(shortcut.display) is already used by \(occupant.rawValue)."
+            }
+        }
+        return nil
     }
 
     static let shortcutsVersionKey = "pluma.shortcutsVersion"

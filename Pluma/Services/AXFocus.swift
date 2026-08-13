@@ -16,4 +16,25 @@ enum AXFocus {
         else { return nil }
         return (focusedValue as! AXUIElement)
     }
+
+    static func selectedText(of element: AXUIElement) -> String? {
+        var selectedValue: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, kAXSelectedTextAttribute as CFString, &selectedValue
+            ) == .success
+        else { return nil }
+        return selectedValue as? String
+    }
+
+    static func isSecureTextField(_ element: AXUIElement) -> Bool {
+        var subroleValue: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, kAXSubroleAttribute as CFString, &subroleValue
+            ) == .success,
+            let subrole = subroleValue as? String
+        else { return false }
+        return subrole == "AXSecureTextField"
+    }
 }

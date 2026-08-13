@@ -227,7 +227,9 @@ final class DictationController: ObservableObject {
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
-        if let conflict = conflictDescription(for: newShortcut, excluding: .dictation) {
+        if let conflict = Preferences.conflictMessage(
+            for: newShortcut, ignoring: .dictation, from: defaults
+        ) {
             shortcutConflict = conflict
             return
         }
@@ -240,7 +242,9 @@ final class DictationController: ObservableObject {
     }
 
     func recordDraftShortcut(_ newShortcut: GlobalShortcut) {
-        if let conflict = conflictDescription(for: newShortcut, excluding: .draftReply) {
+        if let conflict = Preferences.conflictMessage(
+            for: newShortcut, ignoring: .draftReply, from: defaults
+        ) {
             shortcutConflict = conflict
             return
         }
@@ -250,25 +254,6 @@ final class DictationController: ObservableObject {
         if isEnabled && draftReplyEnabled {
             hotkey.register(newShortcut, in: .draftReply)
         }
-    }
-
-    // Carbon silently refuses a chord registered twice in one process, so every
-    // recorder checks against every other feature's chord before saving.
-    private func conflictDescription(
-        for newShortcut: GlobalShortcut,
-        excluding slot: HotkeyManager.Slot
-    ) -> String? {
-        var taken: [(HotkeyManager.Slot, GlobalShortcut, String)] = [
-            (.rewriteSelection, Preferences.globalShortcut(from: defaults), "Rewrite Selection"),
-            (.clipboardRewrite, Preferences.clipboardShortcut(from: defaults), "Clipboard Rewrite"),
-            (.dictation, shortcut, "Dictation"),
-            (.draftReply, draftShortcut, "Draft a Reply")
-        ]
-        taken.removeAll { $0.0 == slot }
-        for (_, existing, name) in taken where newShortcut.conflicts(with: existing) {
-            return "\(newShortcut.display) is already used by \(name)."
-        }
-        return nil
     }
 
     func requestMicrophonePermission() async {

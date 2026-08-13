@@ -174,11 +174,16 @@ struct SettingsView: View {
                         "Paste from Other Apps",
                         detail: pasteboardPermissionDetail
                     ) {
-                        DSBadge(
-                            text: pasteboardPermissionLabel,
-                            tone: pasteboardPermissionTone,
-                            systemImage: pasteboardPermissionSymbol
-                        )
+                        HStack(spacing: DS.Spacing.small) {
+                            DSBadge(
+                                text: pasteboardPermissionLabel,
+                                tone: pasteboardPermissionTone,
+                                systemImage: pasteboardPermissionSymbol
+                            )
+                            Button("Manage…") {
+                                PasteboardAccess.openPrivacySettings()
+                            }
+                        }
                     }
 
                     if let conflict = clipboardRewrite.shortcutConflict {
@@ -200,7 +205,7 @@ struct SettingsView: View {
             "macOS is blocking clipboard reads, so this shortcut cannot work. "
                 + "Allow pluma under Privacy & Security."
         case .alwaysAllow:
-            "pluma can read the clipboard without prompting."
+            "pluma can read the clipboard without prompting. Reader uses this as a fallback in Google Docs."
         default:
             "macOS may ask once the first time pluma reads your clipboard."
         }
@@ -371,6 +376,11 @@ struct SettingsView: View {
                     )
                     Divider().padding(.vertical, DS.Spacing.medium)
                     processingRow(
+                        title: "Reader",
+                        value: "Spoken on this Mac. Text is not stored."
+                    )
+                    Divider().padding(.vertical, DS.Spacing.medium)
+                    processingRow(
                         title: "Transcript cleanup",
                         value: cleanupPath
                     )
@@ -383,7 +393,7 @@ struct SettingsView: View {
                     permissionRow(
                         title: "Accessibility",
                         granted: autocomplete.isPermissionGranted,
-                        detail: "Reads focused text fields and inserts results."
+                        detail: "Reads focused text fields, speaks or rewrites the selection, and inserts results."
                     ) {
                         autocomplete.requestPermission()
                     }
