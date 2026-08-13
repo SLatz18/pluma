@@ -26,9 +26,9 @@ struct DictationView: View {
 
             shortcutCard
 
-            draftReplyCard
+            draftReplySection
 
-            transcriptionCard
+            transcriptionSection
 
             if controller.cleanupEnabled {
                 cleanupRecipeSection
@@ -44,9 +44,7 @@ struct DictationView: View {
             )
             .dsCard()
 
-            Text(privacyNote)
-                .font(DS.meta)
-                .foregroundStyle(.tertiary)
+            DSPageFootnote(text: privacyNote)
         }
         .task {
             ollamaModels = (try? await OllamaEngine().availableModels()) ?? []
@@ -82,41 +80,27 @@ struct DictationView: View {
     // MARK: Shortcut
 
     private var shortcutCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 14) {
-                Text(
-                    isRecording
-                        ? "Press and hold the new shortcut. Esc cancels."
-                        : "Hold to talk. Hyperkey maps Caps Lock to ⌃⌥⌘, so Caps Lock Space works."
-                )
-                    .font(DS.meta)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                ShortcutRecorderView(
-                    shortcut: controller.shortcut,
-                    isRecording: $isRecording
-                ) { shortcut in
-                    controller.recordShortcut(shortcut)
-                }
-            }
-
-            if let conflict = controller.shortcutConflict {
-                Label(conflict, systemImage: "exclamationmark.triangle.fill")
-                    .font(DS.meta)
-                    .foregroundStyle(.orange)
-            }
+        DSShortcutCard(
+            systemImage: "keyboard",
+            title: "Hold to talk",
+            detail: isRecording
+                ? "Press and hold the new shortcut. Esc cancels."
+                : "Hyperkey maps Caps Lock to ⌃⌥⌘, so Caps Lock Space works.",
+            shortcut: controller.shortcut,
+            isRecording: $isRecording,
+            conflict: controller.shortcutConflict
+        ) { shortcut in
+            controller.recordShortcut(shortcut)
         }
-        .dsCard()
     }
 
     // MARK: Draft a reply
 
-    private var draftReplyCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DSEyebrow(trigger: "Speak an intent", action: "get a drafted reply")
-
+    private var draftReplySection: some View {
+        DSSection(
+            "Draft replies",
+            detail: "Speak an intent to get a drafted reply."
+        ) {
             VStack(spacing: 0) {
                 DSToggleRow(
                     title: "Draft replies from the conversation",
@@ -148,7 +132,6 @@ struct DictationView: View {
                             controller.recordDraftShortcut(shortcut)
                         }
                     }
-                    .padding(.top, DS.Spacing.medium)
 
                     if !autocomplete.screenContextEnabled
                         || !autocomplete.conversationContextEnabled {
@@ -158,7 +141,6 @@ struct DictationView: View {
                             tint: .orange,
                             text: "Turn on Screen context and Conversation awareness in Settings → Writing so pluma can see the thread. Without them, this shortcut inserts plain dictation."
                         )
-                        .padding(.top, DS.Spacing.medium)
                     }
                 }
             }
@@ -168,10 +150,11 @@ struct DictationView: View {
 
     // MARK: Transcription & cleanup
 
-    private var transcriptionCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DSEyebrow(trigger: "After you speak", action: "polish and insert")
-
+    private var transcriptionSection: some View {
+        DSSection(
+            "Transcription & cleanup",
+            detail: "After you speak, polish and insert."
+        ) {
             VStack(spacing: 0) {
                 DSToggleRow(
                     title: "Clean up with AI",
@@ -269,33 +252,28 @@ struct DictationView: View {
     }
 
     private var cleanupStrip: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(
-                    Array(controller.cleanupChain.enumerated()), id: \.element
-                ) { index, directive in
-                    if index > 0 {
-                        Image(systemName: "arrow.right")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
+        DSPipelineStrip(eyebrowTrigger: nil) {
+            ForEach(
+                Array(controller.cleanupChain.enumerated()), id: \.element
+            ) { index, directive in
+                if index > 0 {
+                    DSPipelineConnector()
+                }
 
-                    DSPipelineStep(
-                        title: directive.title,
-                        number: index + 1,
-                        tint: DS.Feature.dictation.color,
-                        moveLeft: index > 0
-                            ? { controller.moveCleanupDirective(directive, offset: -1) }
-                            : nil,
-                        moveRight: index < controller.cleanupChain.count - 1
-                            ? { controller.moveCleanupDirective(directive, offset: 1) }
-                            : nil
-                    ) {
-                        controller.removeCleanupDirective(directive)
-                    }
+                DSPipelineStep(
+                    title: directive.title,
+                    number: index + 1,
+                    tint: DS.Feature.dictation.color,
+                    moveLeft: index > 0
+                        ? { controller.moveCleanupDirective(directive, offset: -1) }
+                        : nil,
+                    moveRight: index < controller.cleanupChain.count - 1
+                        ? { controller.moveCleanupDirective(directive, offset: 1) }
+                        : nil
+                ) {
+                    controller.removeCleanupDirective(directive)
                 }
             }
-            .padding(.vertical, 2)
         }
     }
 
