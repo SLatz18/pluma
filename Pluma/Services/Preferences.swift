@@ -30,6 +30,9 @@ enum Preferences {
     static let readerVoiceIdentifierKey = "pluma.readerVoiceIdentifier"
     static let readerRateKey = "pluma.readerRate"
     static let readerDeliveryModeKey = "pluma.readerDeliveryMode"
+    static let readerSpeechProviderKey = "pluma.readerSpeechProvider"
+    static let openAITTSVoiceKey = "pluma.openAITTSVoice"
+    static let openAITTSModelKey = "pluma.openAITTSModel"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
@@ -558,6 +561,59 @@ enum Preferences {
         to defaults: UserDefaults = .standard
     ) {
         defaults.set(mode.rawValue, forKey: readerDeliveryModeKey)
+    }
+
+    static func readerSpeechProvider(
+        from defaults: UserDefaults = .standard
+    ) -> ReaderSpeechProviderChoice {
+        guard
+            let rawValue = defaults.string(forKey: readerSpeechProviderKey),
+            let provider = ReaderSpeechProviderChoice(rawValue: rawValue)
+        else {
+            return .defaultProvider
+        }
+        return provider
+    }
+
+    static func setReaderSpeechProvider(
+        _ provider: ReaderSpeechProviderChoice,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(provider.rawValue, forKey: readerSpeechProviderKey)
+    }
+
+    static func openAITTSVoiceID(from defaults: UserDefaults = .standard) -> String {
+        guard
+            let rawValue = defaults.string(forKey: openAITTSVoiceKey),
+            !rawValue.isEmpty
+        else {
+            return OpenAITTSCatalog.defaultVoiceID
+        }
+        return rawValue
+    }
+
+    static func setOpenAITTSVoiceID(
+        _ voiceID: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(voiceID, forKey: openAITTSVoiceKey)
+    }
+
+    static func openAITTSModelID(from defaults: UserDefaults = .standard) -> String {
+        guard
+            let rawValue = defaults.string(forKey: openAITTSModelKey),
+            !rawValue.isEmpty
+        else {
+            return OpenAITTSCatalog.defaultModelID
+        }
+        return rawValue
+    }
+
+    static func setOpenAITTSModelID(
+        _ modelID: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(modelID, forKey: openAITTSModelKey)
     }
 
     /// Carbon refuses the same chord twice in one process, so a collision would

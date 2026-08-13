@@ -17,10 +17,12 @@ enum OpenAIKey {
         return present
     }
 
-    // Held in memory for the life of the process after the first read. These are
-    // ad-hoc signed builds, so every rebuild is a new code identity and the
-    // keychain grant from the previous build no longer applies — reading the
-    // secret per request meant a fresh authorization prompt per request.
+    // Held in memory for the life of the process after the first read so a
+    // single authorization covers the whole session. With the Local Self-Signed
+    // identity, rebuilds keep the same designated requirement — prompts only
+    // reappear if the signing leaf changes. Drop this cache (or keep it as a
+    // pure perf win) when KeychainStore moves to the data protection keychain;
+    // see the TODO there and CLAUDE.md.
     private static let secret = SecretCache()
 
     static var current: String? {
