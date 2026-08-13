@@ -38,8 +38,12 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
   injects it into all presenters. One overlay panel, owner-scoped hides.
 - `DesignSystem/` — semantic tokens, feature definitions, shared surfaces,
   WHEN → THEN → RESULT flow, and overlay presentations (`DS.*`).
-- `Views/MainWindowView.swift` — sidebar: Overview / Rewrite / Autocomplete /
-  Dictation / Reader.
+- `Views/MainWindowView.swift` — the single window (`Window` scene, no
+  Settings scene). Sidebar: Overview / Rewrite / Autocomplete / Dictation /
+  Reader, then a Settings group (General / Writing / Privacy, rendered by
+  `SettingsPageView`) + Developer when unlocked. `MainNavigation.shared` is
+  the one selection; ⌘,, the menu bar Settings… item, and
+  `DSSharedSettingLink` all route through it.
 - `Providers/RewriteRunner.swift` — chain runner. The `@MainActor` variant
   reports progress; the nonisolated variant exists because the macOS Services
   handler blocks its thread on a semaphore (a MainActor hop would deadlock).
