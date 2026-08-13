@@ -16,7 +16,10 @@ import AppKit
 // It departs from the system's in one place, deliberately. macOS puts an ✕
 // there, because its chip applies itself unless you refuse. This one is offered
 // rather than applied, so the trailing glyph is ⇥ — the key that takes it.
-private final class OverlayPillRenderer: NSVisualEffectView {
+// Internal (not private) so the DEBUG component previews can render the same
+// pill the live overlay uses; nothing outside this file constructs it in
+// release builds.
+final class OverlayPillRenderer: NSVisualEffectView {
     private let iconView = NSImageView()
     private let label = NSTextField(labelWithString: "")
     private let hintLabel = NSTextField(labelWithString: "⇥")
