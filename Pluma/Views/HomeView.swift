@@ -58,41 +58,30 @@ struct HomeView: View {
     // Trigger on the left, ordered steps after — exactly what the hotkey and
     // the playground will run.
     private var pipelineStrip: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DSEyebrow(trigger: "Your pipeline", action: "runs left to right")
+        DSPipelineStrip(isEmpty: model.chain.isEmpty) {
+            DSEmptyState(
+                title: "No recipe steps",
+                detail: "Choose a recipe above. The same pipeline runs here and on selected text with \(selectionRewrite.shortcut.display).",
+                systemImage: "sparkles.rectangle.stack"
+            )
+        } content: {
+            triggerPill
 
-            if model.chain.isEmpty {
-                DSEmptyState(
-                    title: "No recipe steps",
-                    detail: "Choose a recipe above. The same pipeline runs here and on selected text with \(selectionRewrite.shortcut.display).",
-                    systemImage: "sparkles.rectangle.stack"
-                )
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        triggerPill
+            ForEach(Array(model.chain.enumerated()), id: \.element) { index, intent in
+                DSPipelineConnector()
 
-                        ForEach(Array(model.chain.enumerated()), id: \.element) { index, intent in
-                            Image(systemName: "arrow.right")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.tertiary)
-
-                            DSPipelineStep(
-                                title: intent.title,
-                                number: index + 1,
-                                tint: intent.feature.color,
-                                moveLeft: index > 0
-                                    ? { model.moveInChain(intent, offset: -1) }
-                                    : nil,
-                                moveRight: index < model.chain.count - 1
-                                    ? { model.moveInChain(intent, offset: 1) }
-                                    : nil
-                            ) {
-                                model.removeFromChain(intent)
-                            }
-                        }
-                    }
-                    .padding(.vertical, 2)
+                DSPipelineStep(
+                    title: intent.title,
+                    number: index + 1,
+                    tint: intent.feature.color,
+                    moveLeft: index > 0
+                        ? { model.moveInChain(intent, offset: -1) }
+                        : nil,
+                    moveRight: index < model.chain.count - 1
+                        ? { model.moveInChain(intent, offset: 1) }
+                        : nil
+                ) {
+                    model.removeFromChain(intent)
                 }
             }
         }
