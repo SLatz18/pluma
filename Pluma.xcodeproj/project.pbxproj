@@ -13,6 +13,7 @@
 		052B3957A191ADAE2BC55C53 /* PromptOverridesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E79134AB1E2C699F737E1D7F /* PromptOverridesTests.swift */; };
 		08CB10C01CB5A4FBAD2A2777 /* PromptEditorCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B50E6703DD2AE943D325C37 /* PromptEditorCard.swift */; };
 		08D620E16B9432169D90F2E9 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B0C2A4E4E4364161FCADC18 /* OverviewView.swift */; };
+		0A48C3D1FFD89FDD7075229B /* OpenAITTSCatalogClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5D0C681F4322744BBBA7FC /* OpenAITTSCatalogClient.swift */; };
 		0B6DD3BE55E85DF40C1F889D /* DictationTranscriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCFDE061D28F71B142C057ED /* DictationTranscriptTests.swift */; };
 		0C7FF197B43200468C65A48F /* AppleIntelligenceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55A6530C17AD653FC60B9C4A /* AppleIntelligenceEngine.swift */; };
 		0CD573C264CAE0F04E172D09 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83210C17AA6C5F8B68DFF605 /* HotkeyManager.swift */; };
@@ -24,7 +25,6 @@
 		165687E4F8DD26F7E34B07EF /* SpeechSpeaking.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F65BD06909FA9C24D3A8CBC /* SpeechSpeaking.swift */; };
 		188F8DF86A03CB28C997981D /* AudioSampleRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB8F6951CCC7670B9840ED79 /* AudioSampleRecorder.swift */; };
 		1A8AB8FE5A5511D5D7BB897C /* GhostTextGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E817CCD638C8DB85D4DC594 /* GhostTextGeometry.swift */; };
-		1D28CDB7779BDB0CAD4B62A4 /* OpenAITTSVoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA409DDA3417BD775105D96F /* OpenAITTSVoice.swift */; };
 		1ED9EACDC3C0DE98840090DF /* RewriteRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D6185EF686863E87EA80E03 /* RewriteRunner.swift */; };
 		1F827C37C6B6B4259808ABB7 /* CleanupComparisonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CB4B2063E4E333CD80C09DB /* CleanupComparisonView.swift */; };
 		1FB4789FB9FC1BE21BEAFECE /* RewriteProviderChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB437C10010152518C81A986 /* RewriteProviderChoice.swift */; };
@@ -40,7 +40,6 @@
 		2C1261701D0E841A8A79EA3C /* RewriteServiceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5140C9E93B800CBAFC626E5F /* RewriteServiceProvider.swift */; };
 		31AEB14DF84BD766CA34AA65 /* SpellCorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10D590D13441AAA10CD0CDA /* SpellCorrection.swift */; };
 		32AA243409232CABE1F3B794 /* PromptComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C928768B8480C2DA1A9615E4 /* PromptComposer.swift */; };
-		34533F5C1F22E763158DA70E /* OpenAITTSModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BCEFE19CC09E91C249B8AF1 /* OpenAITTSModel.swift */; };
 		34B8D7CB6633F34C4840E2B5 /* CompletionSuggestionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F809A0572BC8D715517B5C96 /* CompletionSuggestionTests.swift */; };
 		373565224FB20B72D880F67B /* OpenAITranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7E2268E6585BCBC0F22E561 /* OpenAITranscriptionEngine.swift */; };
 		387F78A206007BE0BD7DB141 /* RewriteOutputSanitizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC762D192D449FE288D14887 /* RewriteOutputSanitizerTests.swift */; };
@@ -53,6 +52,7 @@
 		490041460D1370D2474AA2DC /* AXTextInsertionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 352C65D4803313CB9A5E1C11 /* AXTextInsertionTests.swift */; };
 		4954F155A854BE33D84733C5 /* PromptOverrides.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B52EADC89E95DF93CA55BE0 /* PromptOverrides.swift */; };
 		49657E11DD974D311ED44195 /* SpeechTranscriptionEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 204947E0D18D6B3322B24100 /* SpeechTranscriptionEngine.swift */; };
+		4A1E1EC54D9086F837EE25A7 /* OpenAITTSCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232A9A69C7C64667E122F64D /* OpenAITTSCatalog.swift */; };
 		4CCD1E2B1089B0CF756250D9 /* CaretGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 033B246EB48A59D1EE8C77C7 /* CaretGeometry.swift */; };
 		4EE68553496BE12D01AE70C4 /* GhostTextGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 215848C0FC26014FFC6179F5 /* GhostTextGeometryTests.swift */; };
 		50BDCC0E316172EB383327C7 /* ComponentPreviews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3840F0DE7C1F8D8948F774D2 /* ComponentPreviews.swift */; };
@@ -188,6 +188,7 @@
 		1D6185EF686863E87EA80E03 /* RewriteRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteRunner.swift; sourceTree = "<group>"; };
 		204947E0D18D6B3322B24100 /* SpeechTranscriptionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechTranscriptionEngine.swift; sourceTree = "<group>"; };
 		215848C0FC26014FFC6179F5 /* GhostTextGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextGeometryTests.swift; sourceTree = "<group>"; };
+		232A9A69C7C64667E122F64D /* OpenAITTSCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAITTSCatalog.swift; sourceTree = "<group>"; };
 		24C0D90B7A3DDBD070D0A716 /* GhostTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextView.swift; sourceTree = "<group>"; };
 		2729257246E883EBBFAE3F74 /* WordDifferTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordDifferTests.swift; sourceTree = "<group>"; };
 		29413A380FD0186C71C0502D /* WordDiffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordDiffer.swift; sourceTree = "<group>"; };
@@ -206,10 +207,10 @@
 		3E0A64BC3B32317DFD43C93E /* ReaderSummarizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderSummarizer.swift; sourceTree = "<group>"; };
 		3E5890B61EABAAA397FD793B /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		3F363BEE6E7965F7F10B4F75 /* ConversationContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationContextTests.swift; sourceTree = "<group>"; };
+		3F5D0C681F4322744BBBA7FC /* OpenAITTSCatalogClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAITTSCatalogClient.swift; sourceTree = "<group>"; };
 		435A827ECB9E1379C91D6E0D /* RewriteOutputSanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteOutputSanitizer.swift; sourceTree = "<group>"; };
 		43E8B5141FF65B532F1BD3BC /* PlumaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PlumaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		47BF492D06B629AE1ECA498A /* RewriteRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewriteRunnerTests.swift; sourceTree = "<group>"; };
-		4BCEFE19CC09E91C249B8AF1 /* OpenAITTSModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAITTSModel.swift; sourceTree = "<group>"; };
 		4CB23F340ADA2220ABF9EE65 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		4E817CCD638C8DB85D4DC594 /* GhostTextGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhostTextGeometry.swift; sourceTree = "<group>"; };
 		511245ACBCCAC386B612DB8C /* DictationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationController.swift; sourceTree = "<group>"; };
@@ -278,7 +279,6 @@
 		C665AB90507A3053E945A917 /* TextEnvelope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEnvelope.swift; sourceTree = "<group>"; };
 		C8EBE2A7C63BCB415CF9433A /* CheatCodeRecognizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheatCodeRecognizerTests.swift; sourceTree = "<group>"; };
 		C928768B8480C2DA1A9615E4 /* PromptComposer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposer.swift; sourceTree = "<group>"; };
-		CA409DDA3417BD775105D96F /* OpenAITTSVoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAITTSVoice.swift; sourceTree = "<group>"; };
 		CAA05E33B013937A4459EF73 /* OpenAIChatEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIChatEngine.swift; sourceTree = "<group>"; };
 		CECABE8A8A1AD7228B888F17 /* AXFocus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AXFocus.swift; sourceTree = "<group>"; };
 		D0255A672ABFD82E8EDE4960 /* DeveloperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperView.swift; sourceTree = "<group>"; };
@@ -452,6 +452,7 @@
 			children = (
 				61B1BF110AB44C792078F875 /* LiveReaderTextProvider.swift */,
 				A774F812419045B310BA306E /* OpenAISpeechEngine.swift */,
+				3F5D0C681F4322744BBBA7FC /* OpenAITTSCatalogClient.swift */,
 				6962D63C941D57C89064F7D3 /* OpenAITTSClient.swift */,
 				8BE7EDD290841522EEDA56C9 /* ReaderController.swift */,
 				3E0A64BC3B32317DFD43C93E /* ReaderSummarizer.swift */,
@@ -532,8 +533,7 @@
 				D266E79D73CB1C58311520A5 /* CompletionDirective.swift */,
 				A56B71090E08C1A1AEADDDB3 /* DictationProviderChoice.swift */,
 				34195B97923B3C8D50843C71 /* OpenAIChatModel.swift */,
-				4BCEFE19CC09E91C249B8AF1 /* OpenAITTSModel.swift */,
-				CA409DDA3417BD775105D96F /* OpenAITTSVoice.swift */,
+				232A9A69C7C64667E122F64D /* OpenAITTSCatalog.swift */,
 				EB3CC066C6582F706FA60D02 /* ProviderStatus.swift */,
 				70851A5F81107264CEAFCF87 /* ReaderSpeechProviderChoice.swift */,
 				0681F392E4F11F164E640372 /* RewriteIntent.swift */,
@@ -815,9 +815,9 @@
 				AA5636A7ED1F08E53956AA78 /* OpenAIFileTranscriber.swift in Sources */,
 				887C175DD9F53335AEB54D52 /* OpenAIKey.swift in Sources */,
 				B77E036F1BFC1752A7E2046E /* OpenAISpeechEngine.swift in Sources */,
+				4A1E1EC54D9086F837EE25A7 /* OpenAITTSCatalog.swift in Sources */,
+				0A48C3D1FFD89FDD7075229B /* OpenAITTSCatalogClient.swift in Sources */,
 				2BBC184A8D43CDB95AD9284A /* OpenAITTSClient.swift in Sources */,
-				34533F5C1F22E763158DA70E /* OpenAITTSModel.swift in Sources */,
-				1D28CDB7779BDB0CAD4B62A4 /* OpenAITTSVoice.swift in Sources */,
 				373565224FB20B72D880F67B /* OpenAITranscriptionEngine.swift in Sources */,
 				BEB1D9B2B46D12545FFC0D5B /* OverlayPresentation.swift in Sources */,
 				08D620E16B9432169D90F2E9 /* OverviewView.swift in Sources */,

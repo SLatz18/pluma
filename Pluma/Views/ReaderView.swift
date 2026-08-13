@@ -277,24 +277,9 @@ struct ReaderView: View {
             "Voice",
             detail: "OpenAI neural voices. Text is sent for synthesis, then played locally."
         ) {
-            Picker("OpenAI voice", selection: $controller.openAIVoice) {
-                ForEach(OpenAITTSVoice.allCases) { voice in
-                    Text(voice.title).tag(voice)
-                }
-            }
-            .labelsHidden()
-            .frame(width: 160)
-        }
-
-        DSRowDivider()
-
-        DSSettingRow(
-            "Model",
-            detail: controller.openAITTSModel.detail
-        ) {
-            Picker("OpenAI TTS model", selection: $controller.openAITTSModel) {
-                ForEach(OpenAITTSModel.allCases) { model in
-                    Text(model.title).tag(model)
+            Picker("OpenAI voice", selection: $controller.openAIVoiceID) {
+                ForEach(controller.openAIVoiceOptions) { voice in
+                    Text(voice.title).tag(voice.id)
                 }
             }
             .labelsHidden()
@@ -303,8 +288,51 @@ struct ReaderView: View {
 
         DSRowDivider()
 
-        apiKeyRow
-            .padding(.vertical, 8)
+        DSSettingRow(
+            "Model",
+            detail: controller.selectedOpenAIModelDetail
+        ) {
+            Picker("OpenAI TTS model", selection: $controller.openAITTSModelID) {
+                ForEach(controller.openAIModels) { model in
+                    Text(model.title).tag(model.id)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 200)
+        }
+
+        DSRowDivider()
+
+        VStack(alignment: .leading, spacing: 10) {
+            apiKeyRow
+
+            HStack(spacing: 8) {
+                Button {
+                    controller.refreshOpenAITTSCatalog()
+                    hasOpenAIKey = OpenAIKey.isPresent
+                } label: {
+                    if controller.isRefreshingOpenAICatalog {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Refreshing…")
+                    } else {
+                        Text("Refresh OpenAI options")
+                    }
+                }
+                .controlSize(.small)
+                .disabled(controller.isRefreshingOpenAICatalog || !hasOpenAIKey)
+
+                Spacer()
+            }
+
+            if let status = controller.openAICatalogStatus {
+                Text(status)
+                    .font(DS.meta)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     private var apiKeyRow: some View {
@@ -322,6 +350,7 @@ struct ReaderView: View {
                     OpenAIKey.clear()
                     hasOpenAIKey = false
                     apiKeyDraft = ""
+                    controller.refreshOpenAITTSCatalog()
                 }
                 .controlSize(.small)
             } else {
@@ -332,6 +361,7 @@ struct ReaderView: View {
                     OpenAIKey.save(apiKeyDraft)
                     hasOpenAIKey = OpenAIKey.isPresent
                     apiKeyDraft = ""
+                    controller.refreshOpenAITTSCatalog()
                 }
                 .controlSize(.small)
                 .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)

@@ -8,8 +8,9 @@ final class OpenAISpeechEngine: NSObject, SpeechSpeaking {
     var onFailure: ((String) -> Void)?
     var onPlaybackStarted: (() -> Void)?
 
-    var voice: OpenAITTSVoice = .defaultVoice
-    var model: OpenAITTSModel = .defaultModel
+    var voiceID: String = OpenAITTSCatalog.defaultVoiceID
+    var modelID: String = OpenAITTSCatalog.defaultModelID
+    var isCustomVoice = false
 
     private var player: AVAudioPlayer?
     private var speakTask: Task<Void, Never>?
@@ -24,8 +25,9 @@ final class OpenAISpeechEngine: NSObject, SpeechSpeaking {
         }
 
         isSpeaking = true
-        let selectedVoice = voice
-        let selectedModel = model
+        let selectedVoice = voiceID
+        let selectedModel = modelID
+        let custom = isCustomVoice
         let speed = ReaderVoiceCatalog.openAISpeed(fromReaderRate: Double(rate))
 
         speakTask = Task { [weak self] in
@@ -33,9 +35,10 @@ final class OpenAISpeechEngine: NSObject, SpeechSpeaking {
             do {
                 let data = try await OpenAITTSClient.synthesize(
                     text: trimmed,
-                    voice: selectedVoice,
-                    model: selectedModel,
-                    speed: speed
+                    voiceID: selectedVoice,
+                    modelID: selectedModel,
+                    speed: speed,
+                    isCustomVoice: custom
                 )
                 guard !Task.isCancelled else { return }
                 try self.play(data)

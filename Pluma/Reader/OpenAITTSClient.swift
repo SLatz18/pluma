@@ -5,9 +5,10 @@ enum OpenAITTSClient {
 
     static func synthesize(
         text: String,
-        voice: OpenAITTSVoice,
-        model: OpenAITTSModel,
+        voiceID: String,
+        modelID: String,
         speed: Double,
+        isCustomVoice: Bool = false,
         session: URLSession = .shared
     ) async throws -> Data {
         guard let key = OpenAIKey.current else {
@@ -20,9 +21,10 @@ enum OpenAITTSClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try requestBody(
             text: text,
-            voice: voice,
-            model: model,
-            speed: speed
+            voiceID: voiceID,
+            modelID: modelID,
+            speed: speed,
+            isCustomVoice: isCustomVoice
         )
 
         let (data, response) = try await session.data(for: request)
@@ -36,15 +38,19 @@ enum OpenAITTSClient {
 
     static func requestBody(
         text: String,
-        voice: OpenAITTSVoice,
-        model: OpenAITTSModel,
-        speed: Double
+        voiceID: String,
+        modelID: String,
+        speed: Double,
+        isCustomVoice: Bool = false
     ) throws -> Data {
         let clampedSpeed = min(max(speed, 0.25), 4.0)
+        let voiceValue: Any = isCustomVoice || voiceID.hasPrefix("voice_")
+            ? ["id": voiceID]
+            : voiceID
         return try JSONSerialization.data(withJSONObject: [
-            "model": model.rawValue,
+            "model": modelID,
             "input": text,
-            "voice": voice.rawValue,
+            "voice": voiceValue,
             "response_format": "mp3",
             "speed": clampedSpeed
         ])

@@ -511,38 +511,38 @@ enum Preferences {
         defaults.set(provider.rawValue, forKey: readerSpeechProviderKey)
     }
 
-    static func openAITTSVoice(from defaults: UserDefaults = .standard) -> OpenAITTSVoice {
+    static func openAITTSVoiceID(from defaults: UserDefaults = .standard) -> String {
         guard
             let rawValue = defaults.string(forKey: openAITTSVoiceKey),
-            let voice = OpenAITTSVoice(rawValue: rawValue)
+            !rawValue.isEmpty
         else {
-            return .defaultVoice
+            return OpenAITTSCatalog.defaultVoiceID
         }
-        return voice
+        return rawValue
     }
 
-    static func setOpenAITTSVoice(
-        _ voice: OpenAITTSVoice,
+    static func setOpenAITTSVoiceID(
+        _ voiceID: String,
         to defaults: UserDefaults = .standard
     ) {
-        defaults.set(voice.rawValue, forKey: openAITTSVoiceKey)
+        defaults.set(voiceID, forKey: openAITTSVoiceKey)
     }
 
-    static func openAITTSModel(from defaults: UserDefaults = .standard) -> OpenAITTSModel {
+    static func openAITTSModelID(from defaults: UserDefaults = .standard) -> String {
         guard
             let rawValue = defaults.string(forKey: openAITTSModelKey),
-            let model = OpenAITTSModel(rawValue: rawValue)
+            !rawValue.isEmpty
         else {
-            return .defaultModel
+            return OpenAITTSCatalog.defaultModelID
         }
-        return model
+        return rawValue
     }
 
-    static func setOpenAITTSModel(
-        _ model: OpenAITTSModel,
+    static func setOpenAITTSModelID(
+        _ modelID: String,
         to defaults: UserDefaults = .standard
     ) {
-        defaults.set(model.rawValue, forKey: openAITTSModelKey)
+        defaults.set(modelID, forKey: openAITTSModelKey)
     }
 
     /// Carbon refuses the same chord twice in one process, so a collision would

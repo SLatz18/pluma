@@ -65,13 +65,13 @@ final class ReaderControllerTests: XCTestCase {
     }
 
     func testOpenAITTSVoiceAndModelRoundTrip() {
-        XCTAssertEqual(Preferences.openAITTSVoice(from: defaults), .nova)
-        Preferences.setOpenAITTSVoice(.onyx, to: defaults)
-        XCTAssertEqual(Preferences.openAITTSVoice(from: defaults), .onyx)
+        XCTAssertEqual(Preferences.openAITTSVoiceID(from: defaults), "nova")
+        Preferences.setOpenAITTSVoiceID("onyx", to: defaults)
+        XCTAssertEqual(Preferences.openAITTSVoiceID(from: defaults), "onyx")
 
-        XCTAssertEqual(Preferences.openAITTSModel(from: defaults), .tts1HD)
-        Preferences.setOpenAITTSModel(.gpt4oMiniTTS, to: defaults)
-        XCTAssertEqual(Preferences.openAITTSModel(from: defaults), .gpt4oMiniTTS)
+        XCTAssertEqual(Preferences.openAITTSModelID(from: defaults), "tts-1-hd")
+        Preferences.setOpenAITTSModelID("gpt-4o-mini-tts", to: defaults)
+        XCTAssertEqual(Preferences.openAITTSModelID(from: defaults), "gpt-4o-mini-tts")
     }
 
     func testReaderDeliveryModesProvideBuilderCopyAndSymbols() {

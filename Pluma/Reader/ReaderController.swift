@@ -18,6 +18,10 @@ final class ReaderController: ObservableObject {
     @Published private(set) var isSpeaking = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var voiceEntries: [ReaderVoiceCatalog.Entry] = []
+    @Published private(set) var openAIModels: [OpenAITTSCatalogOption] = OpenAITTSCatalog.fallbackModels
+    @Published private(set) var openAICustomVoices: [OpenAITTSCatalogOption] = []
+    @Published private(set) var openAICatalogStatus: String?
+    @Published private(set) var isRefreshingOpenAICatalog = false
 
     @Published var isEnabled: Bool {
         didSet {
@@ -43,6 +47,9 @@ final class ReaderController: ObservableObject {
                 stopSpeaking()
             }
             rebuildSpeechEngineIfNeeded()
+            if speechProvider == .openAI {
+                refreshOpenAITTSCatalog()
+            }
         }
     }
 
@@ -53,18 +60,19 @@ final class ReaderController: ObservableObject {
         }
     }
 
-    @Published var openAIVoice: OpenAITTSVoice {
+    @Published var openAIVoiceID: String {
         didSet {
-            guard openAIVoice != oldValue else { return }
-            Preferences.setOpenAITTSVoice(openAIVoice, to: defaults)
+            guard openAIVoiceID != oldValue else { return }
+            Preferences.setOpenAITTSVoiceID(openAIVoiceID, to: defaults)
             configureOpenAISpeechEngine()
         }
     }
 
-    @Published var openAITTSModel: OpenAITTSModel {
+    @Published var openAITTSModelID: String {
         didSet {
-            guard openAITTSModel != oldValue else { return }
-            Preferences.setOpenAITTSModel(openAITTSModel, to: defaults)
+            guard openAITTSModelID != oldValue else { return }
+            Preferences.setOpenAITTSModelID(openAITTSModelID, to: defaults)
+            reconcileOpenAIVoiceForSelectedModel()
             configureOpenAISpeechEngine()
         }
     }
@@ -100,6 +108,18 @@ final class ReaderController: ObservableObject {
         ReaderVoiceCatalog.hasPremium(in: voiceEntries)
     }
 
+    var openAIVoiceOptions: [OpenAITTSCatalogOption] {
+        OpenAITTSCatalog.voices(
+            compatibleWithModel: openAITTSModelID,
+            customVoices: openAICustomVoices
+        )
+    }
+
+    var selectedOpenAIModelDetail: String {
+        openAIModels.first(where: { $0.id == openAITTSModelID })?.detail
+            ?? OpenAITTSCatalog.detail(forModelID: openAITTSModelID)
+    }
+
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay: SuggestionOverlayController
@@ -131,8 +151,8 @@ final class ReaderController: ObservableObject {
         let enabled = Preferences.readerEnabled(from: defaults)
         let provider = Preferences.readerSpeechProvider(from: defaults)
         let appleVoice = Preferences.readerVoiceIdentifier(from: defaults)
-        let cloudVoice = Preferences.openAITTSVoice(from: defaults)
-        let cloudModel = Preferences.openAITTSModel(from: defaults)
+        let cloudVoice = Preferences.openAITTSVoiceID(from: defaults)
+        let cloudModel = Preferences.openAITTSModelID(from: defaults)
         let speakingRate = Preferences.readerRate(from: defaults)
         let mode = Preferences.readerDeliveryMode(from: defaults)
         let savedShortcut = Preferences.readerShortcut(from: defaults)
@@ -142,14 +162,17 @@ final class ReaderController: ObservableObject {
         self.isEnabled = enabled
         self.speechProvider = provider
         self.voiceIdentifier = appleVoice
-        self.openAIVoice = cloudVoice
-        self.openAITTSModel = cloudModel
+        self.openAIVoiceID = cloudVoice
+        self.openAITTSModelID = cloudModel
         self.rate = speakingRate
         self.deliveryMode = mode
         self.activity = enabled ? .idle : .off
 
         wireSpeechCallbacks()
         refreshInstalledVoices()
+        if provider == .openAI {
+            refreshOpenAITTSCatalog()
+        }
 
         hotkey.onPress = { [weak self] slot in
             guard slot == .readSelection else { return }
@@ -183,6 +206,49 @@ final class ReaderController: ObservableObject {
         let preferred = ReaderVoiceCatalog.preferredIdentifier(in: voiceEntries)
         guard !preferred.isEmpty else { return }
         voiceIdentifier = preferred
+    }
+
+    func refreshOpenAITTSCatalog() {
+        guard isRefreshingOpenAICatalog == false else { return }
+        isRefreshingOpenAICatalog = true
+        openAICatalogStatus = openAIKeyPresent()
+            ? "Refreshing OpenAI options…"
+            : "Using built-in OpenAI options until an API key is saved."
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let snapshot = await OpenAITTSCatalogClient.fetch()
+            self.applyOpenAICatalog(snapshot)
+            self.isRefreshingOpenAICatalog = false
+        }
+    }
+
+    private func applyOpenAICatalog(_ snapshot: OpenAITTSCatalogClient.Snapshot) {
+        openAIModels = snapshot.models
+        openAICustomVoices = snapshot.customVoices
+        openAITTSModelID = OpenAITTSCatalog.resolveModelID(
+            preferred: openAITTSModelID,
+            available: snapshot.models
+        )
+        reconcileOpenAIVoiceForSelectedModel()
+
+        if let errorMessage = snapshot.errorMessage, snapshot.modelsFromAPI == false {
+            openAICatalogStatus = errorMessage
+        } else if snapshot.modelsFromAPI {
+            let customNote = snapshot.customVoices.isEmpty
+                ? ""
+                : " · \(snapshot.customVoices.count) custom voice\(snapshot.customVoices.count == 1 ? "" : "s")"
+            openAICatalogStatus = "Loaded \(snapshot.models.count) TTS model\(snapshot.models.count == 1 ? "" : "s") from OpenAI\(customNote)."
+        } else {
+            openAICatalogStatus = "Showing built-in OpenAI options."
+        }
+    }
+
+    private func reconcileOpenAIVoiceForSelectedModel() {
+        openAIVoiceID = OpenAITTSCatalog.resolveVoiceID(
+            preferred: openAIVoiceID,
+            available: openAIVoiceOptions
+        )
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
@@ -381,8 +447,11 @@ final class ReaderController: ObservableObject {
 
     private func configureOpenAISpeechEngine() {
         guard let openAI = speech as? OpenAISpeechEngine else { return }
-        openAI.voice = openAIVoice
-        openAI.model = openAITTSModel
+        openAI.voiceID = openAIVoiceID
+        openAI.modelID = openAITTSModelID
+        openAI.isCustomVoice = openAIVoiceOptions.contains(where: {
+            $0.id == openAIVoiceID && $0.isCustomVoice
+        })
     }
 
     private static func makeSpeechEngine(
