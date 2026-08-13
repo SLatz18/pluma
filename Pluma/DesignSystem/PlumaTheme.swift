@@ -30,6 +30,9 @@ enum PlumaTheme {
         static let dismiss: TimeInterval = 0.12
         static let flash: Duration = .seconds(2.5)
         static let rise: CGFloat = 5
+        /// The one spring for revealing/hiding rows and disclosures, so every
+        /// surface settles with the same character.
+        static let spring = Animation.spring(response: 0.32, dampingFraction: 0.85)
     }
 
     enum Overlay {
@@ -82,7 +85,7 @@ enum PlumaTheme {
     static let hairline = Color.primary.opacity(0.07)
 
     static let pageTitle = Font.system(size: 28, weight: .bold, design: .rounded)
-    static let cardTitle = Font.headline
+    static let cardTitle = Font.system(.headline, design: .rounded)
     static let cardBody = Font.subheadline
     static let meta = Font.caption
     static let eyebrow = Font.caption2.weight(.bold)

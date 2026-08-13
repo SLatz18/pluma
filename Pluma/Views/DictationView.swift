@@ -102,7 +102,7 @@ struct DictationView: View {
 
     private var transcriptionCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            DSEyebrow(trigger: "Transcription & cleanup")
+            DSEyebrow(trigger: "After you speak", action: "polish and insert")
 
             VStack(spacing: 0) {
                 DSToggleRow(
@@ -163,6 +163,8 @@ struct DictationView: View {
                     }
                 }
             }
+            .animation(DS.Motion.spring, value: showAdvanced)
+            .animation(DS.Motion.spring, value: controller.cleanupEnabled)
             .dsCard()
         }
     }

@@ -29,6 +29,7 @@ extension View {
                 RoundedRectangle(cornerRadius: DS.cardRadius, style: .continuous)
                     .strokeBorder(DS.hairline)
             }
+            .shadow(color: .black.opacity(0.05), radius: 1.5, y: 1)
     }
 
     func dsInsetSurface() -> some View {
@@ -325,19 +326,19 @@ struct DSAutomationFlow: View {
         .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
         .padding(DS.Spacing.medium)
         .background(
-            DS.insetBackground,
+            definition.tint.color.opacity(0.05),
             in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
         )
         .overlay {
             RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
-                .strokeBorder(DS.hairline)
+                .strokeBorder(definition.tint.color.opacity(0.16))
         }
     }
 
     private var connector: some View {
         Image(systemName: "arrow.right")
             .font(.caption.weight(.bold))
-            .foregroundStyle(.tertiary)
+            .foregroundStyle(definition.tint.color.opacity(0.55))
             .frame(width: 12, height: 62)
     }
 }

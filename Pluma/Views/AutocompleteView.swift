@@ -37,6 +37,7 @@ struct AutocompleteView: View {
                         disabled: !coordinator.isPermissionGranted
                     )
                 }
+                .animation(DS.Motion.spring, value: coordinator.spellCorrectionEnabled)
                 .dsCard()
             }
 
