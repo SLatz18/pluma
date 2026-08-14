@@ -6,6 +6,7 @@ import Foundation
 protocol SpeechSpeaking: AnyObject {
     var isSpeaking: Bool { get }
     var onFinish: (() -> Void)? { get set }
+    var onFailure: ((String) -> Void)? { get set }
     func speak(_ text: String, voiceIdentifier: String?, rate: Float)
     func stop()
 }

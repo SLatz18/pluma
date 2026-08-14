@@ -462,15 +462,19 @@ final class ReaderController: ObservableObject {
         speech.onFinish = { [weak self] in
             self?.finishReading()
         }
-        if let openAI = speech as? OpenAISpeechEngine {
-            openAI.onFailure = { [weak self] message in
-                guard let self else { return }
-                self.errorMessage = message
-                self.flash(
-                    systemImage: "exclamationmark.triangle.fill",
-                    message: "Couldn’t speak — \(message)"
-                )
-            }
+        // Finish BEFORE flashing, like the summarizer's catch: the engine fires
+        // onFinish right after onFailure, and finishReading() while still busy
+        // would hide the overlay owner-wide — destroying the flash it just showed.
+        speech.onFailure = { [weak self] message in
+            guard let self else { return }
+            self.errorMessage = message
+            self.finishReading()
+            self.flash(
+                systemImage: "exclamationmark.triangle.fill",
+                message: "Couldn’t speak — \(message)"
+            )
+        }
+        if speech is OpenAISpeechEngine {
             configureOpenAISpeechEngine()
         }
     }

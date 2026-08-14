@@ -515,6 +515,50 @@ final class ReaderControllerTests: XCTestCase {
         XCTAssertTrue(speech.spoken.isEmpty)
         XCTAssertEqual(controller.activity, .idle)
     }
+
+    @MainActor
+    func testSpeechFailureFlashSurvivesFinish() async {
+        let speech = FakeSpeechEngine()
+        let overlay = SuggestionOverlayController()
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: overlay,
+            speech: speech,
+            textProvider: StubTextProvider(source: .selection("cloud words"))
+        )
+        controller.isEnabled = true
+        await controller.handlePress()
+        XCTAssertEqual(controller.activity, .reading)
+
+        speech.failNaturally("billing_not_active")
+
+        XCTAssertEqual(controller.errorMessage, "billing_not_active")
+        XCTAssertEqual(controller.activity, .idle)
+        XCTAssertFalse(controller.isSpeaking)
+        // The failure flash must outlive the engine's follow-up onFinish. Panel
+        // visibility is deferred a run-loop turn, so ownership is the synchronous
+        // contract: hide(from:) clears it, show(from:) claims it. With the old
+        // flash-then-finish order this ends up nil and the pill dies unseen.
+        XCTAssertEqual(overlay.owner, .reader)
+    }
+
+    @MainActor
+    func testFinishAfterStopDoesNotDisturbIdleState() async {
+        let speech = FakeSpeechEngine()
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: speech,
+            textProvider: StubTextProvider(source: .selection("stop me"))
+        )
+        controller.isEnabled = true
+        await controller.handlePress()
+        await controller.handlePress() // second press stops
+
+        speech.finishNaturally() // late onFinish from the torn-down request
+        XCTAssertEqual(controller.activity, .idle)
+        XCTAssertFalse(controller.isSpeaking)
+    }
 }
 
 @MainActor
@@ -523,6 +567,7 @@ private final class FakeSpeechEngine: SpeechSpeaking {
     private(set) var stopCount = 0
     var isSpeaking = false
     var onFinish: (() -> Void)?
+    var onFailure: ((String) -> Void)?
 
     func speak(_ text: String, voiceIdentifier: String?, rate: Float) {
         spoken.append((text, voiceIdentifier, rate))
@@ -536,6 +581,13 @@ private final class FakeSpeechEngine: SpeechSpeaking {
 
     func finishNaturally() {
         isSpeaking = false
+        onFinish?()
+    }
+
+    // Mirrors OpenAISpeechEngine's failure path: onFailure first, then onFinish.
+    func failNaturally(_ message: String) {
+        isSpeaking = false
+        onFailure?(message)
         onFinish?()
     }
 }

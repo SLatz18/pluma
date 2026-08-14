@@ -7,6 +7,9 @@ import Foundation
 final class SystemSpeechEngine: NSObject, SpeechSpeaking {
     private let synthesizer = AVSpeechSynthesizer()
     var onFinish: (() -> Void)?
+    // On-device synthesis reports no failures; present so the controller can
+    // wire failures through the protocol without downcasting.
+    var onFailure: ((String) -> Void)?
 
     override init() {
         super.init()
