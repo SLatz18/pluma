@@ -27,6 +27,57 @@ final class ReaderVoiceCatalogTests: XCTestCase {
         XCTAssertTrue(ReaderSpeechProviderChoice.appleOnDevice.isLocal)
         XCTAssertFalse(ReaderSpeechProviderChoice.openAI.isLocal)
     }
+
+    func testPickerLabelIncludesTheVoiceLanguage() {
+        XCTAssertEqual(
+            ReaderVoiceCatalog.pickerLabel(name: "Eddy", languageCode: "en-US"),
+            "Eddy · en-US"
+        )
+        XCTAssertNotEqual(
+            ReaderVoiceCatalog.pickerLabel(name: "Eddy", languageCode: "en-US"),
+            ReaderVoiceCatalog.pickerLabel(name: "Eddy", languageCode: "en-GB")
+        )
+    }
+}
+
+@MainActor
+final class ReaderViewPresentationTests: XCTestCase {
+    func testVerbatimFlowNamesTheSelectedSpeechDestination() {
+        let local = ReaderView.flowDefinition(
+            deliveryMode: .verbatim,
+            speechProvider: .appleOnDevice
+        )
+        let openAI = ReaderView.flowDefinition(
+            deliveryMode: .verbatim,
+            speechProvider: .openAI
+        )
+
+        XCTAssertEqual(local.action, "Read it verbatim")
+        XCTAssertEqual(local.result, "Speak it on this Mac")
+        XCTAssertEqual(openAI.action, "Read it verbatim")
+        XCTAssertEqual(openAI.result, "Speak it with OpenAI")
+    }
+
+    func testSummaryFlowNamesTheSelectedSpeechDestination() {
+        let local = ReaderView.flowDefinition(
+            deliveryMode: .summarizeWhenHelpful,
+            speechProvider: .appleOnDevice
+        )
+        let openAI = ReaderView.flowDefinition(
+            deliveryMode: .summarizeWhenHelpful,
+            speechProvider: .openAI
+        )
+
+        XCTAssertEqual(local.result, "Speak the summary on this Mac")
+        XCTAssertEqual(openAI.result, "Speak the summary with OpenAI")
+    }
+
+    func testPlaygroundEditingIsLockedForEveryBusyState() {
+        XCTAssertTrue(ReaderView.allowsPlaygroundEditing(during: .off))
+        XCTAssertTrue(ReaderView.allowsPlaygroundEditing(during: .idle))
+        XCTAssertFalse(ReaderView.allowsPlaygroundEditing(during: .processing))
+        XCTAssertFalse(ReaderView.allowsPlaygroundEditing(during: .reading))
+    }
 }
 
 final class OpenAITTSClientTests: XCTestCase {

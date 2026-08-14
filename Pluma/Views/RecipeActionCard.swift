@@ -99,6 +99,7 @@ struct RecipeActionCard: View {
         }
         .accessibilityLabel(accessibilityLabel)
         .accessibilityAddTraits(isInChain ? .isSelected : [])
+        .accessibilityRemoveTraits(isInChain ? [] : .isSelected)
     }
 
     private var accessibilityLabel: String {

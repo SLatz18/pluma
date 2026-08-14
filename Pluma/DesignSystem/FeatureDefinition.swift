@@ -67,7 +67,7 @@ struct FeatureDefinition: Identifiable, Hashable, Sendable {
         tint: .reader,
         trigger: "Select text and press the shortcut",
         action: "Read it verbatim or summarize it",
-        result: "Speak it on this Mac",
+        result: "Speak it aloud",
         enabledStatus: "Ready to read selected text",
         disabledStatus: "Reader is off"
     )

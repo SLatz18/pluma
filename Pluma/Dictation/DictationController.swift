@@ -277,6 +277,10 @@ final class DictationController: ObservableObject {
         }
     }
 
+    func clearShortcutConflict() {
+        shortcutConflict = nil
+    }
+
     func requestMicrophonePermission() async {
         await mic.request()
         isMicPermitted = mic.isGranted

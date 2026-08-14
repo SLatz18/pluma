@@ -6,6 +6,7 @@ import SwiftUI
 struct ShortcutRecorderView: View {
     let shortcut: GlobalShortcut
     @Binding var isRecording: Bool
+    var onDismissConflict: () -> Void = {}
     let onRecord: (GlobalShortcut) -> Void
 
     @State private var keyMonitor: Any?
@@ -29,10 +30,12 @@ struct ShortcutRecorderView: View {
         }
         .onDisappear {
             stopRecording()
+            onDismissConflict()
         }
     }
 
     private func startRecording() {
+        onDismissConflict()
         isRecording = true
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             if event.keyCode == 53 {
