@@ -353,7 +353,7 @@ struct SettingsPageView: View {
                     processingRow(
                         title: "Dictation audio",
                         value: dictation.provider == .openAI
-                            ? "Sent to OpenAI for transcription"
+                            ? "Sent to \(OpenAIEndpoint.destinationName()) for transcription"
                             : "Transcribed on this Mac"
                     )
                     DSRowDivider()
@@ -503,7 +503,7 @@ struct SettingsPageView: View {
         guard dictation.cleanupEnabled else { return "Off; raw transcript is inserted" }
         return dictation.cleanupProvider.isLocal
             ? "Runs on this Mac"
-            : "Transcript sent to OpenAI"
+            : "Transcript sent to \(OpenAIEndpoint.destinationName())"
     }
 
     private var launchAtLoginBinding: Binding<Bool> {

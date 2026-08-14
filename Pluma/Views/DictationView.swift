@@ -381,7 +381,7 @@ struct DictationView: View {
     // answer changes depending on which two providers are chosen.
     private var privacyNote: String {
         let audio = controller.provider == .openAI
-            ? "Microphone audio is sent to OpenAI."
+            ? "Microphone audio is sent to \(OpenAIEndpoint.destinationName())."
             : "Speech is transcribed on this Mac; audio never leaves it."
         let text: String
         if !controller.cleanupEnabled {
@@ -389,7 +389,7 @@ struct DictationView: View {
         } else if controller.cleanupProvider.isLocal {
             text = " Cleanup runs on this Mac."
         } else {
-            text = " The transcript is sent to OpenAI for cleanup."
+            text = " The transcript is sent to \(OpenAIEndpoint.destinationName()) for cleanup."
         }
         return audio + text + " If cleanup fails, the raw transcript is inserted instead."
     }

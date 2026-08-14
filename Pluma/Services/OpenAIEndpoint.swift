@@ -39,6 +39,12 @@ enum OpenAIEndpoint {
         baseURL(from: defaults).appendingPathComponent(path)
     }
 
+    /// What data-path copy should call the destination, so labels stay truthful
+    /// when the cloud path points somewhere other than OpenAI.
+    static func destinationName(from defaults: UserDefaults = .standard) -> String {
+        isCustom(in: defaults) ? "your endpoint" : "OpenAI"
+    }
+
     /// The realtime API upgrades the same host to a websocket.
     static func websocketURL(_ pathAndQuery: String, from defaults: UserDefaults = .standard) -> URL {
         let base = baseURL(from: defaults)

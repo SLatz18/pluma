@@ -275,7 +275,9 @@ struct AISettingsContent: View {
                 DSRowDivider()
                 DSSettingRow("Data path") {
                     dataPathBadge(
-                        text: dictation.provider == .openAI ? "Audio to OpenAI" : "On device",
+                        text: dictation.provider == .openAI
+                            ? "Audio to \(OpenAIEndpoint.destinationName())"
+                            : "On device",
                         isCloud: dictation.provider == .openAI
                     )
                 }
@@ -305,7 +307,7 @@ struct AISettingsContent: View {
                 DSSettingRow("Data path") {
                     dataPathBadge(
                         text: dictation.cleanupProvider == .openAI
-                            ? "Text to OpenAI"
+                            ? "Text to \(OpenAIEndpoint.destinationName())"
                             : dictation.cleanupProvider == .ollama ? "Local loopback" : "On device",
                         isCloud: dictation.cleanupProvider == .openAI
                     )
