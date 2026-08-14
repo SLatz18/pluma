@@ -67,6 +67,13 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
 - `Reader/` — on-device `AVSpeechSynthesizer`; selection then clipboard;
   never reads `AXSecureTextField`.
 - `Services/Preferences.swift` — all UserDefaults keys + one-time migrations.
+- `Services/SyntheticEventMarker.swift` — EVERY synthetic keystroke Pluma
+  posts (Reader’s ⌘C, paste-fallback ⌘V) must be marked, and every Pluma tap
+  or global monitor must skip marked events. Unmarked self-events get the
+  Caps chord ORed onto them (⌘C→Hyper-C while ⇪L is held) and wipe
+  dictation’s spacing memory via the edit monitor. Note the expander sets no
+  real modifier flags, so “wait for chord release” must poll
+  `CapsLockExpander.shared.isCapsChordHeld`, not `CGEventSource.flagsState`.
 - Open issues: #23 (Caps Lock expander history; in-app Caps shortcuts address
   the missing alias layer), #24 (developer mode, cheat-code unlock).
 
