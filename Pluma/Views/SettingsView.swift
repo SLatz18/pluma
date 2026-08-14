@@ -3,6 +3,7 @@ import SwiftUI
 
 enum SettingsDestination: String, CaseIterable, Identifiable {
     case general
+    case ai
     case writing
     case privacy
 
@@ -11,6 +12,7 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .general: "General"
+        case .ai: "AI"
         case .writing: "Writing"
         case .privacy: "Privacy"
         }
@@ -19,6 +21,7 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
     var symbolName: String {
         switch self {
         case .general: "gear"
+        case .ai: "sparkles"
         case .writing: "brain"
         case .privacy: "hand.raised"
         }
@@ -29,6 +32,7 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
     var mainPage: MainPage {
         switch self {
         case .general: .general
+        case .ai: .ai
         case .writing: .writing
         case .privacy: .privacy
         }
@@ -37,7 +41,8 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
     var subtitle: String {
         switch self {
         case .general: "Caps Lock shortcuts and how pluma starts."
-        case .writing: "The shared model, context, and style that power every feature."
+        case .ai: "Engines, models, voices, and OpenAI access for every feature."
+        case .writing: "Context, memory, and style shared by writing features."
         case .privacy: "Where text goes, what pluma can access, and what it stores."
         }
     }
@@ -57,6 +62,7 @@ struct SettingsPageView: View {
     @EnvironmentObject private var styleProfile: StyleProfileStore
     @EnvironmentObject private var developer: DeveloperMode
     @EnvironmentObject private var capsLock: CapsLockExpander
+    @ObservedObject private var navigation = MainNavigation.shared
 
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
@@ -74,10 +80,18 @@ struct SettingsPageView: View {
     }
 
     var body: some View {
-        DSPage(title: destination.title, subtitle: destination.subtitle) {
+        DSPage(
+            title: destination.title,
+            subtitle: destination.subtitle,
+            scrollTarget: pageScrollTarget,
+            pageIdentifier: "settings-\(destination.rawValue)"
+        ) {
             switch destination {
             case .general:
                 generalContent
+            case .ai:
+                DSContextualBackLink(page: .ai)
+                AISettingsContent()
             case .writing:
                 writingContent
             case .privacy:
@@ -125,6 +139,11 @@ struct SettingsPageView: View {
         } message: {
             Text("This removes the selected local writing data from this Mac and cannot be undone.")
         }
+    }
+
+    private var pageScrollTarget: String? {
+        guard navigation.focus?.page == destination.mainPage else { return nil }
+        return navigation.focus?.scrollTarget
     }
 
     private var clearDialogTitle: String {
@@ -213,7 +232,6 @@ struct SettingsPageView: View {
                 .dsCard()
             }
         }
-        .accessibilityIdentifier("settings-general")
     }
 
     @ViewBuilder
@@ -269,38 +287,6 @@ struct SettingsPageView: View {
 
     private var writingContent: some View {
         Group {
-            DSSection(
-                "Writing model",
-                detail: "One shared model choice powers Rewrite and Autocomplete."
-            ) {
-                VStack(spacing: 0) {
-                    DSSettingRow("Default model") {
-                        Picker("Default model", selection: providerBinding) {
-                            ForEach(RewriteProviderChoice.allCases) { provider in
-                                Label(provider.title, systemImage: provider.symbolName)
-                                    .tag(provider)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(width: DS.Control.providerWidth)
-                    }
-
-                    if model.provider == .ollama {
-                        DSRowDivider()
-                        DSSettingRow("Ollama model") {
-                            ollamaControl
-                        }
-                    }
-
-                    DSRowDivider()
-                    DSStatusIndicator(
-                        tone: model.status.isReady ? .success : .attention,
-                        text: model.status.title
-                    )
-                }
-                .dsCard()
-            }
-
             DSSection("Context and personalization") {
                 VStack(spacing: 0) {
                     DSToggleRow(
@@ -351,7 +337,6 @@ struct SettingsPageView: View {
                 .dsCard()
             }
         }
-        .accessibilityIdentifier("settings-writing")
     }
 
     private var privacyContent: some View {
@@ -465,7 +450,6 @@ struct SettingsPageView: View {
                 .font(DS.meta)
             }
         }
-        .accessibilityIdentifier("settings-privacy")
     }
 
     private func processingRow(title: String, value: String) -> some View {
@@ -510,22 +494,6 @@ struct SettingsPageView: View {
         }
     }
 
-    @ViewBuilder
-    private var ollamaControl: some View {
-        if model.availableOllamaModels.isEmpty {
-            TextField("Ollama model", text: ollamaModelBinding)
-                .frame(width: DS.Control.providerWidth)
-        } else {
-            Picker("Ollama model", selection: ollamaModelBinding) {
-                ForEach(model.availableOllamaModels, id: \.self) { modelName in
-                    Text(modelName).tag(modelName)
-                }
-            }
-            .labelsHidden()
-            .frame(width: DS.Control.providerWidth)
-        }
-    }
-
     private var cleanupPath: String {
         guard dictation.cleanupEnabled else { return "Off; raw transcript is inserted" }
         return dictation.cleanupProvider.isLocal
@@ -553,14 +521,6 @@ struct SettingsPageView: View {
             get: { developer.isUnlocked },
             set: { developer.setUnlocked($0) }
         )
-    }
-
-    private var providerBinding: Binding<RewriteProviderChoice> {
-        Binding(get: { model.provider }, set: { model.selectProvider($0) })
-    }
-
-    private var ollamaModelBinding: Binding<String> {
-        Binding(get: { model.ollamaModel }, set: { model.setOllamaModel($0) })
     }
 
     private func importStyleProfile(_ result: Result<[URL], any Error>) {

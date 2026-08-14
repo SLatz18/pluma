@@ -30,17 +30,21 @@ enum OpenAIKey {
     }
 
     @MainActor
-    static func save(_ value: String) {
-        KeychainStore.save(value, for: account)
-        cachedPresence = nil
-        secret.invalidate()
+    static func save(_ value: String) throws {
+        defer {
+            cachedPresence = nil
+            secret.invalidate()
+        }
+        try KeychainStore.save(value, for: account)
     }
 
     @MainActor
-    static func clear() {
-        KeychainStore.remove(account: account)
-        cachedPresence = nil
-        secret.invalidate()
+    static func clear() throws {
+        defer {
+            cachedPresence = nil
+            secret.invalidate()
+        }
+        try KeychainStore.remove(account: account)
     }
 }
 

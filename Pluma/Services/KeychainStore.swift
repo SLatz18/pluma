@@ -42,34 +42,39 @@ enum KeychainStore {
         return value
     }
 
-    static func save(_ value: String, for account: String) {
+    static func save(_ value: String, for account: String) throws {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            remove(account: account)
+            try remove(account: account)
             return
         }
-        guard let data = trimmed.data(using: .utf8) else { return }
+        guard let data = trimmed.data(using: .utf8) else {
+            throw KeychainStoreError.encoding
+        }
 
         // Delete then add rather than SecItemUpdate. An update leaves the item's
         // access control list as it was born, so a key first saved under a
         // different signing identity keeps asking the user to approve every read.
         // Re-creating the item rebinds the ACL to the identity running now.
-        SecItemDelete(baseQuery(account: account) as CFDictionary)
+        let deleteStatus = SecItemDelete(baseQuery(account: account) as CFDictionary)
+        try requireSuccessOrMissing(deleteStatus, operation: "replace")
 
         var insert = baseQuery(account: account)
         insert[kSecValueData as String] = data
         insert[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlocked
         let addStatus = SecItemAdd(insert as CFDictionary, nil)
-        if addStatus != errSecSuccess {
-            DebugLog.log("keychain add failed for \(account): \(addStatus)", at: .quiet)
-        }
+        try requireSuccess(addStatus, operation: "save")
     }
 
     // Clears the legacy item too, otherwise the next read migrates the old value
     // back and the key the user just removed reappears.
-    static func remove(account: String) {
-        SecItemDelete(baseQuery(account: account) as CFDictionary)
-        SecItemDelete(baseQuery(account: account, service: legacyService) as CFDictionary)
+    static func remove(account: String) throws {
+        let currentStatus = SecItemDelete(baseQuery(account: account) as CFDictionary)
+        try requireSuccessOrMissing(currentStatus, operation: "remove")
+        let legacyStatus = SecItemDelete(
+            baseQuery(account: account, service: legacyService) as CFDictionary
+        )
+        try requireSuccessOrMissing(legacyStatus, operation: "remove legacy copy")
     }
 
     // Copies rather than moves: leaving the old item alone keeps a downgrade to a
@@ -104,5 +109,33 @@ enum KeychainStore {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
+    }
+
+    private static func requireSuccess(_ status: OSStatus, operation: String) throws {
+        guard status == errSecSuccess else {
+            throw KeychainStoreError.system(operation: operation, status: status)
+        }
+    }
+
+    private static func requireSuccessOrMissing(_ status: OSStatus, operation: String) throws {
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainStoreError.system(operation: operation, status: status)
+        }
+    }
+}
+
+enum KeychainStoreError: LocalizedError {
+    case encoding
+    case system(operation: String, status: OSStatus)
+
+    var errorDescription: String? {
+        switch self {
+        case .encoding:
+            return "The key could not be encoded for Keychain."
+        case .system(let operation, let status):
+            let systemMessage = SecCopyErrorMessageString(status, nil) as String?
+                ?? "OSStatus \(status)"
+            return "Couldn’t \(operation) the key in Keychain: \(systemMessage)."
+        }
     }
 }

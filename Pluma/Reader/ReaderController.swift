@@ -309,6 +309,23 @@ final class ReaderController: ObservableObject {
         await prepareAndSpeak(trimmed, readingMessage: "Reading…")
     }
 
+    /// Settings preview path: speak a fixed sample with the selected voice and
+    /// model, bypassing the Reader recipe and every cross-app text source.
+    func previewVoice(_ text: String = "This is your selected pluma voice.") {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if activity == .processing || activity == .reading {
+            stopSpeaking()
+            return
+        }
+        errorMessage = nil
+        if speechProvider == .openAI, openAIKeyPresent() == false {
+            flash(systemImage: "key", message: OpenAITranscriptionError.missingKey.localizedDescription)
+            return
+        }
+        startSpeaking(trimmed, message: "Previewing voice…")
+    }
+
     func stopSpeaking() {
         pipelineGeneration &+= 1
         guard activity == .processing || activity == .reading || speech.isSpeaking else {

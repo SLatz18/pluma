@@ -22,18 +22,21 @@ There is no account system, no analytics SDK, and no pluma backend.
 ## Optional OpenAI path
 
 Dictation can use OpenAI for live transcription and/or cleanup when you choose
-those providers and save an API key. Reader can also send text to OpenAI for
-speech synthesis when you choose OpenAI as the Reader speech engine. In those
-modes:
+those providers and save an API key on Settings → AI. Reader can also send text
+to OpenAI for speech synthesis when you choose OpenAI as the Reader speech
+engine. One credential is shared by those opt-in features. In those modes:
 
 - Microphone audio and/or transcript text are sent to OpenAI (dictation).
 - Selected or summarized text is sent to OpenAI for speech synthesis (Reader).
 - The API key is stored in the macOS Keychain, not in preferences files.
+- When you save or check the key, pluma requests OpenAI's model list to verify
+  access. That validation sends the credential but no selected text, transcript,
+  microphone audio, or other user content.
 - Apple Intelligence / Ollama / on-device voices remain available; OpenAI is
   never required.
 
-The Dictation and Reader pages state which path is active before you talk or
-listen.
+The AI control center and the Dictation and Reader pages state which path is
+active before you talk or listen.
 
 ## What pluma reads
 

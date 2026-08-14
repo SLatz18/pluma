@@ -10,6 +10,7 @@ struct PlumaApp: App {
     @StateObject private var dictation: DictationController
     @StateObject private var reader: ReaderController
     @StateObject private var developer: DeveloperMode
+    @StateObject private var openAICredentials: OpenAICredentials
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
@@ -38,6 +39,7 @@ struct PlumaApp: App {
         _dictation = StateObject(wrappedValue: DictationController(overlay: overlay))
         _reader = StateObject(wrappedValue: ReaderController(overlay: overlay))
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
+        _openAICredentials = StateObject(wrappedValue: OpenAICredentials.forCurrentProcess())
 
         CapsLockExpander.shared.startMonitoring()
     }
@@ -57,6 +59,7 @@ struct PlumaApp: App {
                 .environmentObject(dictation)
                 .environmentObject(reader)
                 .environmentObject(developer)
+                .environmentObject(openAICredentials)
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(SpellMemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)
@@ -89,7 +92,7 @@ private struct OpenSettingsPageCommand: View {
 
     var body: some View {
         Button("Settings…") {
-            MainNavigation.shared.page = .general
+            MainNavigation.shared.navigate(to: .general)
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }
@@ -161,7 +164,7 @@ private struct PlumaMenuBarView: View {
         // closed, so without this row Settings would be unreachable from a
         // cold start.
         Button {
-            MainNavigation.shared.page = .general
+            MainNavigation.shared.navigate(to: .general)
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         } label: {

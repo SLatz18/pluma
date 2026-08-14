@@ -73,7 +73,7 @@ struct AutocompleteView: View {
             }
 
             DSSharedSettingLink(
-                title: "Model, screen context, and style",
+                title: "Screen context and style",
                 value: sharedSettingsSummary,
                 systemImage: "brain",
                 destination: .writing
