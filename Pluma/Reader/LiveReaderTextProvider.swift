@@ -66,7 +66,12 @@ struct SystemReaderSelectionCopier: ReaderSelectionCopying {
         // modifiers. Posting Command-C before that chord is released can turn
         // the synthetic copy into another app's Hyper-C global shortcut. Wait
         // for the initiating chord to clear so the event remains Command-C.
-        guard await waitForShortcutModifiersToRelease() else { return nil }
+        // With the in-app Caps expander no real modifier flags are ever set,
+        // so the wait must also ask the expander whether Caps is still held.
+        guard await waitForShortcutModifiersToRelease() else {
+            DebugLog.log("reader copy: chord still held after timeout; giving up", at: .quiet)
+            return nil
+        }
 
         let pasteboard = NSPasteboard.general
         guard pasteboard.accessBehavior != .alwaysDeny else { return nil }
@@ -75,7 +80,10 @@ struct SystemReaderSelectionCopier: ReaderSelectionCopying {
 
         guard postCopyShortcut() else { return nil }
         try? await Task.sleep(for: .milliseconds(200))
-        guard pasteboard.changeCount != previousChangeCount else { return nil }
+        guard pasteboard.changeCount != previousChangeCount else {
+            DebugLog.log("reader copy: ⌘C produced no pasteboard change", at: .quiet)
+            return nil
+        }
 
         let copiedChangeCount = pasteboard.changeCount
         let copiedText = pasteboard.accessBehavior == .alwaysDeny
@@ -93,13 +101,20 @@ struct SystemReaderSelectionCopier: ReaderSelectionCopying {
         !flags.intersection(shortcutModifierMask).isEmpty
     }
 
+    @MainActor
     private func waitForShortcutModifiersToRelease() async -> Bool {
         let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: Self.modifierReleaseTimeout)
+        let started = clock.now
+        let deadline = started.advanced(by: Self.modifierReleaseTimeout)
 
-        while Self.hasHeldShortcutModifiers(CGEventSource.flagsState(.hidSystemState)) {
+        while Self.hasHeldShortcutModifiers(CGEventSource.flagsState(.hidSystemState))
+            || CapsLockExpander.shared.isCapsChordHeld {
             guard clock.now < deadline else { return false }
             try? await Task.sleep(for: Self.modifierPollInterval)
+        }
+        let waited = started.duration(to: clock.now)
+        if waited > .milliseconds(20) {
+            DebugLog.log("reader copy: waited \(waited) for chord release")
         }
         return true
     }
@@ -121,6 +136,9 @@ struct SystemReaderSelectionCopier: ReaderSelectionCopying {
 
         keyDown.flags = .maskCommand
         keyUp.flags = .maskCommand
+        // Marked so our own Caps tap and edit monitors leave these alone.
+        SyntheticEventMarker.mark(keyDown)
+        SyntheticEventMarker.mark(keyUp)
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
         return true

@@ -499,6 +499,10 @@ final class DictationController: ObservableObject {
         guard let element = savedElement else { return }
         let insertion = DictationTranscript.insertionText(text, precededBy: savedPrefix)
         guard !insertion.isEmpty else { return }
+        DebugLog.log(
+            "dictation spacing: prefix \(savedPrefix == nil ? "unknown" : "known"), "
+                + "leading space \(insertion.hasPrefix(" ") ? "added" : "omitted")"
+        )
 
         if await AXTextInsertion.insert(insertion, into: element) {
             DebugLog.log("dictation inserted \(insertion.count) chars")
@@ -531,7 +535,13 @@ final class DictationController: ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if event.type == .keyDown, self.isDictationChord(event) { return }
-                self.forgetRecentInsertion()
+                // Our own synthetic events (the paste that performed this very
+                // insertion, Reader's copy) are not user edits — reacting to
+                // them wiped the spacing memory moments after it was written.
+                if let cgEvent = event.cgEvent, SyntheticEventMarker.isPlumaEvent(cgEvent) {
+                    return
+                }
+                self.forgetRecentInsertion(because: event.type == .keyDown ? "keystroke" : "click")
             }
         }
     }
@@ -541,8 +551,9 @@ final class DictationController: ObservableObject {
             || UInt32(event.keyCode) == draftShortcut.keyCode
     }
 
-    private func forgetRecentInsertion() {
+    private func forgetRecentInsertion(because reason: String) {
         guard recentInsertion != nil else { return }
+        DebugLog.log("dictation spacing memory dropped: \(reason)")
         recentInsertion = nil
         if let editMonitor {
             NSEvent.removeMonitor(editMonitor)
