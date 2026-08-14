@@ -1,6 +1,13 @@
 import AppKit
 import Foundation
 
+extension Notification.Name {
+    /// `pluma.ollamaModel` is one preference with two live owners (writing and
+    /// dictation cleanup). Each owner posts on write and reloads on the peer's
+    /// post, so both surfaces always show the stored value.
+    static let ollamaModelDidChange = Notification.Name("pluma.ollamaModelDidChange")
+}
+
 @MainActor
 final class RewriteViewModel: ObservableObject {
     @Published private(set) var provider: RewriteProviderChoice
@@ -20,6 +27,21 @@ final class RewriteViewModel: ObservableObject {
         provider = Preferences.provider(from: defaults)
         chain = Preferences.chain(from: defaults)
         ollamaModel = Preferences.ollamaModel(from: defaults)
+
+        NotificationCenter.default.addObserver(
+            forName: .ollamaModelDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard (notification.object as AnyObject?) !== self else { return }
+            Task { @MainActor in
+                guard let self else { return }
+                let stored = Preferences.ollamaModel(from: self.defaults)
+                if self.ollamaModel != stored {
+                    self.ollamaModel = stored
+                }
+            }
+        }
     }
 
     func selectProvider(_ newProvider: RewriteProviderChoice) {
@@ -76,8 +98,20 @@ final class RewriteViewModel: ObservableObject {
     }
 
     func setOllamaModel(_ model: String) {
+        guard model != ollamaModel || defaults.string(forKey: Preferences.ollamaModelKey) != model else { return }
         ollamaModel = model
         defaults.set(model, forKey: Preferences.ollamaModelKey)
+        NotificationCenter.default.post(name: .ollamaModelDidChange, object: self)
+    }
+
+    /// Picker source that always contains the stored value: a model the user
+    /// chose that Ollama no longer lists must stay visible (and re-pickable),
+    /// not render as a blank control.
+    var ollamaModelOptions: [String] {
+        if ollamaModel.isEmpty || availableOllamaModels.contains(ollamaModel) {
+            return availableOllamaModels
+        }
+        return [ollamaModel] + availableOllamaModels
     }
 
     func refreshStatus() async {
@@ -101,16 +135,26 @@ final class RewriteViewModel: ObservableObject {
                     return
                 }
 
-                if ollamaModel.isEmpty || !models.contains(ollamaModel) {
+                // Seed an empty selection, but never replace one the user made:
+                // dictation cleanup shares this preference, and clobbering it
+                // from a status refresh silently changed models behind the user.
+                if ollamaModel.isEmpty {
                     setOllamaModel(firstModel)
                 }
 
-                status = ProviderStatus(
-                    state: .ready,
-                    title: "Ollama ready",
-                    detail: ollamaModel,
-                    symbolName: "desktopcomputer"
-                )
+                status = models.contains(ollamaModel)
+                    ? ProviderStatus(
+                        state: .ready,
+                        title: "Ollama ready",
+                        detail: ollamaModel,
+                        symbolName: "desktopcomputer"
+                    )
+                    : ProviderStatus(
+                        state: .waiting,
+                        title: "Model not installed",
+                        detail: "\(ollamaModel) isn't in Ollama's list. Pick an installed model.",
+                        symbolName: "shippingbox"
+                    )
             } catch {
                 availableOllamaModels = []
                 status = ProviderStatus(

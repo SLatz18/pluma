@@ -12,7 +12,8 @@ enum OpenAIEndpoint {
     }
 
     static func customBaseURL(from defaults: UserDefaults = .standard) -> URL? {
-        validatedBaseURL(Preferences.cloudBaseURLString(from: defaults))
+        guard Preferences.cloudUseCustomEndpoint(from: defaults) else { return nil }
+        return validatedBaseURL(Preferences.cloudBaseURLString(from: defaults))
     }
 
     static func isCustom(in defaults: UserDefaults = .standard) -> Bool {

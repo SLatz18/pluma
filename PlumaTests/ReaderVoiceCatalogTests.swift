@@ -130,9 +130,17 @@ final class OpenAITTSCatalogTests: XCTestCase {
         )
     }
 
-    func testFallsBackWhenRemoteHasNoTTSModels() {
+    func testReturnsEmptyWhenRemoteHasNoTTSModels() {
+        // The caller decides whether to fall back — "no TTS models here" must
+        // stay distinguishable from a fetch failure.
         let models = OpenAITTSCatalog.models(fromRemoteIDs: ["gpt-4o", "whisper-1"])
-        XCTAssertEqual(models.map(\.id), OpenAITTSCatalog.fallbackModelIDs)
+        XCTAssertTrue(models.isEmpty)
+    }
+
+    func testStoredOptionKeepsUnknownIDSelectable() {
+        let option = OpenAITTSCatalog.storedOption(forModelID: "gateway-tts-x")
+        XCTAssertEqual(option.id, "gateway-tts-x")
+        XCTAssertFalse(option.title.isEmpty)
     }
 
     func testClassicModelsHideNewerVoices() {

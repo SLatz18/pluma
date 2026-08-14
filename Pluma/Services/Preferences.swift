@@ -34,6 +34,7 @@ enum Preferences {
     static let openAITTSVoiceKey = "pluma.openAITTSVoice"
     static let openAITTSModelKey = "pluma.openAITTSModel"
     static let cloudBaseURLKey = "pluma.cloudBaseURL"
+    static let cloudUseCustomEndpointKey = "pluma.cloudUseCustomEndpoint"
     static let openAIKeySavedAtKey = "pluma.openAIKeySavedAt"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
@@ -632,6 +633,22 @@ enum Preferences {
         } else {
             defaults.set(trimmed, forKey: cloudBaseURLKey)
         }
+    }
+
+    /// Whether requests go to the custom base URL. Absent means "infer from
+    /// the URL" so configurations written before this flag existed keep working.
+    static func cloudUseCustomEndpoint(from defaults: UserDefaults = .standard) -> Bool {
+        if let stored = defaults.object(forKey: cloudUseCustomEndpointKey) as? Bool {
+            return stored
+        }
+        return !cloudBaseURLString(from: defaults).isEmpty
+    }
+
+    static func setCloudUseCustomEndpoint(
+        _ useCustom: Bool,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(useCustom, forKey: cloudUseCustomEndpointKey)
     }
 
     static func openAIKeySavedAt(from defaults: UserDefaults = .standard) -> Date? {
