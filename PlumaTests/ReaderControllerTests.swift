@@ -541,6 +541,45 @@ final class ReaderControllerTests: XCTestCase {
         )
     }
 
+    func testEndpointFlagSelectsDestinationAndKeepsURL() {
+        Preferences.setCloudBaseURLString("https://example.com/openai/v1", to: defaults)
+
+        // Legacy configurations predate the flag: a stored URL means custom.
+        XCTAssertTrue(Preferences.cloudUseCustomEndpoint(from: defaults))
+        XCTAssertTrue(OpenAIEndpoint.isCustom(in: defaults))
+
+        // Flipping to OpenAI keeps the URL but routes to the default host.
+        Preferences.setCloudUseCustomEndpoint(false, to: defaults)
+        XCTAssertEqual(
+            OpenAIEndpoint.baseURL(from: defaults).absoluteString,
+            "https://api.openai.com/v1"
+        )
+        XCTAssertEqual(
+            Preferences.cloudBaseURLString(from: defaults),
+            "https://example.com/openai/v1"
+        )
+
+        // Flipping back restores the custom destination without retyping.
+        Preferences.setCloudUseCustomEndpoint(true, to: defaults)
+        XCTAssertEqual(
+            OpenAIEndpoint.baseURL(from: defaults).absoluteString,
+            "https://example.com/openai/v1"
+        )
+    }
+
+    @MainActor
+    func testStoredModelSurvivesLaunchWithFallbackCatalog() {
+        Preferences.setOpenAITTSModelID("gateway-special-tts", to: defaults)
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: FakeSpeechEngine(),
+            textProvider: StubTextProvider(source: .empty)
+        )
+        XCTAssertEqual(controller.openAITTSModelID, "gateway-special-tts")
+        XCTAssertTrue(controller.openAIModels.contains { $0.id == "gateway-special-tts" })
+    }
+
     func testCloudBaseURLValidationRejectsNonHTTPS() {
         XCTAssertNil(OpenAIEndpoint.validatedBaseURL(""))
         XCTAssertNil(OpenAIEndpoint.validatedBaseURL("http://example.com/v1"))

@@ -122,22 +122,42 @@ final class OpenAICredentials: ObservableObject {
 
     /// The one key pairs with one destination: api.openai.com by default, or a
     /// custom OpenAI-compatible base URL. Stored here so every settings surface
-    /// binds to the same value; empty string means the default.
+    /// binds to the same value.
     @Published var endpointBaseURLString: String = Preferences.cloudBaseURLString() {
         didSet {
             guard endpointBaseURLString != oldValue else { return }
             Preferences.setCloudBaseURLString(endpointBaseURLString)
+            invalidateValidation()
+            revision &+= 1
+        }
+    }
+
+    /// Which destination is in use. Selecting OpenAI keeps the typed URL so the
+    /// choice can be flipped back without retyping — the flag, not the URL's
+    /// emptiness, decides where requests go.
+    @Published var useCustomEndpoint: Bool = Preferences.cloudUseCustomEndpoint() {
+        didSet {
+            guard useCustomEndpoint != oldValue else { return }
+            Preferences.setCloudUseCustomEndpoint(useCustomEndpoint)
+            invalidateValidation()
             revision &+= 1
         }
     }
 
     var isEndpointCustom: Bool {
-        OpenAIEndpoint.validatedBaseURL(endpointBaseURLString) != nil
+        useCustomEndpoint && OpenAIEndpoint.validatedBaseURL(endpointBaseURLString) != nil
     }
 
     var isEndpointEntryValid: Bool {
-        endpointBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !useCustomEndpoint
             || OpenAIEndpoint.validatedBaseURL(endpointBaseURLString) != nil
+    }
+
+    /// A validation verdict describes one destination; changing the destination
+    /// makes it stale. Back to "stored, not yet checked" until the next check.
+    private func invalidateValidation() {
+        validationGeneration &+= 1
+        state = hasKey ? .stored : .missing
     }
 
     var keySavedAt: Date? {

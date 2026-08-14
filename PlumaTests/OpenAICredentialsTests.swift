@@ -36,6 +36,23 @@ final class OpenAICredentialsTests: XCTestCase {
         XCTAssertTrue(offline.hasKey, "Being offline must not be presented as an invalid key")
     }
 
+    func testEndpointChangeInvalidatesValidationVerdict() async {
+        let store = CredentialMemoryStore(key: "sk-ready")
+        let credentials = makeCredentials(store: store, validation: .valid)
+        await credentials.validate()
+        XCTAssertEqual(credentials.state, .ready)
+
+        // A verdict describes one destination; pointing elsewhere makes it stale.
+        credentials.endpointBaseURLString = "https://other.example/openai/v1"
+        XCTAssertEqual(credentials.state, .stored)
+
+        await credentials.validate()
+        XCTAssertEqual(credentials.state, .ready)
+
+        credentials.useCustomEndpoint.toggle()
+        XCTAssertEqual(credentials.state, .stored)
+    }
+
     func testSaveFailureIsPublishedWithoutClaimingSuccess() async {
         let store = CredentialMemoryStore(saveError: CredentialFixtureError.saveDenied)
         let credentials = makeCredentials(store: store, validation: .valid)
