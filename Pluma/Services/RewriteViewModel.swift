@@ -14,9 +14,14 @@ final class RewriteViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     private let defaults: UserDefaults
+    private let modelCatalog: OllamaModelCatalog
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        modelCatalog: OllamaModelCatalog = .shared
+    ) {
         self.defaults = defaults
+        self.modelCatalog = modelCatalog
         provider = Preferences.provider(from: defaults)
         chain = Preferences.chain(from: defaults)
         ollamaModel = Preferences.ollamaModel(from: defaults)
@@ -25,7 +30,8 @@ final class RewriteViewModel: ObservableObject {
     func selectProvider(_ newProvider: RewriteProviderChoice) {
         provider = newProvider
         defaults.set(newProvider.rawValue, forKey: Preferences.providerKey)
-        Task { await refreshStatus() }
+        // A deliberate provider switch deserves a fresh look, not a cached one.
+        Task { await refreshStatus(force: true) }
     }
 
     // Tap order is run order; tapping a step that's in the chain pulls it
@@ -80,7 +86,7 @@ final class RewriteViewModel: ObservableObject {
         defaults.set(model, forKey: Preferences.ollamaModelKey)
     }
 
-    func refreshStatus() async {
+    func refreshStatus(force: Bool = false) async {
         status = .checking
 
         switch provider {
@@ -88,7 +94,7 @@ final class RewriteViewModel: ObservableObject {
             status = AppleIntelligenceEngine.status()
         case .ollama:
             do {
-                let models = try await OllamaEngine().availableModels()
+                let models = try await modelCatalog.models(forceRefresh: force)
                 availableOllamaModels = models
 
                 guard let firstModel = models.first else {

@@ -49,7 +49,7 @@ struct DictationView: View {
             DSPageFootnote(text: privacyNote)
         }
         .task {
-            ollamaModels = (try? await OllamaEngine().availableModels()) ?? []
+            ollamaModels = (try? await OllamaModelCatalog.shared.models()) ?? []
             if controller.ollamaModel.isEmpty, let first = ollamaModels.first {
                 controller.ollamaModel = first
             }

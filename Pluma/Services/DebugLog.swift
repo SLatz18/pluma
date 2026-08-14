@@ -64,7 +64,9 @@ enum DebugLog {
     static func log(_ message: @autoclosure () -> String, at minimum: Level = .normal) {
         guard minimum.rawValue <= level.rawValue else { return }
 
-        let line = "\(ISO8601DateFormatter().string(from: .now)) \(message())\n"
+        // The format style is a value type with identical output to an
+        // ISO8601DateFormatter, without allocating a formatter per line.
+        let line = "\(Date.now.formatted(.iso8601)) \(message())\n"
         guard let data = line.data(using: .utf8) else { return }
         if let handle = try? FileHandle(forWritingTo: url) {
             handle.seekToEndOfFile()

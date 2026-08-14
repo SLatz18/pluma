@@ -7,7 +7,7 @@ final class ScreenContextProvider {
     static let shared = ScreenContextProvider()
 
     private(set) var isPermitted: Bool
-    private var monitorTask: Task<Void, Never>?
+    private let poller = PermissionPoller()
 
     var onChange: ((Bool) -> Void)?
 
@@ -29,23 +29,11 @@ final class ScreenContextProvider {
     }
 
     func openSystemSettings() {
-        guard
-            let url = URL(
-                string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
-            )
-        else { return }
-        NSWorkspace.shared.open(url)
+        PrivacySettingsPane.open("Privacy_ScreenCapture")
     }
 
     func startMonitoring() {
-        guard monitorTask == nil else { return }
-        monitorTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
-                guard !Task.isCancelled else { return }
-                self?.refresh()
-            }
-        }
+        poller.start { [weak self] in self?.refresh() }
     }
 
     // Runs off the main actor: capture plus OCR take a few hundred
