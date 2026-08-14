@@ -63,5 +63,5 @@ screen OCR text, conversation text, or suggestion text.
 ## Contact
 
 Open a GitHub issue or use
-[private vulnerability reporting](https://github.com/SLatz18/rewrite-mac/security)
+[private vulnerability reporting](https://github.com/SLatz18/pluma/security)
 for security-sensitive privacy questions.

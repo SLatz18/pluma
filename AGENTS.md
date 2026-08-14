@@ -19,11 +19,11 @@ platform incompatibility, not a missing dependency — no install step fixes it.
   using the commands in `README.md` / `CLAUDE.md` (`./scripts/bootstrap.sh`,
   then `xcodebuild ... build|test`). The GitHub `Full build and test (macOS)`
   workflow (`.github/workflows/ci-full.yml`, `runs-on: macos-26`) is the
-  authoritative full pipeline; it is `workflow_dispatch`-only today.
+  authoritative full pipeline; it runs on every PR and push to main.
 
-- **What IS runnable on the Linux VM** is exactly the `ubuntu-latest` job in
-  `.github/workflows/ci.yml` — the cheap text-level checks. All three pass here
-  with only `python3`, `rg`, and `git` (all preinstalled):
+- **What IS runnable on the Linux VM** are the cheap text-level checks from
+  the CI pipeline. All three pass here with only `python3`, `rg`, and `git`
+  (all preinstalled):
   - `./scripts/check-design-system.sh` — design-system drift check (needs `rg`).
     Diffs against a base ref; on a feature branch it compares to `main`.
   - plist validation — parse `Pluma/Info.plist`, `Pluma/PrivacyInfo.xcprivacy`,

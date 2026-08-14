@@ -1,22 +1,17 @@
 name: Full build and test (macOS)
 
-# The complete macOS suite, kept dormant while development is a solo loop
-# with the full suite running locally before every push. Costs nothing
-# while manual-only: workflow_dispatch runs bill zero minutes until
-# triggered.
-#
-# For production, re-enable hosted CI by replacing the trigger below with:
-#
-#   on:
-#     pull_request:
-#     push:
-#       branches:
-#         - main
-#
-# and either retire the slim Linux job in ci.yml or rename one of the two
-# jobs — both are named "test", which the Protect main ruleset requires,
-# and two checks reporting under one name is confusing.
+# The complete macOS suite. This was workflow_dispatch-only while the repo
+# was private (macOS runners bill at 10x the Linux multiplier); standard
+# GitHub-hosted runners are free on public repos, so the full suite now runs
+# on every PR and push to main. The job stays named "test" because the
+# Protect main ruleset requires that exact check name — the slim Linux
+# workflow that used to carry it was retired when this one took over (its
+# checks were a strict subset of the ones below).
 on:
+  pull_request:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
