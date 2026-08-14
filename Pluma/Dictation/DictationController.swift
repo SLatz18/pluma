@@ -26,9 +26,13 @@ final class DictationController: ObservableObject {
             guard isEnabled != oldValue else { return }
             if isEnabled {
                 hotkey.register(shortcut, in: .dictation)
+                if draftReplyEnabled {
+                    hotkey.register(draftShortcut, in: .draftReply)
+                }
                 Task { await prepare() }
             } else {
                 hotkey.unregisterHotKey(.dictation)
+                hotkey.unregisterHotKey(.draftReply)
                 Task { await cancelSession() }
             }
             updateActivity()
@@ -38,6 +42,22 @@ final class DictationController: ObservableObject {
     @Published var cleanupEnabled: Bool {
         didSet {
             defaults.set(cleanupEnabled, forKey: Preferences.dictationCleanupEnabledKey)
+        }
+    }
+
+    @Published private(set) var cleanupChain: [CleanupDirective]
+
+    @Published private(set) var draftShortcut: GlobalShortcut
+
+    @Published var draftReplyEnabled: Bool {
+        didSet {
+            Preferences.setDraftReplyEnabled(draftReplyEnabled, to: defaults)
+            guard draftReplyEnabled != oldValue else { return }
+            if draftReplyEnabled && isEnabled {
+                hotkey.register(draftShortcut, in: .draftReply)
+            } else {
+                hotkey.unregisterHotKey(.draftReply)
+            }
         }
     }
 
@@ -83,6 +103,19 @@ final class DictationController: ObservableObject {
         let at: ContinuousClock.Instant
     }
 
+    // Plain dictation inserts the speaker's words; draft mode treats them as
+    // an instruction and inserts a composed reply grounded in the visible
+    // conversation. Everything else about the session is identical.
+    private enum SessionMode {
+        case dictation
+        case draftReply
+    }
+
+    private var sessionMode: SessionMode = .dictation
+    // Captured in parallel with the recording so the thread walk costs no
+    // extra wait at release time. The text lives only inside this task.
+    private var conversationTask: Task<ConversationContext?, Never>?
+
     private var savedElement: AXUIElement?
     private var savedPrefix: String?
     private var recentInsertion: RecentInsertion?
@@ -119,6 +152,9 @@ final class DictationController: ObservableObject {
         shortcut = Preferences.dictationShortcut(from: defaults)
         isEnabled = Preferences.dictationEnabled(from: defaults)
         cleanupEnabled = Preferences.dictationCleanupEnabled(from: defaults)
+        cleanupChain = Preferences.cleanupChain(from: defaults)
+        draftShortcut = Preferences.draftShortcut(from: defaults)
+        draftReplyEnabled = Preferences.draftReplyEnabled(from: defaults)
         cleanupProvider = Preferences.cleanupProvider(from: defaults)
         openAIModel = Preferences.openAICleanupModel(from: defaults)
         ollamaModel = Preferences.ollamaModel(from: defaults)
@@ -134,13 +170,13 @@ final class DictationController: ObservableObject {
         observeEngine()
 
         hotkey.onPress = { [weak self] slot in
-            guard slot == .dictation else { return }
+            guard slot == .dictation || slot == .draftReply else { return }
             Task { @MainActor [weak self] in
-                await self?.beginListening()
+                await self?.beginListening(mode: slot == .draftReply ? .draftReply : .dictation)
             }
         }
         hotkey.onRelease = { [weak self] slot in
-            guard slot == .dictation else { return }
+            guard slot == .dictation || slot == .draftReply else { return }
             Task { @MainActor [weak self] in
                 await self?.endListening()
             }
@@ -148,10 +184,34 @@ final class DictationController: ObservableObject {
 
         if isEnabled {
             hotkey.register(shortcut, in: .dictation)
+            if draftReplyEnabled {
+                hotkey.register(draftShortcut, in: .draftReply)
+            }
             Task { await prepare() }
         }
         updateActivity()
         mic.startMonitoring()
+        NotificationCenter.default.addObserver(
+            forName: .capsShortcutsSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.reloadShortcutsFromPreferences()
+            }
+        }
+    }
+
+    private func reloadShortcutsFromPreferences() {
+        let updated = Preferences.dictationShortcut(from: defaults)
+        let updatedDraft = Preferences.draftShortcut(from: defaults)
+        shortcut = updated
+        draftShortcut = updatedDraft
+        guard isEnabled else { return }
+        hotkey.register(updated, in: .dictation)
+        if draftReplyEnabled {
+            hotkey.register(updatedDraft, in: .draftReply)
+        }
     }
 
     private static func makeEngine(
@@ -188,9 +248,10 @@ final class DictationController: ObservableObject {
     }
 
     func recordShortcut(_ newShortcut: GlobalShortcut) {
-        let rewriteShortcut = Preferences.globalShortcut(from: defaults)
-        guard !newShortcut.conflicts(with: rewriteShortcut) else {
-            shortcutConflict = "\(newShortcut.display) is already used by Rewrite Selection."
+        if let conflict = Preferences.conflictMessage(
+            for: newShortcut, ignoring: .dictation, from: defaults
+        ) {
+            shortcutConflict = conflict
             return
         }
         shortcutConflict = nil
@@ -199,6 +260,25 @@ final class DictationController: ObservableObject {
         if isEnabled {
             hotkey.register(newShortcut, in: .dictation)
         }
+    }
+
+    func recordDraftShortcut(_ newShortcut: GlobalShortcut) {
+        if let conflict = Preferences.conflictMessage(
+            for: newShortcut, ignoring: .draftReply, from: defaults
+        ) {
+            shortcutConflict = conflict
+            return
+        }
+        shortcutConflict = nil
+        draftShortcut = newShortcut
+        Preferences.saveDraftShortcut(newShortcut, to: defaults)
+        if isEnabled && draftReplyEnabled {
+            hotkey.register(newShortcut, in: .draftReply)
+        }
+    }
+
+    func clearShortcutConflict() {
+        shortcutConflict = nil
     }
 
     func requestMicrophonePermission() async {
@@ -212,7 +292,7 @@ final class DictationController: ObservableObject {
         updateActivity()
     }
 
-    private func beginListening() async {
+    private func beginListening(mode: SessionMode = .dictation) async {
         guard isEnabled, !isSessionActive else { return }
 
         guard AccessibilityPermission.shared.isTrusted else {
@@ -240,11 +320,23 @@ final class DictationController: ObservableObject {
 
         sessionID += 1
         let session = sessionID
+        sessionMode = mode
         isSessionActive = true
         isStarting = true
         stopRequested = false
         pressedAt = .now
         savedElement = element
+
+        // Kick off the thread capture while the mic is still warming up, so it
+        // is usually finished before the user stops talking. Nothing is stored;
+        // the task's value is read once at release and then dropped.
+        if mode == .draftReply, Preferences.conversationAwarenessActive(from: defaults) {
+            conversationTask = Task.detached(priority: .userInitiated) {
+                await ConversationContextProvider.capture()
+            }
+        } else {
+            conversationTask = nil
+        }
         savedPrefix = Self.textBeforeCaret(of: element) ?? rememberedPrefix(for: element)
         caret = nil
         caretReadAt = nil
@@ -301,9 +393,10 @@ final class DictationController: ObservableObject {
         // Recording is over the moment the key comes up, but the HUD would
         // keep pulsing until insertion. Switch it to an honest status for the
         // finish/cleanup window — longest when transcription is a network call.
+        let isDrafting = sessionMode == .draftReply
         showHUD(
-            message: cleanupEnabled ? "Tidying…" : "Transcribing…",
-            systemImage: cleanupEnabled ? "sparkles" : "waveform"
+            message: isDrafting ? "Drafting…" : (cleanupEnabled ? "Tidying…" : "Transcribing…"),
+            systemImage: isDrafting ? "arrowshape.turn.up.left" : (cleanupEnabled ? "sparkles" : "waveform")
         )
         let transcript = await engine.finish()
         guard !transcript.isEmpty else {
@@ -312,17 +405,92 @@ final class DictationController: ObservableObject {
             return
         }
 
-        var output = transcript
-        if cleanupEnabled, let cleaned = await RewriteRunner.cleanUpDictation(
+        if isDrafting, let draft = await draftReply(intent: transcript) {
+            await insert(draft)
+            return
+        }
+
+        // Draft mode falls through to exactly today's dictation when no
+        // conversation was readable or the draft model failed — the user's
+        // words are never lost to a feature that could not run.
+        let output = await cleanedOutput(for: transcript)
+
+        await insert(DictationTranscript.withoutFragmentPeriod(output))
+    }
+
+    // The cleanup half of endListening, factored out so tests can prove the
+    // stacked chain reaches the actual request. Falls back to the raw
+    // transcript on any failure — losing the user's words is never acceptable.
+    func cleanedOutput(for transcript: String) async -> String {
+        guard cleanupEnabled else { return transcript }
+        return await RewriteRunner.cleanUpDictation(
             provider: cleanupProvider,
             openAIModel: openAIModel,
             ollamaModel: ollamaModel,
-            transcript: transcript
-        ) {
-            output = cleaned
+            transcript: transcript,
+            directives: cleanupChain
+        ) ?? transcript
+    }
+
+    // Tap order is run order, same contract as the rewrite chain.
+    func toggleCleanupDirective(_ directive: CleanupDirective) {
+        if let index = cleanupChain.firstIndex(of: directive) {
+            cleanupChain.remove(at: index)
+        } else {
+            cleanupChain.append(directive)
+        }
+        Preferences.saveCleanupChain(cleanupChain, to: defaults)
+    }
+
+    func removeCleanupDirective(_ directive: CleanupDirective) {
+        guard let index = cleanupChain.firstIndex(of: directive) else { return }
+        cleanupChain.remove(at: index)
+        Preferences.saveCleanupChain(cleanupChain, to: defaults)
+    }
+
+    /// Swaps a directive with its neighbor so users can reorder without
+    /// removing and re-adding. Out-of-range moves are no-ops.
+    func moveCleanupDirective(_ directive: CleanupDirective, offset: Int) {
+        guard let index = cleanupChain.firstIndex(of: directive) else { return }
+        let target = index + offset
+        guard cleanupChain.indices.contains(target) else { return }
+        cleanupChain.swapAt(index, target)
+        Preferences.saveCleanupChain(cleanupChain, to: defaults)
+    }
+
+    // The spoken utterance is the *intent*; the visible thread is the ground
+    // truth. Both are used for one request and discarded with the session.
+    private func draftReply(intent: String) async -> String? {
+        let trimmedIntent = intent.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedIntent.isEmpty else { return nil }
+
+        guard let conversation = await conversationTask?.value else {
+            DebugLog.log("draft mode: no conversation context; inserting plain dictation", at: .quiet)
+            return nil
         }
 
-        await insert(DictationTranscript.withoutFragmentPeriod(output))
+        let memoryDigest = Preferences.memoryEnabled(from: defaults)
+            ? MemoryStore.shared.digest() : nil
+        let profile = StyleProfileStore.shared.isEmpty ? nil : StyleProfileStore.shared.text
+
+        do {
+            let draft = try await RewriteRunner.draftReply(
+                provider: cleanupProvider,
+                openAIModel: openAIModel,
+                ollamaModel: ollamaModel,
+                intent: trimmedIntent,
+                conversation: conversation.text,
+                memory: memoryDigest,
+                styleProfile: profile
+            )
+            DebugLog.log(
+                "drafted reply: \(draft.count) chars from \(conversation.source.rawValue) context"
+            )
+            return draft
+        } catch {
+            DebugLog.log("draft reply failed: \(error.localizedDescription)", at: .quiet)
+            return nil
+        }
     }
 
     private func insert(_ text: String) async {
@@ -331,6 +499,10 @@ final class DictationController: ObservableObject {
         guard let element = savedElement else { return }
         let insertion = DictationTranscript.insertionText(text, precededBy: savedPrefix)
         guard !insertion.isEmpty else { return }
+        DebugLog.log(
+            "dictation spacing: prefix \(savedPrefix == nil ? "unknown" : "known"), "
+                + "leading space \(insertion.hasPrefix(" ") ? "added" : "omitted")"
+        )
 
         if await AXTextInsertion.insert(insertion, into: element) {
             DebugLog.log("dictation inserted \(insertion.count) chars")
@@ -363,17 +535,25 @@ final class DictationController: ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 if event.type == .keyDown, self.isDictationChord(event) { return }
-                self.forgetRecentInsertion()
+                // Our own synthetic events (the paste that performed this very
+                // insertion, Reader's copy) are not user edits — reacting to
+                // them wiped the spacing memory moments after it was written.
+                if let cgEvent = event.cgEvent, SyntheticEventMarker.isPlumaEvent(cgEvent) {
+                    return
+                }
+                self.forgetRecentInsertion(because: event.type == .keyDown ? "keystroke" : "click")
             }
         }
     }
 
     private func isDictationChord(_ event: NSEvent) -> Bool {
         UInt32(event.keyCode) == shortcut.keyCode
+            || UInt32(event.keyCode) == draftShortcut.keyCode
     }
 
-    private func forgetRecentInsertion() {
+    private func forgetRecentInsertion(because reason: String) {
         guard recentInsertion != nil else { return }
+        DebugLog.log("dictation spacing memory dropped: \(reason)")
         recentInsertion = nil
         if let editMonitor {
             NSEvent.removeMonitor(editMonitor)
@@ -409,6 +589,9 @@ final class DictationController: ObservableObject {
     }
 
     private func resetSession() {
+        conversationTask?.cancel()
+        conversationTask = nil
+        sessionMode = .dictation
         isSessionActive = false
         isStarting = false
         stopRequested = false

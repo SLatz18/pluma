@@ -3,16 +3,22 @@
 **pluma** is a native macOS writing layer — on-device by default, cross-app by design.
 
 Select text anywhere and rewrite it. Get ghost-text completions as you type.
-Hold a shortcut and dictate at the caret. Built in Swift 6 for macOS 26 with
+Hold a shortcut and dictate at the caret. Select text and hear it read aloud. Built in Swift 6 for macOS 26 with
 Apple Intelligence first, optional local Ollama, and an optional OpenAI path
 for dictation only.
 
 Full name: **plumafina** (fine pen). Everyday name: **pluma**.
 
-[Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE)
+[![CI](https://github.com/SLatz18/pluma/actions/workflows/ci-full.yml/badge.svg)](https://github.com/SLatz18/pluma/actions/workflows/ci-full.yml)
+
+[Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE) · [How this was built](docs/BUILT-WITH-AGENTS.md)
 
 > Status: **early open source (`0.1.x`)**. The core workflows work; polish,
 > packaging, and app coverage are active work. Contributions welcome.
+
+<p align="center">
+  <img src="docs/images/overview-window.png" alt="pluma's Overview page: Rewrite, Autocomplete, Dictation, and Reader with live health states" width="70%">
+</p>
 
 ## Why this exists
 
@@ -25,19 +31,37 @@ It is also a concrete showcase of modern macOS systems work — Accessibility,
 Carbon hotkeys, ScreenCaptureKit OCR, Speech, Foundation Models, Keychain,
 and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 
+## Built with AI agents
+
+pluma was written almost entirely by AI coding agents (Claude Code on a Mac,
+plus cloud agents on Linux) directed by one person — with tests, self-imposed
+lints, decision records, and end-to-end verification keeping the output
+shippable. The workflow, and what made it work, is documented in
+[docs/BUILT-WITH-AGENTS.md](docs/BUILT-WITH-AGENTS.md).
+
 ## Features
 
 | | |
 |---|---|
-| **Rewrite** | Stack recipes (Improve, Shorten, Fix Grammar, Professional) into a pipeline. Run it from a global hotkey or the in-app playground. |
+| **Rewrite** | Stack recipes (Improve, Shorten, Fix Grammar, Professional) into a pipeline. Run it from a global hotkey, the in-app playground, or the clipboard fallback (copy, press ⇪R, paste) for apps where selection fails, like Google Docs. |
 | **Autocomplete** | Debounced ghost text at the caret in other apps. Tab = next word, Shift-Tab = all, Escape dismisses. |
-| **Dictation** | Push-to-talk at the caret. On-device speech by default; optional cleanup; optional OpenAI transcription. |
+| **Dictation** | Push-to-talk at the caret. On-device speech by default; optional cleanup; optional OpenAI transcription. Hold ⇪D and speak an intent to draft a reply from the visible conversation. |
+| **Reader** | Speak the selection verbatim, or summarize it with the configured writing model first. Apple on-device voices (with Premium setup help) by default; optional OpenAI TTS. Press again to stop. |
 | **Screen context** | Opt-in OCR of the frontmost window so names on screen bias dictation and completions. Nothing stored. |
 | **Style memory** | Opt-in local phrases from accepted suggestions (capped). Clear anytime. |
 
-Default hotkeys use Caps Lock chords via [Hyperkey](https://hyperkey.app)
-(⇪E rewrite, ⇪Space dictate). Without Hyperkey, record any ordinary shortcut
-in-app with **Change…**.
+<p align="center">
+  <img src="docs/images/rewrite-window.png" alt="The Rewrite page: WHEN → THEN → RESULT flow, stackable recipes, and an on-device playground" width="70%">
+</p>
+
+Default hotkeys use Caps Lock chords (⇪E rewrite, ⇪R rewrite what I copied,
+⇪Space dictate, ⇪D draft a reply, ⇪L read). Turn on
+**Use Caps Lock for shortcuts** in Settings → General, or keep using
+[Hyperkey](https://hyperkey.app), or record any ordinary shortcut in-app with
+**Change…**. Settings live in the sidebar of the one pluma window — ⌘, or the
+menu bar icon takes you there. Settings → AI is the unified control center for
+writing engines, dictation transcription and cleanup, Reader voices/models,
+data paths, and the one shared OpenAI Keychain credential.
 
 ## Privacy in one screen
 
@@ -46,6 +70,8 @@ in-app with **Change…**.
 | Apple Intelligence rewrite / complete / cleanup | No |
 | Ollama at `127.0.0.1` | No (loopback only) |
 | Apple Speech dictation | No |
+| Apple speech synthesis (Reader) | No |
+| OpenAI Reader TTS (opt-in) | **Yes — only when you choose it** |
 | OpenAI dictation / cleanup (opt-in) | **Yes — only when you choose it** |
 | Analytics / accounts / pluma servers | None |
 
@@ -89,7 +115,7 @@ keystroke.
 - Apple Intelligence on-device model (for the default provider)
 - Accessibility permission for cross-app rewrite / autocomplete / insertion
 - Microphone for dictation; Screen Recording only if you enable screen context
-- Optional: [Hyperkey](https://hyperkey.app), [Ollama](https://ollama.com/), OpenAI API key
+- Optional: [Hyperkey](https://hyperkey.app) (if you prefer an external Caps remapper), [Ollama](https://ollama.com/), OpenAI API key
 
 ## Build
 
@@ -127,7 +153,7 @@ should use Developer ID + hardened runtime + notarization — see
 1. Build and open pluma; grant Accessibility when asked.
 2. Pick a recipe pipeline on the Rewrite page; try it in the playground.
 3. Select text in another app → **Caps Lock E** (or your shortcut).
-4. Enable Autocomplete / Dictation from their sidebar pages as needed.
+4. Enable Autocomplete / Dictation / Reader from their sidebar pages as needed.
 
 **Edit with pluma** remains available as a macOS Service (right-click →
 Services) for apps where Accessibility insertion misbehaves.
@@ -139,7 +165,8 @@ Services) for apps where Accessibility insertion misbehaves.
 | `Providers/` | Apple Intelligence, Ollama, OpenAI chat; shared `RewriteRunner` |
 | `Autocomplete/` | Focused-field tracking, caret probing, ghost-text overlay (AppKit) |
 | `Dictation/` | Push-to-talk capture, Apple / OpenAI transcription, cleanup |
-| `Hotkey/` | Slot-based Carbon hotkeys; Hyperkey-aware chord display |
+| `Reader/` | Speech synthesis of the selection or clipboard (Apple voices or optional OpenAI TTS) |
+| `Hotkey/` | Slot-based Carbon hotkeys; Caps Lock expander + Caps-aware chord display |
 | `Developer/` | Cheat-code unlock, caret inspector, trace panel, log viewer |
 | `DesignSystem/` | Shared tokens, WHEN → THEN → RESULT grammar, components, and overlay presentations |
 | `Services/Preferences.swift` | UserDefaults keys + migrations |

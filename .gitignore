@@ -6,3 +6,6 @@ xcuserdata/
 .swiftpm/
 __pycache__/
 *.pyc
+.remember/
+.claude/
+.cursor/

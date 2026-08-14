@@ -8,12 +8,14 @@ struct DeveloperView: View {
     @EnvironmentObject private var developer: DeveloperMode
     @EnvironmentObject private var dictation: DictationController
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
+    @EnvironmentObject private var credentials: OpenAICredentials
 
     @StateObject private var inspector = CaretInspector()
     @StateObject private var log = LogViewerModel()
     @State private var isComparing = false
     @State private var didCopyDebugInfo = false
-    @State private var hasOpenAIKey = OpenAIKey.isPresent
+    @State private var conversationPreview: String?
+    @State private var conversationCountdown: Int?
 
     var body: some View {
         DSPage(
@@ -22,7 +24,9 @@ struct DeveloperView: View {
             eyebrow: "cheat code"
         ) {
             caretCard
+            promptEditorCard
             completionCard
+            conversationCard
             componentGalleryCard
             logCard
             compareCard
@@ -41,6 +45,12 @@ struct DeveloperView: View {
         .sheet(isPresented: $isComparing) {
             CleanupComparisonView()
         }
+    }
+
+    // MARK: Recipe prompts
+
+    private var promptEditorCard: some View {
+        PromptEditorCard()
     }
 
     // MARK: Component gallery
@@ -325,6 +335,75 @@ struct DeveloperView: View {
         }
     }
 
+    // MARK: Conversation context
+
+    // The trust panel for conversation awareness: exactly what pluma would
+    // hand the model, captured on demand and shown here — never stored.
+    private var conversationCard: some View {
+        DSCard {
+            VStack(alignment: .leading, spacing: 14) {
+                header(
+                    symbol: "text.bubble",
+                    tint: DS.Feature.dictation.color,
+                    title: "Conversation context preview",
+                    detail: "See the thread text pluma extracts from the frontmost app — Accessibility first, OCR fallback."
+                )
+
+                HStack(spacing: 10) {
+                    Button(
+                        conversationCountdown.map { "Switch to the app… \($0)" }
+                            ?? "Capture in 5 seconds"
+                    ) {
+                        captureConversationPreview()
+                    }
+                    .disabled(conversationCountdown != nil)
+
+                    Text("Click, then bring Slack, Mail, or Messages to the front.")
+                        .font(DS.meta)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .controlSize(.small)
+
+                if let conversationPreview {
+                    ScrollView {
+                        Text(conversationPreview)
+                            .font(.system(size: 10, design: .monospaced))
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(8)
+                    }
+                    .frame(height: 180)
+                    .background(
+                        DS.insetBackground,
+                        in: RoundedRectangle(cornerRadius: DS.insetRadius, style: .continuous)
+                    )
+                }
+            }
+        }
+    }
+
+    private func captureConversationPreview() {
+        conversationCountdown = 5
+        Task {
+            for remaining in stride(from: 4, through: 0, by: -1) {
+                try? await Task.sleep(for: .seconds(1))
+                conversationCountdown = remaining
+            }
+            let context = await ConversationContextProvider.capture()
+            conversationCountdown = nil
+            if let context {
+                conversationPreview = "Source: \(context.source.rawValue)"
+                    + " · App: \(context.appName ?? "unknown")"
+                    + " · \(context.text.count) chars\n\n"
+                    + context.text
+            } else {
+                conversationPreview = "Nothing captured. Another app must be frontmost, "
+                    + "and pluma needs Accessibility (or Screen Recording for the OCR fallback)."
+            }
+        }
+    }
+
     // MARK: Log
 
     private var logCard: some View {
@@ -416,8 +495,8 @@ struct DeveloperView: View {
                 )
                 HStack {
                     Button("Compare…") { isComparing = true }
-                        .disabled(!hasOpenAIKey)
-                    if !hasOpenAIKey {
+                        .disabled(!credentials.hasKey)
+                    if !credentials.hasKey {
                         Text("Needs an OpenAI key — the comparison runs both engines.")
                             .font(DS.meta)
                             .foregroundStyle(.secondary)

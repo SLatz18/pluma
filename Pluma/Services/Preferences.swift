@@ -23,6 +23,16 @@ enum Preferences {
     static let clipboardShortcutKeyCodeKey = "pluma.clipboardShortcut.keyCode"
     static let clipboardShortcutModifiersKey = "pluma.clipboardShortcut.modifiers"
     static let clipboardShortcutDisplayKey = "pluma.clipboardShortcut.display"
+    static let readerEnabledKey = "pluma.readerEnabled"
+    static let readerShortcutKeyCodeKey = "pluma.readerShortcut.keyCode"
+    static let readerShortcutModifiersKey = "pluma.readerShortcut.modifiers"
+    static let readerShortcutDisplayKey = "pluma.readerShortcut.display"
+    static let readerVoiceIdentifierKey = "pluma.readerVoiceIdentifier"
+    static let readerRateKey = "pluma.readerRate"
+    static let readerDeliveryModeKey = "pluma.readerDeliveryMode"
+    static let readerSpeechProviderKey = "pluma.readerSpeechProvider"
+    static let openAITTSVoiceKey = "pluma.openAITTSVoice"
+    static let openAITTSModelKey = "pluma.openAITTSModel"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
@@ -33,6 +43,19 @@ enum Preferences {
     static let completionBriefWordsKey = "pluma.completion.briefWords"
     static let completionDebounceKey = "pluma.completion.debounceMilliseconds"
     static let completionMinimumContextKey = "pluma.completion.minimumContext"
+    static let conversationContextEnabledKey = "pluma.conversationContextEnabled"
+    static let draftReplyEnabledKey = "pluma.draftReplyEnabled"
+    static let draftShortcutKeyCodeKey = "pluma.draftShortcut.keyCode"
+    static let draftShortcutModifiersKey = "pluma.draftShortcut.modifiers"
+    static let draftShortcutDisplayKey = "pluma.draftShortcut.display"
+    /// Opt-in: Caps Lock becomes pluma's shortcut modifier (default off).
+    static let capsShortcutsEnabledKey = "pluma.capsShortcutsEnabled"
+    /// When Caps shortcuts are on, include Shift in the Caps chord (⌃⌥⌘⇧).
+    static let capsChordIncludesShiftKey = "pluma.capsChordIncludesShift"
+    /// Lone Caps tap toggles real Caps Lock (default on).
+    static let capsTapTogglesCapsLockKey = "pluma.capsTapTogglesCapsLock"
+    /// Max Caps press duration still counted as a tap (seconds).
+    static let capsTapThresholdKey = "pluma.capsTapThreshold"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -74,6 +97,47 @@ enum Preferences {
         defaults.set(data, forKey: chainKey)
     }
 
+    static let completionChainKey = "pluma.completionChain"
+    static let cleanupChainKey = "pluma.dictationCleanupChain"
+
+    // Both builder chains store JSON [rawValue] like the rewrite chain, so
+    // order survives. A missing key means the user never touched the builder
+    // and reads as the default chain — today's shipped behavior. A stored
+    // empty chain is a deliberate choice and stays empty.
+    static func completionChain(from defaults: UserDefaults = .standard) -> [CompletionDirective] {
+        guard
+            let data = defaults.data(forKey: completionChainKey),
+            let rawValues = try? JSONDecoder().decode([String].self, from: data)
+        else {
+            return CompletionDirective.defaultChain
+        }
+        return rawValues.compactMap { CompletionDirective(rawValue: $0) }
+    }
+
+    static func saveCompletionChain(
+        _ chain: [CompletionDirective], to defaults: UserDefaults = .standard
+    ) {
+        guard let data = try? JSONEncoder().encode(chain.map(\.rawValue)) else { return }
+        defaults.set(data, forKey: completionChainKey)
+    }
+
+    static func cleanupChain(from defaults: UserDefaults = .standard) -> [CleanupDirective] {
+        guard
+            let data = defaults.data(forKey: cleanupChainKey),
+            let rawValues = try? JSONDecoder().decode([String].self, from: data)
+        else {
+            return CleanupDirective.defaultChain
+        }
+        return rawValues.compactMap { CleanupDirective(rawValue: $0) }
+    }
+
+    static func saveCleanupChain(
+        _ chain: [CleanupDirective], to defaults: UserDefaults = .standard
+    ) {
+        guard let data = try? JSONEncoder().encode(chain.map(\.rawValue)) else { return }
+        defaults.set(data, forKey: cleanupChainKey)
+    }
+
     static func ollamaModel(from defaults: UserDefaults = .standard) -> String {
         defaults.string(forKey: ollamaModelKey) ?? ""
     }
@@ -92,6 +156,123 @@ enum Preferences {
 
     static func dictationEnabled(from defaults: UserDefaults = .standard) -> Bool {
         defaults.bool(forKey: dictationEnabledKey)
+    }
+
+    /// Default off until Caps Lock ownership is proven reliable on this Mac.
+    static func capsShortcutsEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: capsShortcutsEnabledKey)
+    }
+
+    static func setCapsShortcutsEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: capsShortcutsEnabledKey)
+    }
+
+    static func capsChordIncludesShift(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: capsChordIncludesShiftKey)
+    }
+
+    static func setCapsChordIncludesShift(_ includesShift: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(includesShift, forKey: capsChordIncludesShiftKey)
+    }
+
+    /// Default on — matches CapsSpike dual-role proof. Missing key → true.
+    static func capsTapTogglesCapsLock(from defaults: UserDefaults = .standard) -> Bool {
+        if defaults.object(forKey: capsTapTogglesCapsLockKey) == nil { return true }
+        return defaults.bool(forKey: capsTapTogglesCapsLockKey)
+    }
+
+    static func setCapsTapTogglesCapsLock(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: capsTapTogglesCapsLockKey)
+    }
+
+    /// Default 0.3s. Clamped to a sane range.
+    static func capsTapThreshold(from defaults: UserDefaults = .standard) -> TimeInterval {
+        let raw = defaults.double(forKey: capsTapThresholdKey)
+        if raw == 0 { return CapsLockStateMachine.defaultTapThreshold }
+        return min(0.6, max(0.15, raw))
+    }
+
+    static func setCapsTapThreshold(_ seconds: TimeInterval, to defaults: UserDefaults = .standard) {
+        defaults.set(min(0.6, max(0.15, seconds)), forKey: capsTapThresholdKey)
+    }
+
+    /// Rewrite stored Caps-chord shortcuts to match the current Caps chord setting.
+    static func syncCapsChordShortcuts(to defaults: UserDefaults = .standard) {
+        let includesShift = capsChordIncludesShift(from: defaults)
+        let aligned = globalShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if aligned != globalShortcut(from: defaults) {
+            saveGlobalShortcut(aligned, to: defaults)
+        }
+        let dictation = dictationShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if dictation != dictationShortcut(from: defaults) {
+            saveDictationShortcut(dictation, to: defaults)
+        }
+        let clipboard = clipboardShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if clipboard != clipboardShortcut(from: defaults) {
+            saveClipboardShortcut(clipboard, to: defaults)
+        }
+        let reader = readerShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if reader != readerShortcut(from: defaults) {
+            saveReaderShortcut(reader, to: defaults)
+        }
+        let draft = draftShortcut(from: defaults).aligningCapsChord(includesShift: includesShift)
+        if draft != draftShortcut(from: defaults) {
+            saveDraftShortcut(draft, to: defaults)
+        }
+    }
+
+    // Rides behind the screen-context switch: conversation reading is a richer
+    // capture of the same surface, so it defaults on but only takes effect when
+    // the user has already opted in to screen context.
+    static func conversationContextEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: conversationContextEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: conversationContextEnabledKey)
+    }
+
+    static func setConversationContextEnabled(
+        _ enabled: Bool, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(enabled, forKey: conversationContextEnabledKey)
+    }
+
+    /// Both toggles must agree before any conversation text is read.
+    static func conversationAwarenessActive(from defaults: UserDefaults = .standard) -> Bool {
+        screenContextEnabled(from: defaults) && conversationContextEnabled(from: defaults)
+    }
+
+    // On by default: the draft shortcut is separate from plain dictation, so an
+    // extra registered chord costs nothing until it is held.
+    static func draftReplyEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: draftReplyEnabledKey) == nil
+            ? true
+            : defaults.bool(forKey: draftReplyEnabledKey)
+    }
+
+    static func setDraftReplyEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: draftReplyEnabledKey)
+    }
+
+    static func draftShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
+        guard
+            defaults.object(forKey: draftShortcutKeyCodeKey) != nil,
+            let display = defaults.string(forKey: draftShortcutDisplayKey)
+        else {
+            return .draftReplyDefault
+        }
+        return GlobalShortcut(
+            keyCode: UInt32(defaults.integer(forKey: draftShortcutKeyCodeKey)),
+            carbonModifiers: UInt32(defaults.integer(forKey: draftShortcutModifiersKey)),
+            display: display
+        )
+    }
+
+    static func saveDraftShortcut(
+        _ shortcut: GlobalShortcut, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(Int(shortcut.keyCode), forKey: draftShortcutKeyCodeKey)
+        defaults.set(Int(shortcut.carbonModifiers), forKey: draftShortcutModifiersKey)
+        defaults.set(shortcut.display, forKey: draftShortcutDisplayKey)
     }
 
     // Off by default: drawing the suggestion into the writer's own line needs the
@@ -305,6 +486,165 @@ enum Preferences {
         defaults.set(Int(shortcut.keyCode), forKey: clipboardShortcutKeyCodeKey)
         defaults.set(Int(shortcut.carbonModifiers), forKey: clipboardShortcutModifiersKey)
         defaults.set(shortcut.display, forKey: clipboardShortcutDisplayKey)
+    }
+
+    static func readerEnabled(from defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: readerEnabledKey)
+    }
+
+    static func setReaderEnabled(_ enabled: Bool, to defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: readerEnabledKey)
+    }
+
+    static func readerShortcut(from defaults: UserDefaults = .standard) -> GlobalShortcut {
+        guard
+            defaults.object(forKey: readerShortcutKeyCodeKey) != nil,
+            let display = defaults.string(forKey: readerShortcutDisplayKey)
+        else {
+            return .readerDefault
+        }
+        return GlobalShortcut(
+            keyCode: UInt32(defaults.integer(forKey: readerShortcutKeyCodeKey)),
+            carbonModifiers: UInt32(defaults.integer(forKey: readerShortcutModifiersKey)),
+            display: display
+        )
+    }
+
+    static func saveReaderShortcut(
+        _ shortcut: GlobalShortcut, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(Int(shortcut.keyCode), forKey: readerShortcutKeyCodeKey)
+        defaults.set(Int(shortcut.carbonModifiers), forKey: readerShortcutModifiersKey)
+        defaults.set(shortcut.display, forKey: readerShortcutDisplayKey)
+    }
+
+    static func readerVoiceIdentifier(from defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: readerVoiceIdentifierKey) ?? ""
+    }
+
+    static func setReaderVoiceIdentifier(
+        _ identifier: String, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(identifier, forKey: readerVoiceIdentifierKey)
+    }
+
+    static let readerRateRange: ClosedRange<Double> = 0.3...0.65
+    static let defaultReaderRate: Double = 0.5
+
+    static func clampedReaderRate(_ rate: Double) -> Double {
+        min(max(rate, readerRateRange.lowerBound), readerRateRange.upperBound)
+    }
+
+    static func readerRate(from defaults: UserDefaults = .standard) -> Double {
+        guard defaults.object(forKey: readerRateKey) != nil else { return defaultReaderRate }
+        return clampedReaderRate(defaults.double(forKey: readerRateKey))
+    }
+
+    static func setReaderRate(_ rate: Double, to defaults: UserDefaults = .standard) {
+        defaults.set(clampedReaderRate(rate), forKey: readerRateKey)
+    }
+
+    static func readerDeliveryMode(
+        from defaults: UserDefaults = .standard
+    ) -> ReaderDeliveryMode {
+        guard
+            let rawValue = defaults.string(forKey: readerDeliveryModeKey),
+            let mode = ReaderDeliveryMode(rawValue: rawValue)
+        else {
+            return .verbatim
+        }
+        return mode
+    }
+
+    static func setReaderDeliveryMode(
+        _ mode: ReaderDeliveryMode,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(mode.rawValue, forKey: readerDeliveryModeKey)
+    }
+
+    static func readerSpeechProvider(
+        from defaults: UserDefaults = .standard
+    ) -> ReaderSpeechProviderChoice {
+        guard
+            let rawValue = defaults.string(forKey: readerSpeechProviderKey),
+            let provider = ReaderSpeechProviderChoice(rawValue: rawValue)
+        else {
+            return .defaultProvider
+        }
+        return provider
+    }
+
+    static func setReaderSpeechProvider(
+        _ provider: ReaderSpeechProviderChoice,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(provider.rawValue, forKey: readerSpeechProviderKey)
+    }
+
+    static func openAITTSVoiceID(from defaults: UserDefaults = .standard) -> String {
+        guard
+            let rawValue = defaults.string(forKey: openAITTSVoiceKey),
+            !rawValue.isEmpty
+        else {
+            return OpenAITTSCatalog.defaultVoiceID
+        }
+        return rawValue
+    }
+
+    static func setOpenAITTSVoiceID(
+        _ voiceID: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(voiceID, forKey: openAITTSVoiceKey)
+    }
+
+    static func openAITTSModelID(from defaults: UserDefaults = .standard) -> String {
+        guard
+            let rawValue = defaults.string(forKey: openAITTSModelKey),
+            !rawValue.isEmpty
+        else {
+            return OpenAITTSCatalog.defaultModelID
+        }
+        return rawValue
+    }
+
+    static func setOpenAITTSModelID(
+        _ modelID: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(modelID, forKey: openAITTSModelKey)
+    }
+
+    /// Carbon refuses the same chord twice in one process, so a collision would
+    /// leave one feature silently dead. `ignoring` is the slot being recorded.
+    enum ShortcutOccupant: String {
+        case rewrite = "Rewrite Selection"
+        case dictation = "Dictation"
+        case clipboard = "Clipboard Rewrite"
+        case reader = "Reader"
+        case draftReply = "Draft a Reply"
+    }
+
+    static func conflictMessage(
+        for shortcut: GlobalShortcut,
+        ignoring: ShortcutOccupant? = nil,
+        from defaults: UserDefaults = .standard
+    ) -> String? {
+        let occupants: [(ShortcutOccupant, GlobalShortcut)] = [
+            (.rewrite, globalShortcut(from: defaults)),
+            (.dictation, dictationShortcut(from: defaults)),
+            (.clipboard, clipboardShortcut(from: defaults)),
+            (.reader, readerShortcut(from: defaults)),
+            (.draftReply, draftShortcut(from: defaults))
+        ]
+        for (occupant, existing) in occupants {
+            if occupant == ignoring { continue }
+            if shortcut.conflicts(with: existing) {
+                return "\(shortcut.display) is already used by \(occupant.rawValue)."
+            }
+        }
+        return nil
     }
 
     static let shortcutsVersionKey = "pluma.shortcutsVersion"

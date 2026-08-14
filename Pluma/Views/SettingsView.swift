@@ -3,6 +3,7 @@ import SwiftUI
 
 enum SettingsDestination: String, CaseIterable, Identifiable {
     case general
+    case ai
     case writing
     case privacy
 
@@ -11,6 +12,7 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .general: "General"
+        case .ai: "AI"
         case .writing: "Writing"
         case .privacy: "Privacy"
         }
@@ -19,23 +21,49 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
     var symbolName: String {
         switch self {
         case .general: "gear"
+        case .ai: "sparkles"
         case .writing: "brain"
         case .privacy: "hand.raised"
         }
     }
+
+    /// The sidebar page carrying this destination. Settings are ordinary main
+    /// window pages — there is no separate Settings window.
+    var mainPage: MainPage {
+        switch self {
+        case .general: .general
+        case .ai: .ai
+        case .writing: .writing
+        case .privacy: .privacy
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .general: "Caps Lock shortcuts and how pluma starts."
+        case .ai: "Engines, models, voices, and OpenAI access for every feature."
+        case .writing: "Context, memory, and style shared by writing features."
+        case .privacy: "Where text goes, what pluma can access, and what it stores."
+        }
+    }
 }
 
-struct SettingsView: View {
+/// One settings destination rendered as an ordinary main-window page, so
+/// settings navigate exactly like features do.
+struct SettingsPageView: View {
+    let destination: SettingsDestination
+
     @EnvironmentObject private var model: RewriteViewModel
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
-    @EnvironmentObject private var clipboardRewrite: ClipboardRewriteController
     @EnvironmentObject private var dictation: DictationController
+    @EnvironmentObject private var reader: ReaderController
     @EnvironmentObject private var memory: MemoryStore
     @EnvironmentObject private var spellMemory: SpellMemoryStore
     @EnvironmentObject private var styleProfile: StyleProfileStore
     @EnvironmentObject private var developer: DeveloperMode
+    @EnvironmentObject private var capsLock: CapsLockExpander
+    @ObservedObject private var navigation = MainNavigation.shared
 
-    @State private var selection: SettingsDestination = .general
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
     @State private var showImporter = false
@@ -52,26 +80,24 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        TabView(selection: $selection) {
-            settingsPage {
+        DSPage(
+            title: destination.title,
+            subtitle: destination.subtitle,
+            scrollTarget: pageScrollTarget,
+            pageIdentifier: "settings-\(destination.rawValue)"
+        ) {
+            switch destination {
+            case .general:
                 generalContent
-            }
-            .tabItem { Label("General", systemImage: "gear") }
-            .tag(SettingsDestination.general)
-
-            settingsPage {
+            case .ai:
+                DSContextualBackLink(page: .ai)
+                AISettingsContent()
+            case .writing:
                 writingContent
-            }
-            .tabItem { Label("Writing", systemImage: "brain") }
-            .tag(SettingsDestination.writing)
-
-            settingsPage {
+            case .privacy:
                 privacyContent
             }
-            .tabItem { Label("Privacy", systemImage: "hand.raised") }
-            .tag(SettingsDestination.privacy)
         }
-        .frame(width: 640, height: 560)
         .task {
             await model.refreshStatus()
         }
@@ -115,6 +141,11 @@ struct SettingsView: View {
         }
     }
 
+    private var pageScrollTarget: String? {
+        guard navigation.focus?.page == destination.mainPage else { return nil }
+        return navigation.focus?.scrollTarget
+    }
+
     private var clearDialogTitle: String {
         switch clearTarget {
         case .memory: "Clear all remembered phrases?"
@@ -124,115 +155,54 @@ struct SettingsView: View {
         }
     }
 
-    private func settingsPage<Content: View>(
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.sectionGap) {
-                content()
-            }
-            .padding(DS.pagePadding)
-            .frame(maxWidth: DS.Control.pageMaxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-        .background(DS.pageBackground)
-    }
-
-    // #47: the clipboard fallback is the path that works in Google Docs and
-    // Electron apps, so its state and its permission have to be visible rather
-    // than something the writer discovers by pressing a key and seeing nothing.
-    private var clipboardFallbackSection: some View {
-        DSSection("Clipboard fallback") {
-            VStack(spacing: 0) {
-                DSToggleRow(
-                    title: "Rewrite what I copy",
-                    detail: "For apps where selecting text does not work, like Google Docs "
-                        + "and Discord. Copy, press \(clipboardRewrite.shortcut.display), then paste.",
-                    isOn: Binding(
-                        get: { clipboardRewrite.isEnabled },
-                        set: { clipboardRewrite.setEnabled($0) }
-                    )
-                )
-
-                if clipboardRewrite.isEnabled {
-                    Divider().padding(.vertical, DS.Spacing.medium)
-
-                    DSSettingRow(
-                        "Shortcut",
-                        detail: "Press this after copying. Rewrites the clipboard in place."
-                    ) {
-                        DSBadge(
-                            text: clipboardRewrite.shortcut.display,
-                            tone: .neutral,
-                            systemImage: "keyboard"
-                        )
-                    }
-
-                    Divider().padding(.vertical, DS.Spacing.medium)
-
-                    DSSettingRow(
-                        "Paste from Other Apps",
-                        detail: pasteboardPermissionDetail
-                    ) {
-                        DSBadge(
-                            text: pasteboardPermissionLabel,
-                            tone: pasteboardPermissionTone,
-                            systemImage: pasteboardPermissionSymbol
-                        )
-                    }
-
-                    if let conflict = clipboardRewrite.shortcutConflict {
-                        Divider().padding(.vertical, DS.Spacing.medium)
-                        DSNoticeRow(
-                            systemImage: "exclamationmark.triangle",
-                            tint: .red,
-                            text: conflict
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private var pasteboardPermissionDetail: String {
-        switch PasteboardAccess.accessBehavior {
-        case .alwaysDeny:
-            "macOS is blocking clipboard reads, so this shortcut cannot work. "
-                + "Allow pluma under Privacy & Security."
-        case .alwaysAllow:
-            "pluma can read the clipboard without prompting."
-        default:
-            "macOS may ask once the first time pluma reads your clipboard."
-        }
-    }
-
-    private var pasteboardPermissionLabel: String {
-        switch PasteboardAccess.accessBehavior {
-        case .alwaysDeny: "Denied"
-        case .alwaysAllow: "Allowed"
-        default: "Asks once"
-        }
-    }
-
-    private var pasteboardPermissionTone: DS.Tone {
-        switch PasteboardAccess.accessBehavior {
-        case .alwaysDeny: .attention
-        case .alwaysAllow: .success
-        default: .neutral
-        }
-    }
-
-    private var pasteboardPermissionSymbol: String {
-        switch PasteboardAccess.accessBehavior {
-        case .alwaysDeny: "hand.raised"
-        case .alwaysAllow: "checkmark.shield"
-        default: "questionmark.circle"
-        }
-    }
-
     private var generalContent: some View {
         Group {
-            clipboardFallbackSection
+            DSSection(
+                "Caps Lock",
+                detail: "Use Caps Lock as pluma’s shortcut modifier (⇪E rewrite, ⇪Space dictate, and the other factory chords). Hold Caps with a letter for the chord; tap Caps alone for real Caps Lock."
+            ) {
+                VStack(spacing: 0) {
+                    DSToggleRow(
+                        title: "Use Caps Lock for shortcuts",
+                        detail: "Hold Caps Lock with a letter instead of installing Hyperkey. Off restores normal Caps Lock on a clean quit; use Restore if Caps feels stuck after a crash.",
+                        isOn: capsShortcutsBinding
+                    )
+
+                    if Preferences.capsShortcutsEnabled() {
+                        DSRowDivider()
+                        DSSettingRow("Caps chord") {
+                            Picker("Caps chord", selection: capsChordBinding) {
+                                Text("⌃⌥⌘").tag(false)
+                                Text("⌃⌥⌘⇧").tag(true)
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .frame(width: 160)
+                        }
+
+                        DSRowDivider()
+                        DSToggleRow(
+                            title: "Tap Caps for Caps Lock",
+                            detail: "A quick Caps tap toggles real Caps Lock (LED included). Off makes Caps modifier-only.",
+                            isOn: capsTapTogglesBinding
+                        )
+
+                        DSRowDivider()
+                        capsStatusRow
+
+                        DSRowDivider()
+                        HStack {
+                            Spacer()
+                            Button("Restore Caps Lock") {
+                                capsLock.restoreCapsLock()
+                            }
+                        }
+                        .padding(.horizontal, DS.Spacing.medium)
+                        .padding(.vertical, DS.Spacing.small)
+                    }
+                }
+                .dsCard()
+            }
 
             DSSection("App behavior") {
                 VStack(spacing: 0) {
@@ -243,7 +213,7 @@ struct SettingsView: View {
                     )
 
                     if let launchAtLoginError {
-                        Divider().padding(.vertical, DS.Spacing.medium)
+                        DSRowDivider()
                         DSNoticeRow(
                             systemImage: "exclamationmark.triangle",
                             tint: .red,
@@ -251,20 +221,8 @@ struct SettingsView: View {
                         )
                     }
 
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
 
-                    DSSettingRow(
-                        "Menu bar",
-                        detail: "Autocomplete and dictation can be toggled without opening the main window."
-                    ) {
-                        DSBadge(text: "Always available", tone: .success, systemImage: "menubar.rectangle")
-                    }
-                }
-                .dsCard()
-            }
-
-            DSSection("Developer tools") {
-                VStack(spacing: 0) {
                     DSToggleRow(
                         title: "Developer mode",
                         detail: "Adds the hidden Developer page with diagnostics and component inspection.",
@@ -274,43 +232,61 @@ struct SettingsView: View {
                 .dsCard()
             }
         }
-        .accessibilityIdentifier("settings-general")
+    }
+
+    @ViewBuilder
+    private var capsStatusRow: some View {
+        switch capsLock.status {
+        case .active:
+            DSStatusIndicator(tone: .success, text: "Active — Caps Lock is the shortcut modifier")
+        case .pausedHyperkeyRunning:
+            DSStatusIndicator(
+                tone: .neutral,
+                text: "Paused — Hyperkey or Superkey is running"
+            )
+        case .needsPermission:
+            DSStatusIndicator(
+                tone: .attention,
+                text: capsLock.lastError
+                    ?? "Needs Accessibility permission in System Settings"
+            )
+        case .off:
+            DSStatusIndicator(tone: .neutral, text: "Off")
+        }
+    }
+
+    private var capsShortcutsBinding: Binding<Bool> {
+        Binding(
+            get: { Preferences.capsShortcutsEnabled() },
+            set: { newValue in
+                Preferences.setCapsShortcutsEnabled(newValue)
+                capsLock.applySettingsChange()
+            }
+        )
+    }
+
+    private var capsChordBinding: Binding<Bool> {
+        Binding(
+            get: { Preferences.capsChordIncludesShift() },
+            set: { newValue in
+                Preferences.setCapsChordIncludesShift(newValue)
+                capsLock.applySettingsChange()
+            }
+        )
+    }
+
+    private var capsTapTogglesBinding: Binding<Bool> {
+        Binding(
+            get: { Preferences.capsTapTogglesCapsLock() },
+            set: { newValue in
+                Preferences.setCapsTapTogglesCapsLock(newValue)
+                capsLock.applySettingsChange()
+            }
+        )
     }
 
     private var writingContent: some View {
         Group {
-            DSSection(
-                "Writing model",
-                detail: "One shared model choice powers Rewrite and Autocomplete."
-            ) {
-                VStack(spacing: 0) {
-                    DSSettingRow("Default model") {
-                        Picker("Default model", selection: providerBinding) {
-                            ForEach(RewriteProviderChoice.allCases) { provider in
-                                Label(provider.title, systemImage: provider.symbolName)
-                                    .tag(provider)
-                            }
-                        }
-                        .labelsHidden()
-                        .frame(width: DS.Control.providerWidth)
-                    }
-
-                    if model.provider == .ollama {
-                        Divider().padding(.vertical, DS.Spacing.medium)
-                        DSSettingRow("Ollama model") {
-                            ollamaControl
-                        }
-                    }
-
-                    Divider().padding(.vertical, DS.Spacing.medium)
-                    DSStatusIndicator(
-                        tone: model.status.isReady ? .success : .attention,
-                        text: model.status.title
-                    )
-                }
-                .dsCard()
-            }
-
             DSSection("Context and personalization") {
                 VStack(spacing: 0) {
                     DSToggleRow(
@@ -318,7 +294,14 @@ struct SettingsView: View {
                         detail: "Read terms near the cursor to improve suggestions and dictation. Screen contents are never stored.",
                         isOn: $autocomplete.screenContextEnabled
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
+                    DSToggleRow(
+                        title: "Conversation awareness",
+                        detail: "Read the visible conversation thread (Slack, Mail, Messages) to draft replies and keep suggestions on-topic. Uses Accessibility, with the screen as fallback. Read once per request, never stored.",
+                        isOn: $autocomplete.conversationContextEnabled,
+                        disabled: !autocomplete.screenContextEnabled
+                    )
+                    DSRowDivider()
                     DSToggleRow(
                         title: "Learn my style",
                         detail: "Store accepted suggestions locally to steer future writing.",
@@ -354,7 +337,6 @@ struct SettingsView: View {
                 .dsCard()
             }
         }
-        .accessibilityIdentifier("settings-writing")
     }
 
     private var privacyContent: some View {
@@ -367,14 +349,21 @@ struct SettingsView: View {
                             ? "On-device with Apple Intelligence"
                             : "Local loopback through Ollama"
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     processingRow(
                         title: "Dictation audio",
                         value: dictation.provider == .openAI
                             ? "Sent to OpenAI for transcription"
                             : "Transcribed on this Mac"
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
+                    processingRow(
+                        title: "Reader",
+                        value: reader.speechProvider == .openAI
+                            ? "Text sent to OpenAI for speech. Not stored by pluma."
+                            : "Spoken on this Mac. Text is not stored."
+                    )
+                    DSRowDivider()
                     processingRow(
                         title: "Transcript cleanup",
                         value: cleanupPath
@@ -388,11 +377,11 @@ struct SettingsView: View {
                     permissionRow(
                         title: "Accessibility",
                         granted: autocomplete.isPermissionGranted,
-                        detail: "Reads focused text fields and inserts results."
+                        detail: "Reads focused text fields, speaks or rewrites the selection, and inserts results."
                     ) {
                         autocomplete.requestPermission()
                     }
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     permissionRow(
                         title: "Screen Recording",
                         granted: autocomplete.isScreenContextPermitted,
@@ -400,7 +389,7 @@ struct SettingsView: View {
                     ) {
                         autocomplete.requestScreenContextPermission()
                     }
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     permissionRow(
                         title: "Microphone",
                         granted: dictation.isMicPermitted,
@@ -419,13 +408,13 @@ struct SettingsView: View {
                         value: "\(memory.count) of 300 phrases",
                         clear: memory.count > 0 ? { clearTarget = .memory } : nil
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     dataRow(
                         title: "Spelling memory",
                         value: "\(spellMemory.count) of \(SpellMemoryStore.maxEntries) corrections",
                         clear: spellMemory.count > 0 ? { clearTarget = .spellMemory } : nil
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     dataRow(
                         title: "Style profile",
                         value: styleProfile.isEmpty
@@ -433,7 +422,7 @@ struct SettingsView: View {
                             : "\(styleProfile.text.count) characters",
                         clear: styleProfile.isEmpty ? nil : { clearTarget = .profile }
                     )
-                    Divider().padding(.vertical, DS.Spacing.medium)
+                    DSRowDivider()
                     DSSettingRow(
                         "Audio and transcripts",
                         detail: "Never persisted by pluma."
@@ -443,21 +432,24 @@ struct SettingsView: View {
                 }
                 .dsCard()
 
-                HStack {
-                    Button("Reveal style memory in Finder") {
-                        NSWorkspace.shared.activateFileViewerSelecting([memory.url])
+                DisclosureGroup("Advanced") {
+                    HStack {
+                        Button("Reveal style memory in Finder") {
+                            NSWorkspace.shared.activateFileViewerSelecting([memory.url])
+                        }
+                        Button("Reveal spelling memory") {
+                            NSWorkspace.shared.activateFileViewerSelecting([spellMemory.url])
+                        }
+                        Spacer()
+                        Button("Open Diagnostics Log") {
+                            NSWorkspace.shared.open(DebugLog.url)
+                        }
                     }
-                    Button("Reveal spelling memory") {
-                        NSWorkspace.shared.activateFileViewerSelecting([spellMemory.url])
-                    }
-                    Spacer()
-                    Button("Open Diagnostics Log") {
-                        NSWorkspace.shared.open(DebugLog.url)
-                    }
+                    .padding(.top, DS.Spacing.small)
                 }
+                .font(DS.meta)
             }
         }
-        .accessibilityIdentifier("settings-privacy")
     }
 
     private func processingRow(title: String, value: String) -> some View {
@@ -502,22 +494,6 @@ struct SettingsView: View {
         }
     }
 
-    @ViewBuilder
-    private var ollamaControl: some View {
-        if model.availableOllamaModels.isEmpty {
-            TextField("Ollama model", text: ollamaModelBinding)
-                .frame(width: DS.Control.providerWidth)
-        } else {
-            Picker("Ollama model", selection: ollamaModelBinding) {
-                ForEach(model.availableOllamaModels, id: \.self) { modelName in
-                    Text(modelName).tag(modelName)
-                }
-            }
-            .labelsHidden()
-            .frame(width: DS.Control.providerWidth)
-        }
-    }
-
     private var cleanupPath: String {
         guard dictation.cleanupEnabled else { return "Off; raw transcript is inserted" }
         return dictation.cleanupProvider.isLocal
@@ -545,14 +521,6 @@ struct SettingsView: View {
             get: { developer.isUnlocked },
             set: { developer.setUnlocked($0) }
         )
-    }
-
-    private var providerBinding: Binding<RewriteProviderChoice> {
-        Binding(get: { model.provider }, set: { model.selectProvider($0) })
-    }
-
-    private var ollamaModelBinding: Binding<String> {
-        Binding(get: { model.ollamaModel }, set: { model.setOllamaModel($0) })
     }
 
     private func importStyleProfile(_ result: Result<[URL], any Error>) {

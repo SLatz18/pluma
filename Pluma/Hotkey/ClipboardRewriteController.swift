@@ -14,8 +14,8 @@ import Foundation
 /// registered its own parallel Carbon stack (`GlobalHotkey`,
 /// `ClipboardHotkeyManager`), which duplicated `HotkeyManager` and would have
 /// fought it for the same chord, so this uses the existing `.clipboardRewrite`
-/// slot; and feedback goes through the AppKit status pill rather than the
-/// branch's SwiftUI HUD, which is deferred (issues #13 and #16).
+/// slot; and feedback stays in pure AppKit so it can safely share the current
+/// overlay architecture (issues #13 and #16).
 @MainActor
 final class ClipboardRewriteController: ObservableObject {
     @Published private(set) var shortcut: GlobalShortcut
@@ -26,19 +26,23 @@ final class ClipboardRewriteController: ObservableObject {
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay: SuggestionOverlayController
+    private let feedback: RewriteFeedbackController
     private var debouncer = HotkeyDebouncer()
 
     /// The last text pluma wrote, so pressing again on an unchanged clipboard
     /// says so instead of paying for a second identical rewrite.
     private var lastResult: String?
     private var lastOriginal: String?
+    private var lastWriteChangeCount: Int?
 
     init(
         defaults: UserDefaults = .standard,
-        overlay: SuggestionOverlayController = SuggestionOverlayController()
+        overlay: SuggestionOverlayController = SuggestionOverlayController(),
+        feedback: RewriteFeedbackController = RewriteFeedbackController()
     ) {
         self.defaults = defaults
         self.overlay = overlay
+        self.feedback = feedback
         shortcut = Preferences.clipboardShortcut(from: defaults)
         isEnabled = Preferences.clipboardFallbackEnabled(from: defaults)
 
@@ -50,6 +54,23 @@ final class ClipboardRewriteController: ObservableObject {
         }
         if isEnabled {
             hotkey.register(shortcut, in: .clipboardRewrite)
+        }
+        NotificationCenter.default.addObserver(
+            forName: .capsShortcutsSettingsDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.reloadShortcutFromPreferences()
+            }
+        }
+    }
+
+    private func reloadShortcutFromPreferences() {
+        let updated = Preferences.clipboardShortcut(from: defaults)
+        shortcut = updated
+        if isEnabled {
+            hotkey.register(updated, in: .clipboardRewrite)
         }
     }
 
@@ -76,6 +97,10 @@ final class ClipboardRewriteController: ObservableObject {
         shortcutConflict = conflict
     }
 
+    func clearShortcutConflict() {
+        shortcutConflict = nil
+    }
+
     // Carbon refuses the same chord twice in one process, so a collision would
     // leave one feature silently dead rather than erroring. Pure function of its
     // arguments, so nonisolated: nothing here touches actor state.
@@ -83,13 +108,14 @@ final class ClipboardRewriteController: ObservableObject {
         for shortcut: GlobalShortcut,
         defaults: UserDefaults
     ) -> String? {
-        if shortcut.conflicts(with: Preferences.globalShortcut(from: defaults)) {
-            return "\(shortcut.display) is already used by Rewrite Selection."
-        }
-        if shortcut.conflicts(with: Preferences.dictationShortcut(from: defaults)) {
-            return "\(shortcut.display) is already used by Dictation."
-        }
-        return nil
+        Preferences.conflictMessage(for: shortcut, ignoring: .clipboard, from: defaults)
+    }
+
+    nonisolated static func canSafelyRestoreClipboard(
+        expectedChangeCount: Int?,
+        currentChangeCount: Int
+    ) -> Bool {
+        expectedChangeCount == currentChangeCount
     }
 
     private func rewriteClipboard() async {
@@ -139,12 +165,37 @@ final class ClipboardRewriteController: ObservableObject {
             return
         }
 
+        let anchor = SuggestionOverlayController.mouseTopLeftPoint()
+        overlay.show(
+            .status(
+                systemImage: "sparkles",
+                message: "Rewriting clipboard…",
+                tone: .accent,
+                anchor: anchor
+            ),
+            from: .rewrite
+        )
+
         do {
             let rewritten = try await RewriteRunner.rewriteChain(
                 provider: Preferences.provider(from: defaults),
                 steps: chain,
                 text: envelope.body,
-                ollamaModel: Preferences.ollamaModel(from: defaults)
+                ollamaModel: Preferences.ollamaModel(from: defaults),
+                onProgress: { [overlay] progress in
+                    guard case .starting(let step, let of, let intent) = progress, of > 1 else {
+                        return
+                    }
+                    overlay.show(
+                        .status(
+                            systemImage: "sparkles",
+                            message: "Rewriting \(step) of \(of) — \(intent.title)…",
+                            tone: .accent,
+                            anchor: anchor
+                        ),
+                        from: .rewrite
+                    )
+                }
             )
             let output = try envelope.replacingBody(with: rewritten)
 
@@ -160,7 +211,18 @@ final class ClipboardRewriteController: ObservableObject {
             lastOriginal = source
             lastResult = output
             PasteboardAccess.writeString(output)
-            flash(systemImage: "doc.on.clipboard", message: "Rewritten. Press ⌘V", tone: .accent)
+            lastWriteChangeCount = NSPasteboard.general.changeCount
+            overlay.hide(from: .rewrite)
+            feedback.showResult(
+                original: source,
+                revised: output,
+                pipeline: chain.map(\.title).joined(separator: " → "),
+                destination: "Ready to paste",
+                pasteHint: true,
+                onUndo: { [weak self] in
+                    self?.undo() ?? .unavailable
+                }
+            )
         } catch {
             DebugLog.log("clipboard rewrite failed: \(error.localizedDescription)", at: .quiet)
             flash(systemImage: "exclamationmark.triangle", message: error.localizedDescription)
@@ -168,14 +230,24 @@ final class ClipboardRewriteController: ObservableObject {
     }
 
     /// Puts the pre-rewrite text back on the clipboard.
-    func undo() {
-        guard let lastOriginal else { return }
+    @discardableResult
+    func undo() -> RewriteUndoResult {
+        guard let lastOriginal, let lastWriteChangeCount else { return .unavailable }
+        guard Self.canSafelyRestoreClipboard(
+            expectedChangeCount: lastWriteChangeCount,
+            currentChangeCount: NSPasteboard.general.changeCount
+        ) else {
+            self.lastOriginal = nil
+            self.lastWriteChangeCount = nil
+            return .contentChanged
+        }
         PasteboardAccess.writeString(lastOriginal)
         // Point lastResult at the restored text so an immediate re-press is not
         // treated as a fresh clipboard.
         lastResult = lastOriginal
         self.lastOriginal = nil
-        flash(systemImage: "arrow.uturn.backward", message: "Original restored", tone: .neutral)
+        self.lastWriteChangeCount = nil
+        return .restored
     }
 
     private func flash(

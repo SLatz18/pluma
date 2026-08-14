@@ -1,0 +1,3 @@
+- [Xcode project file registration](xcodeproj-file-registration.md) — new Swift files must be added to the generated pbxproj via python `pbxproj` (xcodegen won't run on Linux); pbxproj merge conflicts resolve with `--ours` + re-registration; default directive chains must reproduce legacy prompts byte-for-byte.
+- [Conversation awareness conventions](conversation-context.md) — gating, provider choice, transiency, and hotkey-conflict rules for the draft-reply/context feature.
+- Main is PR-protected with a required "test" status check — work lands via feature branch + pull request, never a direct push to main.

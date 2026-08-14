@@ -3,6 +3,12 @@ import ApplicationServices
 
 @MainActor
 enum AXTextInsertion {
+    enum GuardedReplacementResult: Equatable {
+        case replaced
+        case contentChanged
+        case unavailable
+    }
+
     static func insert(_ text: String, into element: AXUIElement) async -> Bool {
         let wrote = AXUIElementSetAttributeValue(
             element, kAXSelectedTextAttribute as CFString, text as CFString
@@ -37,6 +43,41 @@ enum AXTextInsertion {
             return false
         }
         return await insert(text, into: element)
+    }
+
+    /// Undo must not overwrite edits made after pluma's rewrite. Read the
+    /// field's current value and replace only when the exact rewritten slice is
+    /// still present at the original location. Unreadable fields fail closed.
+    static func replaceIfUnchanged(
+        range: CFRange,
+        expectedText: String,
+        with replacement: String,
+        in element: AXUIElement
+    ) async -> GuardedReplacementResult {
+        var valueRef: CFTypeRef?
+        guard
+            AXUIElementCopyAttributeValue(
+                element, kAXValueAttribute as CFString, &valueRef
+            ) == .success,
+            let value = valueRef as? String
+        else { return .unavailable }
+
+        guard currentText(in: value, range: range) == expectedText else {
+            return .contentChanged
+        }
+        return await replace(range: range, with: replacement, in: element)
+            ? .replaced : .unavailable
+    }
+
+    nonisolated static func currentText(in value: String, range: CFRange) -> String? {
+        let nsValue = value as NSString
+        guard
+            range.location >= 0,
+            range.length >= 0,
+            range.location <= nsValue.length,
+            range.length <= nsValue.length - range.location
+        else { return nil }
+        return nsValue.substring(with: NSRange(location: range.location, length: range.length))
     }
 
     private static func confirmInsertion(of text: String, into element: AXUIElement) async -> Bool {
@@ -98,6 +139,11 @@ enum AXTextInsertion {
 
         keyDown.flags = .maskCommand
         keyUp.flags = .maskCommand
+        // Marked so our own Caps tap and edit monitors leave these alone —
+        // an unmarked ⌘V wiped dictation's spacing memory right after every
+        // paste-fallback insertion.
+        SyntheticEventMarker.mark(keyDown)
+        SyntheticEventMarker.mark(keyUp)
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
 

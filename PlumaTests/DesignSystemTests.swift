@@ -7,7 +7,7 @@ final class DesignSystemTests: XCTestCase {
             Set(FeatureDefinition.all.map(\.id)),
             Set(FeatureDefinition.ID.allCases)
         )
-        XCTAssertEqual(FeatureDefinition.all.map(\.name), ["Rewrite", "Autocomplete", "Dictation"])
+        XCTAssertEqual(FeatureDefinition.all.map(\.name), ["Rewrite", "Autocomplete", "Dictation", "Reader"])
     }
 
     func testEveryFeatureDefinesTheWholeAutomationSentence() {
@@ -38,7 +38,11 @@ final class DesignSystemTests: XCTestCase {
     }
 
     func testSharedSettingsDestinationsRemainProductFacing() {
-        XCTAssertEqual(SettingsDestination.allCases.map(\.title), ["General", "Writing", "Privacy"])
+        XCTAssertEqual(
+            SettingsDestination.allCases.map(\.title),
+            ["General", "AI", "Writing", "Privacy"]
+        )
+        XCTAssertEqual(SettingsDestination.ai.symbolName, "sparkles")
         XCTAssertEqual(SettingsDestination.writing.symbolName, "brain")
         XCTAssertEqual(SettingsDestination.privacy.symbolName, "hand.raised")
     }

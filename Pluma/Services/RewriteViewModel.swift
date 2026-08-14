@@ -55,6 +55,18 @@ final class RewriteViewModel: ObservableObject {
         errorMessage = nil
     }
 
+    /// Swaps a step with its neighbor so users can reorder without
+    /// removing and re-adding. Out-of-range moves are no-ops.
+    func moveInChain(_ intent: RewriteIntent, offset: Int) {
+        guard let index = chain.firstIndex(of: intent) else { return }
+        let target = index + offset
+        guard chain.indices.contains(target) else { return }
+        chain.swapAt(index, target)
+        Preferences.saveChain(chain, to: defaults)
+        outputText = ""
+        errorMessage = nil
+    }
+
     /// One word when it's a single recipe, the arrow pipeline otherwise —
     /// used anywhere the UI names what a run will do.
     var chainDisplay: String {
