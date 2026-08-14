@@ -50,6 +50,8 @@ enum Preferences {
     static let draftShortcutKeyCodeKey = "pluma.draftShortcut.keyCode"
     static let draftShortcutModifiersKey = "pluma.draftShortcut.modifiers"
     static let draftShortcutDisplayKey = "pluma.draftShortcut.display"
+    static let dictationMicUIDKey = "pluma.dictationMicUID"
+    static let dictationMicNameKey = "pluma.dictationMicName"
     /// Opt-in: Caps Lock becomes pluma's shortcut modifier (default off).
     static let capsShortcutsEnabledKey = "pluma.capsShortcutsEnabled"
     /// When Caps shortcuts are on, include Shift in the Caps chord (⌃⌥⌘⇧).
@@ -398,6 +400,31 @@ enum Preferences {
     static func dictationCleanupEnabled(from defaults: UserDefaults = .standard) -> Bool {
         guard defaults.object(forKey: dictationCleanupEnabledKey) != nil else { return true }
         return defaults.bool(forKey: dictationCleanupEnabledKey)
+    }
+
+    /// Empty means "follow the system default input". A UID pins one device.
+    static func dictationMicUID(from defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: dictationMicUIDKey) ?? ""
+    }
+
+    /// Last-known display name for the pinned mic, so the picker can still
+    /// show it (as unavailable) while the device is unplugged.
+    static func dictationMicName(from defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: dictationMicNameKey) ?? ""
+    }
+
+    static func setDictationMic(
+        uid: String,
+        name: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        if uid.isEmpty {
+            defaults.removeObject(forKey: dictationMicUIDKey)
+            defaults.removeObject(forKey: dictationMicNameKey)
+        } else {
+            defaults.set(uid, forKey: dictationMicUIDKey)
+            defaults.set(name, forKey: dictationMicNameKey)
+        }
     }
 
     static func dictationProvider(

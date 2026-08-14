@@ -89,6 +89,17 @@ final class DictationController: ObservableObject {
         }
     }
 
+    /// Pinned input device UID; empty follows the system default. Capture
+    /// resolves this at each session start, so no re-registration is needed.
+    @Published private(set) var microphoneUID: String
+    @Published private(set) var microphoneName: String
+
+    func setMicrophone(uid: String, name: String) {
+        microphoneUID = uid
+        microphoneName = uid.isEmpty ? "" : name
+        Preferences.setDictationMic(uid: uid, name: name, to: defaults)
+    }
+
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay: SuggestionOverlayController
@@ -158,6 +169,8 @@ final class DictationController: ObservableObject {
         cleanupProvider = Preferences.cleanupProvider(from: defaults)
         openAIModel = Preferences.openAICleanupModel(from: defaults)
         ollamaModel = Preferences.ollamaModel(from: defaults)
+        microphoneUID = Preferences.dictationMicUID(from: defaults)
+        microphoneName = Preferences.dictationMicName(from: defaults)
         isMicPermitted = mic.isGranted
 
         mic.onChange = { [weak self] granted in

@@ -10,6 +10,7 @@ struct DictationView: View {
     @State private var isRecording = false
     @State private var isRecordingDraft = false
     @State private var ollamaModels: [String] = []
+    @State private var microphones: [MicrophoneSelection.Option] = []
     @State private var showAdvanced = false
     @FocusState private var isEnginePickerFocused: Bool
 
@@ -30,6 +31,8 @@ struct DictationView: View {
 
             shortcutCard
 
+            microphoneSection
+
             cleanupRecipeSection
 
             draftReplySection
@@ -49,6 +52,7 @@ struct DictationView: View {
             DSPageFootnote(text: privacyNote)
         }
         .task {
+            microphones = MicrophoneSelection.availableMicrophones()
             ollamaModels = (try? await OllamaEngine().availableModels()) ?? []
             if controller.ollamaModel.isEmpty, let first = ollamaModels.first {
                 controller.ollamaModel = first
@@ -159,6 +163,62 @@ struct DictationView: View {
     }
 
     // MARK: Transcription & cleanup
+
+    private var microphoneSection: some View {
+        DSSection(
+            "Microphone",
+            detail: "Which input dictation records from. Pin one — like the built-in mic — and connecting headphones won't reroute your voice."
+        ) {
+            VStack(spacing: 0) {
+                DSSettingRow("Input") {
+                    Picker("Microphone", selection: microphoneBinding) {
+                        Text("System default").tag(MicrophoneSelection.systemDefaultID)
+                        ForEach(microphoneOptions) { option in
+                            Text(option.name).tag(option.id)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 260)
+                    .accessibilityIdentifier("dictation-microphone")
+                }
+
+                if isPinnedMicMissing {
+                    DSRowDivider()
+                    DSStatusIndicator(
+                        tone: .attention,
+                        text: "\(controller.microphoneName.isEmpty ? "The pinned microphone" : controller.microphoneName) isn't connected — recording from the system default until it returns."
+                    )
+                }
+            }
+            .dsCard()
+        }
+    }
+
+    /// The stored device stays selectable while unplugged, so the picker never
+    /// renders blank and re-plugging needs no re-selection.
+    private var microphoneOptions: [MicrophoneSelection.Option] {
+        let uid = controller.microphoneUID
+        if uid.isEmpty || microphones.contains(where: { $0.id == uid }) {
+            return microphones
+        }
+        let storedName = controller.microphoneName.isEmpty ? "Saved microphone" : controller.microphoneName
+        return microphones + [MicrophoneSelection.Option(id: uid, name: "\(storedName) (not connected)")]
+    }
+
+    private var isPinnedMicMissing: Bool {
+        let uid = controller.microphoneUID
+        return !uid.isEmpty && !microphones.contains(where: { $0.id == uid })
+    }
+
+    private var microphoneBinding: Binding<String> {
+        Binding(
+            get: { controller.microphoneUID },
+            set: { uid in
+                let name = microphones.first(where: { $0.id == uid })?.name ?? controller.microphoneName
+                controller.setMicrophone(uid: uid, name: name)
+            }
+        )
+    }
 
     private var transcriptionSection: some View {
         DSSection(

@@ -38,7 +38,10 @@ final class AudioCaptureSession: NSObject, @unchecked Sendable {
     }
 
     func start() throws -> AsyncStream<CapturedAudio> {
-        guard let device = AVCaptureDevice.default(for: .audio) else {
+        // The pinned device when one is selected and connected, otherwise the
+        // system default — resolved fresh each session so replugging a mic or
+        // changing the setting takes effect on the next press.
+        guard let device = MicrophoneSelection.captureDevice() else {
             throw AudioCaptureError.noInputDevice
         }
 

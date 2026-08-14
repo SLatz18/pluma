@@ -114,6 +114,7 @@
 		A609CBC210CF660FE2222454 /* StackedChainRequestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95CF55A1D9AC4D150D8B5C33 /* StackedChainRequestTests.swift */; };
 		A642CB9F2CFB3C6A8DAC22F4 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B70B7FB7C8F64DB5D959FB6 /* Components.swift */; };
 		A6D12A5820A53D811ADDE3C4 /* ChainReorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CD7DCC6A9ABF231324F66E6 /* ChainReorderTests.swift */; };
+		A75D50FECC9C488CA7D36B2B /* MicrophoneSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900C7335BAFD17693F5C0FDB /* MicrophoneSelection.swift */; };
 		A82B1CD6B0C3B4A268354D59 /* SpellCorrectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C650CAB63A0A8CB8B8C1354 /* SpellCorrectionTests.swift */; };
 		A84742D2B01658A5E2AB02DD /* OpenAIChatModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34195B97923B3C8D50843C71 /* OpenAIChatModel.swift */; };
 		A8F460257882317766A12FEC /* SelectionRewriteController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9DBF25FE3E08E7E4AEE1713 /* SelectionRewriteController.swift */; };
@@ -268,6 +269,7 @@
 		862C9C8BA2AC430416228D6D /* PromptComposerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptComposerTests.swift; sourceTree = "<group>"; };
 		8BE7EDD290841522EEDA56C9 /* ReaderController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderController.swift; sourceTree = "<group>"; };
 		8D270BCC126787DB5A1D388A /* CompletionSuggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionSuggestion.swift; sourceTree = "<group>"; };
+		900C7335BAFD17693F5C0FDB /* MicrophoneSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneSelection.swift; sourceTree = "<group>"; };
 		95CF55A1D9AC4D150D8B5C33 /* StackedChainRequestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StackedChainRequestTests.swift; sourceTree = "<group>"; };
 		9B77840FF3F78472A37B0E24 /* PlumaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlumaTheme.swift; sourceTree = "<group>"; };
 		9CDD0EC54AB47BD89FEA2B82 /* PlumaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlumaApp.swift; sourceTree = "<group>"; };
@@ -630,6 +632,7 @@
 				0E2B8B0C565C00C21FB0A697 /* DictationTranscribing.swift */,
 				58FFE19E10682AD1D887C182 /* DictationTranscript.swift */,
 				DC71F4E8618CC84D056A1AFB /* MicrophonePermission.swift */,
+				900C7335BAFD17693F5C0FDB /* MicrophoneSelection.swift */,
 				149523C331CAAD2059DDE1E1 /* OpenAIFileTranscriber.swift */,
 				F7E2268E6585BCBC0F22E561 /* OpenAITranscriptionEngine.swift */,
 				108B716376233F654F1B4190 /* PCM16Audio.swift */,
@@ -853,6 +856,7 @@
 				245D52E62237F29F26EF38EA /* MainWindowView.swift in Sources */,
 				F088CD1019E4440C93E568A7 /* MemoryStore.swift in Sources */,
 				0D3813FE851E9FD952FB2F09 /* MicrophonePermission.swift in Sources */,
+				A75D50FECC9C488CA7D36B2B /* MicrophoneSelection.swift in Sources */,
 				640E3E18601C074A3BE754D0 /* OllamaEngine.swift in Sources */,
 				B81A6789BD67ADCA98BAEFAA /* OpenAIChatEngine.swift in Sources */,
 				A84742D2B01658A5E2AB02DD /* OpenAIChatModel.swift in Sources */,
