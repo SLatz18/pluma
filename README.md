@@ -9,10 +9,16 @@ for dictation only.
 
 Full name: **plumafina** (fine pen). Everyday name: **pluma**.
 
-[Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE)
+[![CI](https://github.com/SLatz18/pluma/actions/workflows/ci-full.yml/badge.svg)](https://github.com/SLatz18/pluma/actions/workflows/ci-full.yml)
+
+[Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE) · [How this was built](docs/BUILT-WITH-AGENTS.md)
 
 > Status: **early open source (`0.1.x`)**. The core workflows work; polish,
 > packaging, and app coverage are active work. Contributions welcome.
+
+<p align="center">
+  <img src="docs/images/overview-window.png" alt="pluma's Overview page: Rewrite, Autocomplete, Dictation, and Reader with live health states" width="70%">
+</p>
 
 ## Why this exists
 
@@ -25,6 +31,14 @@ It is also a concrete showcase of modern macOS systems work — Accessibility,
 Carbon hotkeys, ScreenCaptureKit OCR, Speech, Foundation Models, Keychain,
 and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 
+## Built with AI agents
+
+pluma was written almost entirely by AI coding agents (Claude Code on a Mac,
+plus cloud agents on Linux) directed by one person — with tests, self-imposed
+lints, decision records, and end-to-end verification keeping the output
+shippable. The workflow, and what made it work, is documented in
+[docs/BUILT-WITH-AGENTS.md](docs/BUILT-WITH-AGENTS.md).
+
 ## Features
 
 | | |
@@ -35,6 +49,10 @@ and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 | **Reader** | Speak the selection verbatim, or summarize it with the configured writing model first. Apple on-device voices (with Premium setup help) by default; optional OpenAI TTS. Press again to stop. |
 | **Screen context** | Opt-in OCR of the frontmost window so names on screen bias dictation and completions. Nothing stored. |
 | **Style memory** | Opt-in local phrases from accepted suggestions (capped). Clear anytime. |
+
+<p align="center">
+  <img src="docs/images/rewrite-window.png" alt="The Rewrite page: WHEN → THEN → RESULT flow, stackable recipes, and an on-device playground" width="70%">
+</p>
 
 Default hotkeys use Caps Lock chords (⇪E rewrite, ⇪R rewrite what I copied,
 ⇪Space dictate, ⇪D draft a reply, ⇪L read). Turn on

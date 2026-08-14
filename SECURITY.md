@@ -19,7 +19,7 @@ experimental; fixes land on `main` first.
 ## How to report
 
 Please use GitHub’s
-[private vulnerability reporting](https://github.com/SLatz18/rewrite-mac/security/advisories/new)
+[private vulnerability reporting](https://github.com/SLatz18/pluma/security/advisories/new)
 when available. If that is disabled, open a private security advisory request
 or contact the maintainer through GitHub.
 
