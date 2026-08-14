@@ -18,7 +18,7 @@ private let capsAliasKeyCode = Int64(kVK_F18)
 /// Serial queue for IOKit toggles — never block the event-tap callback.
 private let capsLockIOQueue = DispatchQueue(label: "com.scottlatz.Pluma.capsLockIO")
 
-enum CapsTapVerdict: Sendable {
+enum CapsTapVerdict: Equatable, Sendable {
     case consume
     case consumeAndToggleCapsLock
     case passUnmodified
@@ -27,12 +27,26 @@ enum CapsTapVerdict: Sendable {
 
 /// Shared with the C callback — no actor hops, NSLock only.
 final class CapsTapState: @unchecked Sendable {
+    /// A mashed chord fires once. There is no feedback channel telling us
+    /// whether the receiving app acted on a shortcut, so the reliable
+    /// equivalent is suppression: re-pressing the same key with the Caps
+    /// chord within this window is swallowed, and every suppressed press
+    /// slides the window — six rapid ⇪2s deliver exactly one ⌃⌥⌘2. A
+    /// deliberate re-press after a pause still fires.
+    static let chordDebounceInterval: TimeInterval = 0.5
+
     let lock = NSLock()
     var machine = CapsLockStateMachine()
     var tap: CFMachPort?
     var capsFlags: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand]
     /// Run-loop the tap source lives on (dedicated thread).
     var runLoop: CFRunLoop?
+
+    private var lastChordKeyCode: Int64?
+    private var lastChordDownAt: CFAbsoluteTime = 0
+    /// Key whose last chorded keyDown was suppressed — its keyUp must be
+    /// swallowed too, so the app never sees a release without a press.
+    private var suppressedChordKeyCode: Int64?
 
     func configure(tapToggles: Bool, threshold: TimeInterval) {
         lock.lock()
@@ -63,7 +77,23 @@ final class CapsTapState: @unchecked Sendable {
         return capsFlags
     }
 
-    func verdict(type: CGEventType, keyCode: Int64) -> CapsTapVerdict {
+    /// Whether a Caps hold is live right now. The expander never sets real
+    /// system modifier flags (it ORs the chord onto individual events), so
+    /// code that waits for "the chord to be released" — Reader's copy — must
+    /// ask the machine, not `CGEventSource.flagsState`.
+    func isCapsHeld() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return machine.capsHeld
+    }
+
+    func verdict(
+        type: CGEventType,
+        keyCode: Int64,
+        isSynthetic: Bool = false,
+        isAutorepeat: Bool = false,
+        at now: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()
+    ) -> CapsTapVerdict {
         lock.lock()
         defer { lock.unlock() }
 
@@ -86,8 +116,12 @@ final class CapsTapState: @unchecked Sendable {
             return .passUnmodified
         }
 
+        // Pluma's own synthetic events (Reader's ⌘C, dictation's ⌘V) must pass
+        // untouched and must not advance the machine: ORing the Caps chord onto
+        // them turned Reader's copy into Hyper-C whenever ⇪L was still held.
+        if isSynthetic { return .passUnmodified }
+
         let isCapsAlias = keyCode == capsAliasKeyCode
-        let now = CFAbsoluteTimeGetCurrent()
 
         if isCapsAlias, type == .keyDown {
             return map(machine.handle(.capsDown, at: now))
@@ -96,10 +130,25 @@ final class CapsTapState: @unchecked Sendable {
             return map(machine.handle(.capsUp, at: now))
         }
         if type == .keyDown {
-            return map(machine.handle(.otherKeyDown, at: now))
+            let output = map(machine.handle(isAutorepeat ? .otherKeyRepeat : .otherKeyDown, at: now))
+            guard output == .passWithCapsChord else { return output }
+            if keyCode == lastChordKeyCode, now - lastChordDownAt < Self.chordDebounceInterval {
+                lastChordDownAt = now
+                suppressedChordKeyCode = keyCode
+                return .consume
+            }
+            lastChordKeyCode = keyCode
+            lastChordDownAt = now
+            suppressedChordKeyCode = nil
+            return output
         }
         if type == .keyUp {
-            return map(machine.handle(.otherKeyUp, at: now))
+            let output = map(machine.handle(.otherKeyUp, at: now))
+            if output == .passWithCapsChord, keyCode == suppressedChordKeyCode {
+                suppressedChordKeyCode = nil
+                return .consume
+            }
+            return output
         }
         return .passUnmodified
     }
@@ -132,7 +181,12 @@ private func capsTapCallback(
     let state = Unmanaged<CapsTapState>.fromOpaque(userInfo).takeUnretainedValue()
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
 
-    switch state.verdict(type: type, keyCode: keyCode) {
+    switch state.verdict(
+        type: type,
+        keyCode: keyCode,
+        isSynthetic: SyntheticEventMarker.isPlumaEvent(event),
+        isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+    ) {
     case .consume:
         return nil
     case .consumeAndToggleCapsLock:
@@ -167,6 +221,9 @@ final class CapsLockExpander: ObservableObject {
 
     @Published private(set) var status: Status = .off
     @Published private(set) var lastError: String?
+
+    /// Live Caps-hold state for release-waiters (see `CapsTapState.isCapsHeld`).
+    var isCapsChordHeld: Bool { tapState.isCapsHeld() }
 
     nonisolated static let hyperAppBundleIDs = [
         "com.knollsoft.Hyperkey",

@@ -139,6 +139,11 @@ enum AXTextInsertion {
 
         keyDown.flags = .maskCommand
         keyUp.flags = .maskCommand
+        // Marked so our own Caps tap and edit monitors leave these alone —
+        // an unmarked ⌘V wiped dictation's spacing memory right after every
+        // paste-fallback insertion.
+        SyntheticEventMarker.mark(keyDown)
+        SyntheticEventMarker.mark(keyUp)
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
 
