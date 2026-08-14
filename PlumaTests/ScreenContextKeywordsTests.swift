@@ -32,10 +32,10 @@ final class ScreenContextKeywordsTests: XCTestCase {
     }
 
     func testKeepsIdentifiersContainingDigits() {
-        let terms = ScreenContextProvider.contextualStrings(from: "ticket INC1876640 and A-S4821")
+        let terms = ScreenContextProvider.contextualStrings(from: "ticket TKT1234567 and REF-2468")
 
-        XCTAssertTrue(terms.contains("INC1876640"))
-        XCTAssertTrue(terms.contains("A-S4821"))
+        XCTAssertTrue(terms.contains("TKT1234567"))
+        XCTAssertTrue(terms.contains("REF-2468"))
     }
 
     func testIgnoresShortTokens() {
