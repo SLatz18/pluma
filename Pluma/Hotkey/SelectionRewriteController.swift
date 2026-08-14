@@ -58,6 +58,10 @@ final class SelectionRewriteController: ObservableObject {
         shortcutConflict = conflict
     }
 
+    func clearShortcutConflict() {
+        shortcutConflict = nil
+    }
+
     private func rewriteSelection() async {
         guard !isWorking else { return }
         DebugLog.log("hotkey fired")

@@ -273,6 +273,10 @@ final class ReaderController: ObservableObject {
         shortcutConflict = conflict
     }
 
+    func clearShortcutConflict() {
+        shortcutConflict = nil
+    }
+
     nonisolated static func conflict(
         for shortcut: GlobalShortcut,
         defaults: UserDefaults
