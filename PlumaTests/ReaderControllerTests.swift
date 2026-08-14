@@ -551,6 +551,36 @@ final class ReaderControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testCustomModelSwitchReconcilesIncompatibleVoice() {
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: FakeSpeechEngine(),
+            textProvider: StubTextProvider(source: .empty)
+        )
+        controller.customTTSModelID = "gpt-4o-mini-tts"
+        controller.customTTSVoiceID = "marin" // 4o-only voice
+        controller.customTTSModelID = "tts-1" // classic set excludes marin
+
+        XCTAssertNotEqual(controller.customTTSVoiceID, "marin")
+        XCTAssertTrue(
+            OpenAITTSCatalog.classicModelVoiceIDs.contains(controller.customTTSVoiceID)
+        )
+    }
+
+    @MainActor
+    func testCustomModelOptionsIncludeStoredUnknownID() {
+        Preferences.setCustomTTSModelID("gateway-special-tts", to: defaults)
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: FakeSpeechEngine(),
+            textProvider: StubTextProvider(source: .empty)
+        )
+        XCTAssertTrue(controller.customModelOptions.contains { $0.id == "gateway-special-tts" })
+    }
+
+    @MainActor
     func testSpeechFailureFlashSurvivesFinish() async {
         let speech = FakeSpeechEngine()
         let overlay = SuggestionOverlayController()

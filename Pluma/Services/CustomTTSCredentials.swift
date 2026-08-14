@@ -27,6 +27,10 @@ enum CustomTTSEndpoint {
     static func speechURL(base: URL) -> URL {
         base.appendingPathComponent("audio/speech")
     }
+
+    static func modelsURL(base: URL) -> URL {
+        base.appendingPathComponent("models")
+    }
 }
 
 /// The sole observable credential/config state for the custom endpoint, shared

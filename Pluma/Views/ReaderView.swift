@@ -359,23 +359,31 @@ struct ReaderView: View {
     private var customVoiceControls: some View {
         DSSettingRow(
             "Voice",
-            detail: "The voice id your endpoint expects. OpenAI-compatible services usually accept alloy."
+            detail: "The OpenAI-compatible voice catalog. No endpoint lists voices, so these are the documented ids."
         ) {
-            TextField("alloy", text: $controller.customTTSVoiceID)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 180)
-                .focused($isSpeechControlFocused)
+            Picker("Custom voice", selection: $controller.customTTSVoiceID) {
+                ForEach(controller.customVoiceOptions) { voice in
+                    Text(voice.title).tag(voice.id)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 180)
+            .focused($isSpeechControlFocused)
         }
 
         DSRowDivider()
 
         DSSettingRow(
             "Model",
-            detail: "The speech model id your endpoint expects."
+            detail: controller.selectedCustomModelDetail
         ) {
-            TextField("tts-1", text: $controller.customTTSModelID)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 200)
+            Picker("Custom TTS model", selection: $controller.customTTSModelID) {
+                ForEach(controller.customModelOptions) { model in
+                    Text(model.title).tag(model.id)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 200)
         }
 
         DSRowDivider()
@@ -395,6 +403,31 @@ struct ReaderView: View {
                     returningTo: .reader,
                     returnFocus: .readerSpeech
                 )
+            }
+
+            HStack(spacing: 8) {
+                Button {
+                    controller.refreshCustomTTSCatalog()
+                } label: {
+                    if controller.isRefreshingCustomCatalog {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Checking…")
+                    } else {
+                        Text("Refresh model availability")
+                    }
+                }
+                .controlSize(.small)
+                .disabled(controller.isRefreshingCustomCatalog || !customTTS.isReady)
+
+                Spacer()
+            }
+
+            if let status = controller.customCatalogStatus {
+                Text(status)
+                    .font(DS.meta)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.vertical, 8)

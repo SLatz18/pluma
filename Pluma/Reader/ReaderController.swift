@@ -21,6 +21,9 @@ final class ReaderController: ObservableObject {
     @Published private(set) var openAIModels: [OpenAITTSCatalogOption] = OpenAITTSCatalog.fallbackModels
     @Published private(set) var openAICatalogStatus: String?
     @Published private(set) var isRefreshingOpenAICatalog = false
+    @Published private(set) var customModels: [OpenAITTSCatalogOption] = OpenAITTSCatalog.fallbackModels
+    @Published private(set) var customCatalogStatus: String?
+    @Published private(set) var isRefreshingCustomCatalog = false
 
     @Published var isEnabled: Bool {
         didSet {
@@ -48,6 +51,9 @@ final class ReaderController: ObservableObject {
             rebuildSpeechEngineIfNeeded()
             if speechProvider == .openAI {
                 refreshOpenAITTSCatalog()
+            }
+            if speechProvider == .customOpenAICompatible {
+                refreshCustomTTSCatalog()
             }
         }
     }
@@ -88,6 +94,7 @@ final class ReaderController: ObservableObject {
         didSet {
             guard customTTSModelID != oldValue else { return }
             Preferences.setCustomTTSModelID(customTTSModelID, to: defaults)
+            reconcileCustomVoiceForSelectedModel()
             configureCloudSpeechEngine()
         }
     }
@@ -130,6 +137,40 @@ final class ReaderController: ObservableObject {
     var selectedOpenAIModelDetail: String {
         openAIModels.first(where: { $0.id == openAITTSModelID })?.detail
             ?? OpenAITTSCatalog.detail(forModelID: openAITTSModelID)
+    }
+
+    /// The custom endpoint is OpenAI-compatible by definition, so the built-in
+    /// catalog is the picker source — with the stored id appended when it isn't
+    /// a catalog entry, so a hand-configured id never renders as an empty picker.
+    var customVoiceOptions: [OpenAITTSCatalogOption] {
+        var options = OpenAITTSCatalog.voices(compatibleWithModel: customTTSModelID)
+        if !options.contains(where: { $0.id == customTTSVoiceID }) {
+            options.append(OpenAITTSCatalogOption(
+                id: customTTSVoiceID,
+                title: customTTSVoiceID,
+                detail: "Custom voice id.",
+                kind: .builtInVoice
+            ))
+        }
+        return options
+    }
+
+    var customModelOptions: [OpenAITTSCatalogOption] {
+        var options = customModels
+        if !options.contains(where: { $0.id == customTTSModelID }) {
+            options.append(OpenAITTSCatalogOption(
+                id: customTTSModelID,
+                title: customTTSModelID,
+                detail: "Custom model id.",
+                kind: .model
+            ))
+        }
+        return options
+    }
+
+    var selectedCustomModelDetail: String {
+        customModelOptions.first(where: { $0.id == customTTSModelID })?.detail
+            ?? OpenAITTSCatalog.detail(forModelID: customTTSModelID)
     }
 
     private let defaults: UserDefaults
@@ -193,6 +234,9 @@ final class ReaderController: ObservableObject {
         refreshInstalledVoices()
         if provider == .openAI {
             refreshOpenAITTSCatalog()
+        }
+        if provider == .customOpenAICompatible {
+            refreshCustomTTSCatalog()
         }
 
         hotkey.onPress = { [weak self] slot in
@@ -282,6 +326,52 @@ final class ReaderController: ObservableObject {
         openAIVoiceID = OpenAITTSCatalog.resolveVoiceID(
             preferred: openAIVoiceID,
             available: openAIVoiceOptions
+        )
+    }
+
+    func refreshCustomTTSCatalog() {
+        guard isRefreshingCustomCatalog == false else { return }
+        guard let base = CustomTTSEndpoint.baseURL(from: defaults) else {
+            customCatalogStatus = "Add a base URL to check the endpoint's model availability."
+            return
+        }
+        isRefreshingCustomCatalog = true
+        customCatalogStatus = "Checking model availability with your endpoint…"
+
+        let modelsURL = CustomTTSEndpoint.modelsURL(base: base)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let snapshot = await OpenAITTSCatalogClient.fetch(
+                endpoint: modelsURL,
+                keyProvider: { CustomTTSKey.current },
+                missingKeyMessage: "Add your custom endpoint API key to refresh live model options."
+            )
+            self.applyCustomCatalog(snapshot)
+            self.isRefreshingCustomCatalog = false
+        }
+    }
+
+    private func applyCustomCatalog(_ snapshot: OpenAITTSCatalogClient.Snapshot) {
+        customModels = snapshot.models
+        customTTSModelID = OpenAITTSCatalog.resolveModelID(
+            preferred: customTTSModelID,
+            available: snapshot.models
+        )
+        reconcileCustomVoiceForSelectedModel()
+
+        if let errorMessage = snapshot.errorMessage, snapshot.modelsFromAPI == false {
+            customCatalogStatus = errorMessage
+        } else if snapshot.modelsFromAPI {
+            customCatalogStatus = "Confirmed \(snapshot.models.count) available TTS model\(snapshot.models.count == 1 ? "" : "s") with your endpoint. Voice names use the OpenAI-compatible catalog."
+        } else {
+            customCatalogStatus = "Showing the OpenAI-compatible voice catalog and fallback models."
+        }
+    }
+
+    private func reconcileCustomVoiceForSelectedModel() {
+        customTTSVoiceID = OpenAITTSCatalog.resolveVoiceID(
+            preferred: customTTSVoiceID,
+            available: OpenAITTSCatalog.voices(compatibleWithModel: customTTSModelID)
         )
     }
 

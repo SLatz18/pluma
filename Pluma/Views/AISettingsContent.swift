@@ -303,11 +303,15 @@ struct AISettingsContent: View {
 
                 if reader.speechProvider == .customOpenAICompatible {
                     DSRowDivider()
-                    DSSettingRow("Model", detail: "The speech model id your endpoint expects.") {
-                        TextField("tts-1", text: $reader.customTTSModelID)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: DS.Control.providerWidth)
-                            .accessibilityIdentifier("ai-custom-tts-model")
+                    DSSettingRow("Model", detail: reader.selectedCustomModelDetail) {
+                        Picker("Custom TTS model", selection: $reader.customTTSModelID) {
+                            ForEach(reader.customModelOptions) { option in
+                                Text(option.title).tag(option.id)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 200)
+                        .accessibilityIdentifier("ai-custom-tts-model")
                     }
                 }
 
@@ -340,6 +344,15 @@ struct AISettingsContent: View {
                     DSRowDivider()
                     DSStatusIndicator(
                         tone: credentials.hasKey ? .neutral : .attention,
+                        text: status
+                    )
+                }
+
+                if reader.speechProvider == .customOpenAICompatible,
+                   let status = reader.customCatalogStatus {
+                    DSRowDivider()
+                    DSStatusIndicator(
+                        tone: customTTS.isReady ? .neutral : .attention,
                         text: status
                     )
                 }
@@ -488,10 +501,14 @@ struct AISettingsContent: View {
             .labelsHidden()
             .frame(width: DS.Control.providerWidth)
         case .customOpenAICompatible:
-            TextField("alloy", text: $reader.customTTSVoiceID)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: DS.Control.providerWidth)
-                .accessibilityIdentifier("ai-custom-tts-voice")
+            Picker("Custom voice", selection: $reader.customTTSVoiceID) {
+                ForEach(reader.customVoiceOptions) { option in
+                    Text(option.title).tag(option.id)
+                }
+            }
+            .labelsHidden()
+            .frame(width: DS.Control.providerWidth)
+            .accessibilityIdentifier("ai-custom-tts-voice")
         }
     }
 

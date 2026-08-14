@@ -15,14 +15,16 @@ enum OpenAITTSCatalogClient {
     }
 
     static func fetch(
+        endpoint: URL = modelsEndpoint,
         session: URLSession = .shared,
-        keyProvider: @Sendable () -> String? = { OpenAIKey.current }
+        keyProvider: @Sendable () -> String? = { OpenAIKey.current },
+        missingKeyMessage: String = "Add an OpenAI API key to refresh live model options."
     ) async -> Snapshot {
         guard let key = keyProvider() else {
             return Snapshot(
                 models: OpenAITTSCatalog.fallbackModels,
                 modelsFromAPI: false,
-                errorMessage: "Add an OpenAI API key to refresh live model options."
+                errorMessage: missingKeyMessage
             )
         }
 
@@ -31,7 +33,7 @@ enum OpenAITTSCatalogClient {
         var errorMessage: String?
 
         do {
-            let remoteIDs = try await listModelIDs(key: key, session: session)
+            let remoteIDs = try await listModelIDs(endpoint: endpoint, key: key, session: session)
             models = OpenAITTSCatalog.models(fromRemoteIDs: remoteIDs)
             modelsFromAPI = true
         } catch {
@@ -47,10 +49,11 @@ enum OpenAITTSCatalogClient {
     }
 
     static func listModelIDs(
+        endpoint: URL = modelsEndpoint,
         key: String,
         session: URLSession = .shared
     ) async throws -> [String] {
-        var request = URLRequest(url: modelsEndpoint)
+        var request = URLRequest(url: endpoint)
         request.httpMethod = "GET"
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
 
