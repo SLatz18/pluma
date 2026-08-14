@@ -18,7 +18,7 @@ enum ReaderSpeechProviderChoice: String, CaseIterable, Codable, Identifiable, Se
     var detail: String {
         switch self {
         case .appleOnDevice: "System voices. Premium downloads stay on this Mac."
-        case .openAI: "Sends the text to OpenAI for speech."
+        case .openAI: "Sends the text to OpenAI, or the custom endpoint configured in AI settings."
         }
     }
 

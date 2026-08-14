@@ -12,11 +12,12 @@ struct AISettingsContent: View {
     @ObservedObject private var navigation = MainNavigation.shared
     @State private var keyDraft = ""
     @State private var isReplacingKey = false
+    @State private var isCustomEndpointSelected = false
     @FocusState private var isKeyFieldFocused: Bool
 
     var body: some View {
         Group {
-            openAIAccessSection
+            cloudAccessSection
             writingSection
             dictationSection
             readerSection
@@ -33,10 +34,10 @@ struct AISettingsContent: View {
         }
     }
 
-    private var openAIAccessSection: some View {
+    private var cloudAccessSection: some View {
         DSSection(
-            "OpenAI access",
-            detail: "One Keychain credential is shared by OpenAI transcription, cleanup, and speech. pluma never displays it again.",
+            "Cloud access",
+            detail: "One key and one endpoint serve every cloud feature: transcription, cleanup, and speech. OpenAI is the default; point it at any OpenAI-compatible endpoint instead. pluma never displays the key again.",
             identifier: NavigationFocus.aiOpenAIKey.scrollTarget
         ) {
             VStack(spacing: 0) {
@@ -73,7 +74,7 @@ struct AISettingsContent: View {
                     }
                 } else {
                     HStack(spacing: DS.Spacing.small) {
-                        SecureField("OpenAI API key", text: $keyDraft)
+                        SecureField("API key", text: $keyDraft)
                             .textFieldStyle(.roundedBorder)
                             .focused($isKeyFieldFocused)
                             .accessibilityIdentifier("ai-openai-key")
@@ -96,13 +97,81 @@ struct AISettingsContent: View {
 
                 DSRowDivider()
 
+                DSSettingRow(
+                    "Endpoint",
+                    detail: credentials.isEndpointCustom
+                        ? "An OpenAI-compatible service you run or trust. pluma appends the standard API paths."
+                        : "Requests go to OpenAI's API."
+                ) {
+                    Picker("Endpoint", selection: endpointChoiceBinding) {
+                        Text("OpenAI").tag(false)
+                        Text("Custom URL").tag(true)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
+                    .accessibilityIdentifier("ai-endpoint-choice")
+                }
+
+                if isEditingCustomEndpoint {
+                    HStack(spacing: DS.Spacing.small) {
+                        if !credentials.isEndpointEntryValid {
+                            DSBadge(text: "Needs https", tone: .attention, systemImage: "exclamationmark.triangle")
+                        }
+                        TextField(
+                            "https://example.com/openai/v1",
+                            text: $credentials.endpointBaseURLString
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("ai-endpoint-url")
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                DSRowDivider()
+
                 DSSettingRow("Stored in") {
                     DSBadge(text: "macOS Keychain", tone: .success, systemImage: "lock.fill")
+                }
+
+                if let age = keyAgeDays {
+                    DSRowDivider()
+                    DSStatusIndicator(
+                        tone: credentials.isEndpointCustom && age >= 28 ? .attention : .neutral,
+                        text: credentials.isEndpointCustom && age >= 28
+                            ? "Key saved \(age) days ago — endpoints that rotate keys may reject it now."
+                            : "Key saved \(age == 0 ? "today" : "\(age) days ago")."
+                    )
                 }
             }
             .dsCard()
         }
         .id(NavigationFocus.aiOpenAIKey.scrollTarget)
+    }
+
+    /// Segmented control state: true = custom URL. Selecting OpenAI clears the
+    /// stored URL; selecting Custom just reveals the field until a URL is typed.
+    private var endpointChoiceBinding: Binding<Bool> {
+        Binding(
+            get: { isEditingCustomEndpoint },
+            set: { wantsCustom in
+                if wantsCustom {
+                    isCustomEndpointSelected = true
+                } else {
+                    isCustomEndpointSelected = false
+                    credentials.endpointBaseURLString = ""
+                }
+            }
+        )
+    }
+
+    private var isEditingCustomEndpoint: Bool {
+        isCustomEndpointSelected || !credentials.endpointBaseURLString.isEmpty
+    }
+
+    private var keyAgeDays: Int? {
+        guard credentials.hasKey, let savedAt = credentials.keySavedAt else { return nil }
+        return max(0, Calendar.current.dateComponents([.day], from: savedAt, to: Date()).day ?? 0)
     }
 
     private var writingSection: some View {
@@ -206,7 +275,9 @@ struct AISettingsContent: View {
                 DSRowDivider()
                 DSSettingRow("Data path") {
                     dataPathBadge(
-                        text: dictation.provider == .openAI ? "Audio to OpenAI" : "On device",
+                        text: dictation.provider == .openAI
+                            ? "Audio to \(OpenAIEndpoint.destinationName())"
+                            : "On device",
                         isCloud: dictation.provider == .openAI
                     )
                 }
@@ -236,7 +307,7 @@ struct AISettingsContent: View {
                 DSSettingRow("Data path") {
                     dataPathBadge(
                         text: dictation.cleanupProvider == .openAI
-                            ? "Text to OpenAI"
+                            ? "Text to \(OpenAIEndpoint.destinationName())"
                             : dictation.cleanupProvider == .ollama ? "Local loopback" : "On device",
                         isCloud: dictation.cleanupProvider == .openAI
                     )
@@ -277,11 +348,6 @@ struct AISettingsContent: View {
                     .accessibilityIdentifier("ai-reader-speech-engine")
                 }
 
-                DSRowDivider()
-                DSSettingRow("Voice") {
-                    readerVoiceControl
-                }
-
                 if reader.speechProvider == .openAI {
                     DSRowDivider()
                     DSSettingRow("Model", detail: reader.selectedOpenAIModelDetail) {
@@ -292,14 +358,31 @@ struct AISettingsContent: View {
                         }
                         .labelsHidden()
                         .frame(width: 200)
+                        modelRefreshButton(
+                            help: "Re-query available TTS models from the endpoint. The voice list updates to match the selected model.",
+                            isRefreshing: reader.isRefreshingOpenAICatalog,
+                            isEnabled: credentials.hasKey
+                        ) {
+                            reader.refreshOpenAITTSCatalog()
+                        }
                     }
+                }
+
+                DSRowDivider()
+                DSSettingRow(
+                    "Voice",
+                    detail: reader.speechProvider == .openAI
+                        ? "From the documented catalog, filtered to voices the selected model supports — no endpoint lists voices."
+                        : nil
+                ) {
+                    readerVoiceControl
                 }
 
                 DSRowDivider()
                 DSSettingRow("Data path") {
                     dataPathBadge(
-                        text: reader.speechProvider == .openAI ? "Text to OpenAI" : "On device",
-                        isCloud: reader.speechProvider == .openAI
+                        text: readerDataPathText,
+                        isCloud: !reader.speechProvider.isLocal
                     )
                 }
 
@@ -337,6 +420,7 @@ struct AISettingsContent: View {
         }
         .id(NavigationFocus.aiReader.scrollTarget)
     }
+
 
     private var writingProviderBinding: Binding<RewriteProviderChoice> {
         Binding(get: { model.provider }, set: { model.selectProvider($0) })
@@ -390,6 +474,33 @@ struct AISettingsContent: View {
             }
             .labelsHidden()
             .frame(width: DS.Control.providerWidth)
+        }
+    }
+
+    @ViewBuilder
+    private func modelRefreshButton(
+        help: String,
+        isRefreshing: Bool,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        if isRefreshing {
+            ProgressView()
+                .controlSize(.small)
+        } else {
+            Button(action: action) {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .help(help)
+            .disabled(!isEnabled)
+        }
+    }
+
+    private var readerDataPathText: String {
+        switch reader.speechProvider {
+        case .appleOnDevice: "On device"
+        case .openAI: credentials.isEndpointCustom ? "Text to your endpoint" : "Text to OpenAI"
         }
     }
 

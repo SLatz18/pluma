@@ -55,7 +55,7 @@ final class ReaderViewPresentationTests: XCTestCase {
         XCTAssertEqual(local.action, "Read it verbatim")
         XCTAssertEqual(local.result, "Speak it on this Mac")
         XCTAssertEqual(openAI.action, "Read it verbatim")
-        XCTAssertEqual(openAI.result, "Speak it with OpenAI")
+        XCTAssertEqual(openAI.result, "Speak it with the cloud voice")
     }
 
     func testSummaryFlowNamesTheSelectedSpeechDestination() {
@@ -69,7 +69,7 @@ final class ReaderViewPresentationTests: XCTestCase {
         )
 
         XCTAssertEqual(local.result, "Speak the summary on this Mac")
-        XCTAssertEqual(openAI.result, "Speak the summary with OpenAI")
+        XCTAssertEqual(openAI.result, "Speak the summary with the cloud voice")
     }
 
     func testPlaygroundEditingIsLockedForEveryBusyState() {

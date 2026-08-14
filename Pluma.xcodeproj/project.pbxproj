@@ -125,6 +125,7 @@
 		BB5B3FC85791F64D0F396086 /* AutocompleteCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33517DE6D4706C2241EEFCE4 /* AutocompleteCoordinatorTests.swift */; };
 		BB8BE8CD45203B57BC43670E /* PromptComposerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 862C9C8BA2AC430416228D6D /* PromptComposerTests.swift */; };
 		BEB1D9B2B46D12545FFC0D5B /* OverlayPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E9FF6EF58C2D5B00F12E4A8 /* OverlayPresentation.swift */; };
+		BEC2B507A966EAFAA21FCC3D /* OpenAIEndpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 634DD65419550B02ABA9370B /* OpenAIEndpoint.swift */; };
 		C02D4135873A84CA4E376A05 /* HotkeyDebouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6950B89216F5DA153BC3C31 /* HotkeyDebouncer.swift */; };
 		C0E36BD4340613473B84A5D4 /* WordDifferTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2729257246E883EBBFAE3F74 /* WordDifferTests.swift */; };
 		C30BA1A37F867EF9AD0926D8 /* RewriteRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47BF492D06B629AE1ECA498A /* RewriteRunnerTests.swift */; };
@@ -241,6 +242,7 @@
 		5F65BD06909FA9C24D3A8CBC /* SpeechSpeaking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechSpeaking.swift; sourceTree = "<group>"; };
 		61481581499C78E99D678D35 /* RecipeChainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeChainTests.swift; sourceTree = "<group>"; };
 		61B1BF110AB44C792078F875 /* LiveReaderTextProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveReaderTextProvider.swift; sourceTree = "<group>"; };
+		634DD65419550B02ABA9370B /* OpenAIEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIEndpoint.swift; sourceTree = "<group>"; };
 		6962D63C941D57C89064F7D3 /* OpenAITTSClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAITTSClient.swift; sourceTree = "<group>"; };
 		6B2CC21EB90F5074B9777382 /* PlaygroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaygroundView.swift; sourceTree = "<group>"; };
 		6B50E6703DD2AE943D325C37 /* PromptEditorCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptEditorCard.swift; sourceTree = "<group>"; };
@@ -395,6 +397,7 @@
 				3E5890B61EABAAA397FD793B /* KeychainStore.swift */,
 				D061800E11B022E95219D27E /* LaunchAtLogin.swift */,
 				277F7558A313F95DFFA5BC80 /* OpenAICredentials.swift */,
+				634DD65419550B02ABA9370B /* OpenAIEndpoint.swift */,
 				0BC8EDFBA2803756819C9045 /* OpenAIErrorBody.swift */,
 				1754B3CF542A3CCCCD7CEC00 /* OpenAIKey.swift */,
 				12C08353489700F5AB47822D /* PasteboardAccess.swift */,
@@ -854,6 +857,7 @@
 				B81A6789BD67ADCA98BAEFAA /* OpenAIChatEngine.swift in Sources */,
 				A84742D2B01658A5E2AB02DD /* OpenAIChatModel.swift in Sources */,
 				F6C276F9EB08651E7AC12802 /* OpenAICredentials.swift in Sources */,
+				BEC2B507A966EAFAA21FCC3D /* OpenAIEndpoint.swift in Sources */,
 				DDDD0EAD68BBEAC939B9C7F7 /* OpenAIErrorBody.swift in Sources */,
 				AA5636A7ED1F08E53956AA78 /* OpenAIFileTranscriber.swift in Sources */,
 				887C175DD9F53335AEB54D52 /* OpenAIKey.swift in Sources */,

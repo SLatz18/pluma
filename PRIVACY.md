@@ -38,6 +38,14 @@ engine. One credential is shared by those opt-in features. In those modes:
 The AI control center and the Dictation and Reader pages state which path is
 active before you talk or listen.
 
+## Optional custom endpoint
+
+The OpenAI path's destination is configurable: by default requests go to
+OpenAI's API, or you can point the same features at a custom OpenAI-compatible
+endpoint you run or trust (a base URL entered on Settings → AI). The one
+stored key authenticates against whichever endpoint is selected. Everything
+above about what is sent — and when — applies unchanged to a custom endpoint.
+
 ## What pluma reads
 
 | Capability | What it reads | Stored? |
@@ -50,7 +58,7 @@ active before you talk or listen.
 | Spelling memory (opt-in) | Accepted misspelling → correction pairs | Local JSON, capped at 200 entries |
 | Style profile (opt-in) | Imported writing guide | Local markdown, capped at 3,000 characters |
 | Dictation | Microphone while the shortcut is held | No audio on disk; transcript in memory for one insertion |
-| Reader | Selected text, or the clipboard if nothing is selected; optional in-memory summary; optional OpenAI speech request | No — spoken in memory, not stored |
+| Reader | Selected text, or the clipboard if nothing is selected; optional in-memory summary; optional cloud speech request (OpenAI or your configured endpoint) | No — spoken in memory, not stored |
 
 Password fields (`AXSecureTextField`) are never read for autocomplete or Reader.
 

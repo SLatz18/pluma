@@ -5,9 +5,7 @@ import Foundation
 enum OpenAIFileTranscriber {
     static let model = "gpt-transcribe"
 
-    private static let endpoint = URL(
-        string: "https://api.openai.com/v1/audio/transcriptions"
-    )!
+    private static var endpoint: URL { OpenAIEndpoint.url("audio/transcriptions") }
 
     static func transcribe(
         wav: Data,

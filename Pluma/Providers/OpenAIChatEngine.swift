@@ -1,7 +1,7 @@
 import Foundation
 
 enum OpenAIChatEngine {
-    private static let endpoint = URL(string: "https://api.openai.com/v1/responses")!
+    private static var endpoint: URL { OpenAIEndpoint.url("responses") }
 
     static func rewrite(
         _ text: String,

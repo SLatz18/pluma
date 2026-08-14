@@ -33,6 +33,8 @@ enum Preferences {
     static let readerSpeechProviderKey = "pluma.readerSpeechProvider"
     static let openAITTSVoiceKey = "pluma.openAITTSVoice"
     static let openAITTSModelKey = "pluma.openAITTSModel"
+    static let cloudBaseURLKey = "pluma.cloudBaseURL"
+    static let openAIKeySavedAtKey = "pluma.openAIKeySavedAt"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
@@ -614,6 +616,61 @@ enum Preferences {
         to defaults: UserDefaults = .standard
     ) {
         defaults.set(modelID, forKey: openAITTSModelKey)
+    }
+
+    static func cloudBaseURLString(from defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: cloudBaseURLKey) ?? ""
+    }
+
+    static func setCloudBaseURLString(
+        _ urlString: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            defaults.removeObject(forKey: cloudBaseURLKey)
+        } else {
+            defaults.set(trimmed, forKey: cloudBaseURLKey)
+        }
+    }
+
+    static func openAIKeySavedAt(from defaults: UserDefaults = .standard) -> Date? {
+        defaults.object(forKey: openAIKeySavedAtKey) as? Date
+    }
+
+    static func setOpenAIKeySavedAt(
+        _ date: Date?,
+        to defaults: UserDefaults = .standard
+    ) {
+        if let date {
+            defaults.set(date, forKey: openAIKeySavedAtKey)
+        } else {
+            defaults.removeObject(forKey: openAIKeySavedAtKey)
+        }
+    }
+
+    /// One-time migration from the short-lived per-provider custom TTS shape
+    /// (separate key, base URL, and reader provider case) to the single
+    /// cloud credential + endpoint model.
+    static func migrateCustomTTSEndpointIfNeeded(defaults: UserDefaults = .standard) {
+        let legacyBaseURLKey = "pluma.customTTSBaseURL"
+        guard let legacyBaseURL = defaults.string(forKey: legacyBaseURLKey), !legacyBaseURL.isEmpty else {
+            return
+        }
+        if cloudBaseURLString(from: defaults).isEmpty {
+            setCloudBaseURLString(legacyBaseURL, to: defaults)
+        }
+        if defaults.string(forKey: readerSpeechProviderKey) == "customOpenAICompatible" {
+            setReaderSpeechProvider(.openAI, to: defaults)
+        }
+        if let savedAt = defaults.object(forKey: "pluma.customTTSKeySavedAt") as? Date,
+           openAIKeySavedAt(from: defaults) == nil {
+            setOpenAIKeySavedAt(savedAt, to: defaults)
+        }
+        defaults.removeObject(forKey: legacyBaseURLKey)
+        defaults.removeObject(forKey: "pluma.customTTSVoice")
+        defaults.removeObject(forKey: "pluma.customTTSModel")
+        defaults.removeObject(forKey: "pluma.customTTSKeySavedAt")
     }
 
     /// Carbon refuses the same chord twice in one process, so a collision would

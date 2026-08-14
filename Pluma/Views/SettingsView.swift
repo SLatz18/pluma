@@ -353,15 +353,13 @@ struct SettingsPageView: View {
                     processingRow(
                         title: "Dictation audio",
                         value: dictation.provider == .openAI
-                            ? "Sent to OpenAI for transcription"
+                            ? "Sent to \(OpenAIEndpoint.destinationName()) for transcription"
                             : "Transcribed on this Mac"
                     )
                     DSRowDivider()
                     processingRow(
                         title: "Reader",
-                        value: reader.speechProvider == .openAI
-                            ? "Text sent to OpenAI for speech. Not stored by pluma."
-                            : "Spoken on this Mac. Text is not stored."
+                        value: readerProcessingPath
                     )
                     DSRowDivider()
                     processingRow(
@@ -494,11 +492,18 @@ struct SettingsPageView: View {
         }
     }
 
+    private var readerProcessingPath: String {
+        switch reader.speechProvider {
+        case .appleOnDevice: "Spoken on this Mac. Text is not stored."
+        case .openAI: "Text sent to the configured cloud endpoint for speech. Not stored by pluma."
+        }
+    }
+
     private var cleanupPath: String {
         guard dictation.cleanupEnabled else { return "Off; raw transcript is inserted" }
         return dictation.cleanupProvider.isLocal
             ? "Runs on this Mac"
-            : "Transcript sent to OpenAI"
+            : "Transcript sent to \(OpenAIEndpoint.destinationName())"
     }
 
     private var launchAtLoginBinding: Binding<Bool> {

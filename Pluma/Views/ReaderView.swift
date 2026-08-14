@@ -159,7 +159,7 @@ struct ReaderView: View {
     private var speechProviderSection: some View {
         DSSection(
             "Speech",
-            detail: "Choose the voice engine. Apple stays on this Mac; OpenAI sends text for synthesis.",
+            detail: "Choose the voice engine. Apple stays on this Mac; OpenAI or a custom endpoint sends text for synthesis.",
             identifier: NavigationFocus.readerSpeech.scrollTarget
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
@@ -195,9 +195,9 @@ struct ReaderView: View {
 
                 DSSettingRow(
                     "Rate",
-                    detail: controller.speechProvider == .openAI
-                        ? "Mapped to OpenAI playback speed."
-                        : "How quickly the voice reads."
+                    detail: controller.speechProvider.isLocal
+                        ? "How quickly the voice reads."
+                        : "Mapped to the endpoint's playback speed."
                 ) {
                     HStack(spacing: DS.Spacing.small) {
                         Text("Slow")
@@ -291,22 +291,6 @@ struct ReaderView: View {
     @ViewBuilder
     private var openAIVoiceControls: some View {
         DSSettingRow(
-            "Voice",
-            detail: "OpenAI’s documented built-in voices. The API does not provide a voice-list endpoint."
-        ) {
-            Picker("OpenAI voice", selection: $controller.openAIVoiceID) {
-                ForEach(controller.openAIVoiceOptions) { voice in
-                    Text(voice.title).tag(voice.id)
-                }
-            }
-            .labelsHidden()
-            .frame(width: 180)
-            .focused($isSpeechControlFocused)
-        }
-
-        DSRowDivider()
-
-        DSSettingRow(
             "Model",
             detail: controller.selectedOpenAIModelDetail
         ) {
@@ -317,6 +301,22 @@ struct ReaderView: View {
             }
             .labelsHidden()
             .frame(width: 200)
+            .focused($isSpeechControlFocused)
+        }
+
+        DSRowDivider()
+
+        DSSettingRow(
+            "Voice",
+            detail: "The documented built-in voices, filtered to what the selected model supports. No API lists voices."
+        ) {
+            Picker("OpenAI voice", selection: $controller.openAIVoiceID) {
+                ForEach(controller.openAIVoiceOptions) { voice in
+                    Text(voice.title).tag(voice.id)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 180)
         }
 
         DSRowDivider()
@@ -434,7 +434,7 @@ struct ReaderView: View {
             if !autocomplete.isPermissionGranted {
                 "Needs Accessibility access to read the selection"
             } else if controller.speechProvider == .openAI && !credentials.hasKey {
-                "Add an OpenAI API key to speak with OpenAI"
+                "Add an API key in AI settings to speak with the cloud engine"
             } else if let error = controller.errorMessage {
                 "Couldn’t speak: \(error)"
             } else {
@@ -443,7 +443,7 @@ struct ReaderView: View {
         case .processing:
             "Summarizing for listening…"
         case .reading:
-            controller.speechProvider == .openAI ? "Preparing or reading…" : "Reading…"
+            controller.speechProvider.isLocal ? "Reading…" : "Preparing or reading…"
         }
     }
 
@@ -461,9 +461,9 @@ struct ReaderView: View {
         let isSummary = deliveryMode == .summarizeWhenHelpful
         let result: String = switch (isSummary, speechProvider) {
         case (false, .appleOnDevice): "Speak it on this Mac"
-        case (false, .openAI): "Speak it with OpenAI"
+        case (false, .openAI): "Speak it with the cloud voice"
         case (true, .appleOnDevice): "Speak the summary on this Mac"
-        case (true, .openAI): "Speak the summary with OpenAI"
+        case (true, .openAI): "Speak the summary with the cloud voice"
         }
         return FeatureDefinition(
             id: .reader,
@@ -503,11 +503,11 @@ struct ReaderView: View {
         case (.verbatim, .appleOnDevice):
             "Paste a passage and press Read. Speech stays on this Mac."
         case (.verbatim, .openAI):
-            "Paste a passage and press Read. Text is sent to OpenAI for speech."
+            "Paste a passage and press Read. Text is sent to the configured cloud endpoint for speech."
         case (.summarizeWhenHelpful, .appleOnDevice):
             "Paste a passage to run it through \(model.provider.title), then hear it on this Mac."
         case (.summarizeWhenHelpful, .openAI):
-            "Paste a passage to summarize with \(model.provider.title), then speak with OpenAI."
+            "Paste a passage to summarize with \(model.provider.title), then speak with the cloud voice."
         }
     }
 
@@ -517,7 +517,7 @@ struct ReaderView: View {
         case .appleOnDevice:
             speech = "Speech uses Apple’s on-device voices."
         case .openAI:
-            speech = "Speech sends text to OpenAI for synthesis."
+            speech = "Speech sends text to the configured cloud endpoint for synthesis."
         }
         switch controller.deliveryMode {
         case .verbatim:

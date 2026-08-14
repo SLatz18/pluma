@@ -1,8 +1,6 @@
 import Foundation
 
 enum OpenAITTSClient {
-    static let endpoint = URL(string: "https://api.openai.com/v1/audio/speech")!
-
     static func synthesize(
         text: String,
         voiceID: String,
@@ -14,7 +12,7 @@ enum OpenAITTSClient {
             throw OpenAITranscriptionError.missingKey
         }
 
-        var request = URLRequest(url: endpoint)
+        var request = URLRequest(url: OpenAIEndpoint.url("audio/speech"))
         request.httpMethod = "POST"
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -25,9 +23,22 @@ enum OpenAITTSClient {
             speed: speed
         )
 
-        let (data, response) = try await session.data(for: request)
+        let isCustom = OpenAIEndpoint.isCustom()
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch let error as URLError where isCustom && CloudEndpointFailure.isConnectionFailure(error) {
+            DebugLog.log("tts endpoint unreachable: \(error.code.rawValue)", at: .quiet)
+            throw RewriteEngineError.modelUnavailable(CloudEndpointFailure.unreachableMessage)
+        }
         if let http = response as? HTTPURLResponse, http.statusCode != 200 {
-            let detail = OpenAIErrorBody.describe(status: http.statusCode, data: data)
+            let detail = CloudEndpointFailure.describe(
+                status: http.statusCode,
+                data: data,
+                isCustomEndpoint: isCustom,
+                keySavedAt: Preferences.openAIKeySavedAt()
+            )
             DebugLog.log("openai tts failed: \(detail)", at: .quiet)
             throw RewriteEngineError.modelUnavailable(detail)
         }

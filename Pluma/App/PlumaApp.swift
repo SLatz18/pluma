@@ -14,6 +14,8 @@ struct PlumaApp: App {
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
+        Preferences.migrateCustomTTSEndpointIfNeeded()
+        OpenAIKey.migrateFromLegacyCustomTTSKeyIfNeeded()
         // A clean exit always clears our mapping, so finding it at launch means
         // the last run died. Reset to a known-good keyboard before anything
         // else: drop only our entry (never the user's other remaps) and clear a
