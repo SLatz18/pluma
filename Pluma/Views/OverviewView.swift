@@ -26,10 +26,11 @@ struct OverviewView: View {
             DSSection("Shared configuration") {
                 VStack(spacing: 0) {
                     DSSharedSettingLink(
-                        title: "Writing model and personalization",
+                        title: "AI engines and models",
                         value: model.provider.title,
                         systemImage: "brain",
-                        destination: .writing
+                        destination: .ai,
+                        focus: .aiWriting
                     )
                     DSRowDivider()
                     DSSharedSettingLink(

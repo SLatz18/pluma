@@ -5,6 +5,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var model: RewriteViewModel
     @EnvironmentObject private var selectionRewrite: SelectionRewriteController
+    @ObservedObject private var navigation = MainNavigation.shared
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -14,8 +15,11 @@ struct HomeView: View {
     var body: some View {
         DSFeaturePage(
             .rewrite,
-            subtitle: "Select text, run a recipe pipeline, and keep your meaning."
+            subtitle: "Select text, run a recipe pipeline, and keep your meaning.",
+            scrollTarget: featureScrollTarget
         ) {
+            DSContextualBackLink(page: .rewrite)
+
             AnywhereCard()
 
             DSSection(
@@ -47,13 +51,23 @@ struct HomeView: View {
                 title: "Writing model",
                 value: "\(model.provider.title) · \(model.status.title)",
                 systemImage: "brain",
-                destination: .writing
+                destination: .ai,
+                focus: .aiWriting,
+                returnToCurrentPage: true,
+                returnFocus: .rewriteModel
             )
             .dsCard()
+            .id(NavigationFocus.rewriteModel.scrollTarget)
+            .accessibilityIdentifier(NavigationFocus.rewriteModel.scrollTarget)
         }
         .task {
             await model.refreshStatus()
         }
+    }
+
+    private var featureScrollTarget: String? {
+        guard navigation.focus?.page == .rewrite else { return nil }
+        return navigation.focus?.scrollTarget
     }
 
     // Trigger on the left, ordered steps after — exactly what the hotkey and

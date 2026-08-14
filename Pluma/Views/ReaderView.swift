@@ -5,12 +5,13 @@ struct ReaderView: View {
     @EnvironmentObject private var controller: ReaderController
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
     @EnvironmentObject private var model: RewriteViewModel
+    @EnvironmentObject private var credentials: OpenAICredentials
+    @ObservedObject private var navigation = MainNavigation.shared
 
     @State private var isRecording = false
     @State private var playgroundText = ""
-    @State private var hasOpenAIKey = OpenAIKey.isPresent
-    @State private var apiKeyDraft = ""
     @FocusState private var isPlaygroundFocused: Bool
+    @FocusState private var isSpeechControlFocused: Bool
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -20,8 +21,11 @@ struct ReaderView: View {
     var body: some View {
         DSFeaturePage(
             flowDefinition,
-            subtitle: "Read selected text as written, or turn it into a concise spoken summary."
+            subtitle: "Read selected text as written, or turn it into a concise spoken summary.",
+            scrollTarget: featureScrollTarget
         ) {
+            DSContextualBackLink(page: .reader)
+
             heroCard
 
             shortcutCard
@@ -37,8 +41,14 @@ struct ReaderView: View {
             DSPageFootnote(text: privacyText)
         }
         .onAppear {
-            hasOpenAIKey = OpenAIKey.isPresent
             controller.refreshInstalledVoices()
+            applyNavigationFocus(navigation.focus)
+        }
+        .onChange(of: navigation.focus) { _, focus in
+            applyNavigationFocus(focus)
+        }
+        .onChange(of: credentials.revision) {
+            controller.refreshOpenAITTSCatalog()
         }
     }
 
@@ -66,7 +76,8 @@ struct ReaderView: View {
     private var listeningRecipeSection: some View {
         DSSection(
             "Recipe",
-            detail: "Choose how Reader prepares the selection before speaking."
+            detail: "Choose how Reader prepares the selection before speaking.",
+            identifier: NavigationFocus.readerRecipe.scrollTarget
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
                 ForEach(ReaderDeliveryMode.allCases) { mode in
@@ -91,11 +102,15 @@ struct ReaderView: View {
                     title: "Summary model",
                     value: model.provider.title,
                     systemImage: model.provider.symbolName,
-                    destination: .writing
+                    destination: .ai,
+                    focus: .aiWriting,
+                    returnToCurrentPage: true,
+                    returnFocus: .readerRecipe
                 )
                 .dsCard()
             }
         }
+        .id(NavigationFocus.readerRecipe.scrollTarget)
     }
 
     private var listeningPipelineStrip: some View {
@@ -144,7 +159,8 @@ struct ReaderView: View {
     private var speechProviderSection: some View {
         DSSection(
             "Speech",
-            detail: "Choose the voice engine. Apple stays on this Mac; OpenAI sends text for synthesis."
+            detail: "Choose the voice engine. Apple stays on this Mac; OpenAI sends text for synthesis.",
+            identifier: NavigationFocus.readerSpeech.scrollTarget
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
                 ForEach(ReaderSpeechProviderChoice.allCases) { provider in
@@ -158,11 +174,11 @@ struct ReaderView: View {
                         selectionBehavior: .exclusiveChoice
                     ) {
                         controller.speechProvider = provider
-                        hasOpenAIKey = OpenAIKey.isPresent
                     }
                 }
             }
         }
+        .id(NavigationFocus.readerSpeech.scrollTarget)
     }
 
     private var voiceCard: some View {
@@ -223,6 +239,7 @@ struct ReaderView: View {
             }
             .labelsHidden()
             .frame(width: 220)
+            .focused($isSpeechControlFocused)
         }
 
         DSRowDivider()
@@ -284,6 +301,7 @@ struct ReaderView: View {
             }
             .labelsHidden()
             .frame(width: 180)
+            .focused($isSpeechControlFocused)
         }
 
         DSRowDivider()
@@ -304,12 +322,11 @@ struct ReaderView: View {
         DSRowDivider()
 
         VStack(alignment: .leading, spacing: 10) {
-            apiKeyRow
+            openAICredentialRow
 
             HStack(spacing: 8) {
                 Button {
                     controller.refreshOpenAITTSCatalog()
-                    hasOpenAIKey = OpenAIKey.isPresent
                 } label: {
                     if controller.isRefreshingOpenAICatalog {
                         ProgressView()
@@ -320,7 +337,7 @@ struct ReaderView: View {
                     }
                 }
                 .controlSize(.small)
-                .disabled(controller.isRefreshingOpenAICatalog || !hasOpenAIKey)
+                .disabled(controller.isRefreshingOpenAICatalog || !credentials.hasKey)
 
                 Spacer()
             }
@@ -335,38 +352,19 @@ struct ReaderView: View {
         .padding(.vertical, 8)
     }
 
-    private var apiKeyRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: hasOpenAIKey ? "key.fill" : "key")
-                .font(DS.cardBody.weight(.semibold))
-                .foregroundStyle(hasOpenAIKey ? .green : .orange)
-                .frame(width: 18)
-            if hasOpenAIKey {
-                Text("API key stored in the keychain")
-                    .font(DS.meta)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("Remove") {
-                    OpenAIKey.clear()
-                    hasOpenAIKey = false
-                    apiKeyDraft = ""
-                    controller.refreshOpenAITTSCatalog()
-                }
-                .controlSize(.small)
-            } else {
-                SecureField("OpenAI API key", text: $apiKeyDraft)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 280)
-                Button("Save") {
-                    OpenAIKey.save(apiKeyDraft)
-                    hasOpenAIKey = OpenAIKey.isPresent
-                    apiKeyDraft = ""
-                    controller.refreshOpenAITTSCatalog()
-                }
-                .controlSize(.small)
-                .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-                Spacer()
-            }
+    private var openAICredentialRow: some View {
+        DSNoticeRow(
+            systemImage: credentials.hasKey ? "key.fill" : "key",
+            tint: credentialTint,
+            text: credentials.state.detail,
+            actionTitle: "Manage in AI"
+        ) {
+            navigation.navigate(
+                to: .ai,
+                focus: .aiOpenAIKey,
+                returningTo: .reader,
+                returnFocus: .readerSpeech
+            )
         }
     }
 
@@ -418,7 +416,7 @@ struct ReaderView: View {
         case .idle:
             if !autocomplete.isPermissionGranted
                 || controller.errorMessage != nil
-                || (controller.speechProvider == .openAI && !hasOpenAIKey) {
+                || (controller.speechProvider == .openAI && !credentials.hasKey) {
                 .orange
             } else {
                 .green
@@ -435,7 +433,7 @@ struct ReaderView: View {
         case .idle:
             if !autocomplete.isPermissionGranted {
                 "Needs Accessibility access to read the selection"
-            } else if controller.speechProvider == .openAI && !hasOpenAIKey {
+            } else if controller.speechProvider == .openAI && !credentials.hasKey {
                 "Add an OpenAI API key to speak with OpenAI"
             } else if let error = controller.errorMessage {
                 "Couldn’t speak: \(error)"
@@ -526,6 +524,27 @@ struct ReaderView: View {
             return "\(speech) Nothing is stored. Password fields are never read."
         case .summarizeWhenHelpful:
             return "Summaries use \(model.provider.title). \(speech) Nothing is stored. Password fields are never read."
+        }
+    }
+
+    private var credentialTint: Color {
+        switch credentials.state {
+        case .ready: .green
+        case .invalid, .keychainFailure: .red
+        default: .orange
+        }
+    }
+
+    private var featureScrollTarget: String? {
+        guard navigation.focus?.page == .reader else { return nil }
+        return navigation.focus?.scrollTarget
+    }
+
+    private func applyNavigationFocus(_ focus: NavigationFocus?) {
+        guard focus == .readerSpeech else { return }
+        Task { @MainActor in
+            await Task.yield()
+            isSpeechControlFocused = true
         }
     }
 }

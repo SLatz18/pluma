@@ -2,9 +2,9 @@ import SwiftUI
 
 struct CleanupComparisonView: View {
     @EnvironmentObject private var controller: DictationController
+    @EnvironmentObject private var credentials: OpenAICredentials
     @Environment(\.dismiss) private var dismiss
     @StateObject private var runner = ComparisonRunner()
-    @State private var hasKey = OpenAIKey.isPresent
 
     var body: some View {
         ScrollView {
@@ -67,7 +67,7 @@ struct CleanupComparisonView: View {
                     runner.startRecording()
                 }
             }
-            .disabled(runner.isBusy || !hasKey)
+            .disabled(runner.isBusy || !credentials.hasKey)
 
             Text(statusText)
                 .font(.caption)
@@ -82,7 +82,7 @@ struct CleanupComparisonView: View {
     private var statusText: String {
         switch runner.phase {
         case .idle:
-            hasKey
+            credentials.hasKey
                 ? "Comparing Apple, Ollama, and \(controller.openAIModel.title)."
                 : "Add an OpenAI API key first."
         case .recording: "Recording — say a sentence or two, then stop."

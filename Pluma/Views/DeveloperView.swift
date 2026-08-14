@@ -8,12 +8,12 @@ struct DeveloperView: View {
     @EnvironmentObject private var developer: DeveloperMode
     @EnvironmentObject private var dictation: DictationController
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
+    @EnvironmentObject private var credentials: OpenAICredentials
 
     @StateObject private var inspector = CaretInspector()
     @StateObject private var log = LogViewerModel()
     @State private var isComparing = false
     @State private var didCopyDebugInfo = false
-    @State private var hasOpenAIKey = OpenAIKey.isPresent
     @State private var conversationPreview: String?
     @State private var conversationCountdown: Int?
 
@@ -495,8 +495,8 @@ struct DeveloperView: View {
                 )
                 HStack {
                     Button("Compare…") { isComparing = true }
-                        .disabled(!hasOpenAIKey)
-                    if !hasOpenAIKey {
+                        .disabled(!credentials.hasKey)
+                    if !credentials.hasKey {
                         Text("Needs an OpenAI key — the comparison runs both engines.")
                             .font(DS.meta)
                             .foregroundStyle(.secondary)

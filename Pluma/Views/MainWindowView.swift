@@ -7,6 +7,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
     case dictation
     case reader
     case general
+    case ai
     case writing
     case privacy
     // Only ever in the sidebar once the cheat code has been entered.
@@ -22,6 +23,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .dictation: "Dictation"
         case .reader: "Reader"
         case .general: "General"
+        case .ai: "AI"
         case .writing: "Writing"
         case .privacy: "Privacy"
         case .developer: "Developer"
@@ -36,6 +38,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .dictation: "mic"
         case .reader: "speaker.wave.2"
         case .general: "gear"
+        case .ai: "sparkles"
         case .writing: "brain"
         case .privacy: "hand.raised"
         case .developer: "hammer"
@@ -49,7 +52,7 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
         case .autocomplete: DS.Feature.autocomplete.color
         case .dictation: DS.Feature.dictation.color
         case .reader: DS.Feature.reader.color
-        case .general, .writing, .privacy: .secondary
+        case .general, .ai, .writing, .privacy: .secondary
         case .developer: .gray
         }
     }
@@ -64,6 +67,28 @@ enum MainPage: String, CaseIterable, Identifiable, Hashable {
     }
 }
 
+enum NavigationFocus: String, Hashable, Sendable {
+    case aiOpenAIKey = "ai-openai-access"
+    case aiWriting = "ai-writing-settings"
+    case aiDictation = "ai-dictation-settings"
+    case aiReader = "ai-reader-settings"
+    case rewriteModel = "rewrite-model-controls"
+    case dictationEngines = "dictation-engine-controls"
+    case readerRecipe = "reader-recipe-controls"
+    case readerSpeech = "reader-speech-controls"
+
+    var page: MainPage {
+        switch self {
+        case .aiOpenAIKey, .aiWriting, .aiDictation, .aiReader: .ai
+        case .rewriteModel: .rewrite
+        case .dictationEngines: .dictation
+        case .readerRecipe, .readerSpeech: .reader
+        }
+    }
+
+    var scrollTarget: String { rawValue }
+}
+
 /// The one navigation state for the main window, shared so the menu bar
 /// extra, the ⌘, command, and in-page settings links can all land the sidebar
 /// on a specific page. There is deliberately no separate Settings window —
@@ -74,6 +99,56 @@ final class MainNavigation: ObservableObject {
     static let shared = MainNavigation()
 
     @Published var page: MainPage? = .overview
+    @Published private(set) var focus: NavigationFocus?
+
+    private struct ReturnRoute {
+        let page: MainPage
+        let focus: NavigationFocus?
+    }
+
+    private var returnRoute: ReturnRoute?
+    private var contextualTarget: MainPage?
+
+    func select(_ newPage: MainPage?) {
+        page = newPage ?? .overview
+        focus = nil
+        returnRoute = nil
+        contextualTarget = nil
+    }
+
+    func navigate(
+        to target: MainPage,
+        focus: NavigationFocus? = nil,
+        returningTo returnPage: MainPage? = nil,
+        returnFocus: NavigationFocus? = nil
+    ) {
+        self.focus = focus
+        if let returnPage {
+            returnRoute = ReturnRoute(page: returnPage, focus: returnFocus)
+            contextualTarget = target
+        } else {
+            returnRoute = nil
+            contextualTarget = nil
+        }
+        page = target
+    }
+
+    func canReturn(from page: MainPage) -> Bool {
+        contextualTarget == page && returnRoute != nil
+    }
+
+    func returnPage(from page: MainPage) -> MainPage? {
+        guard contextualTarget == page else { return nil }
+        return returnRoute?.page
+    }
+
+    func goBack(from page: MainPage) {
+        guard contextualTarget == page, let route = returnRoute else { return }
+        returnRoute = nil
+        contextualTarget = nil
+        focus = route.focus
+        self.page = route.page
+    }
 }
 
 /// One window, one job per page: the sidebar routes between trying Rewrite
@@ -89,13 +164,20 @@ struct MainWindowView: View {
     // The Dev page is filtered out rather than disabled: locked, it is not in
     // the view tree at all.
     private var settingsPages: [MainPage] {
-        [.general, .writing, .privacy, .developer]
+        [.general, .ai, .writing, .privacy, .developer]
             .filter { $0 != .developer || developer.isUnlocked }
+    }
+
+    private var pageSelection: Binding<MainPage?> {
+        Binding(
+            get: { navigation.page },
+            set: { navigation.select($0) }
+        )
     }
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $navigation.page) {
+            List(selection: pageSelection) {
                 Section {
                     ForEach(featurePages) { page in
                         sidebarRow(page)
@@ -123,6 +205,8 @@ struct MainWindowView: View {
                 ReaderView()
             case .general:
                 SettingsPageView(destination: .general)
+            case .ai:
+                SettingsPageView(destination: .ai)
             case .writing:
                 SettingsPageView(destination: .writing)
             case .privacy:

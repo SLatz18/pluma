@@ -299,51 +299,85 @@ struct DSPage<Content: View>: View {
     let title: String
     let subtitle: String
     var eyebrow: String? = nil
+    var scrollTarget: String? = nil
+    var pageIdentifier: String? = nil
     let content: Content
 
-    init(title: String, subtitle: String, eyebrow: String? = nil, @ViewBuilder content: () -> Content) {
+    init(
+        title: String,
+        subtitle: String,
+        eyebrow: String? = nil,
+        scrollTarget: String? = nil,
+        pageIdentifier: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
         self.title = title
         self.subtitle = subtitle
         self.eyebrow = eyebrow
+        self.scrollTarget = scrollTarget
+        self.pageIdentifier = pageIdentifier
         self.content = content()
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.sectionGap) {
-                VStack(alignment: .leading, spacing: 6) {
-                    if let eyebrow {
-                        DSEyebrow(trigger: eyebrow)
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: DS.sectionGap) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let eyebrow {
+                            DSEyebrow(trigger: eyebrow)
+                        }
+                        pageTitle
+                        Text(subtitle)
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
                     }
-                    Text(title)
-                        .font(DS.pageTitle)
-                    Text(subtitle)
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
 
-                content
+                    content
+                }
+                .padding(DS.pagePadding)
+                .frame(maxWidth: DS.Control.pageMaxWidth, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
-            .padding(DS.pagePadding)
-            .frame(maxWidth: DS.Control.pageMaxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .center)
+            .task(id: scrollTarget) {
+                guard let scrollTarget else { return }
+                await Task.yield()
+                withAnimation(DS.Motion.spring) {
+                    proxy.scrollTo(scrollTarget, anchor: .center)
+                }
+            }
         }
         .background(DS.pageBackground)
+    }
+
+    @ViewBuilder
+    private var pageTitle: some View {
+        if let pageIdentifier {
+            Text(title)
+                .font(DS.pageTitle)
+                .accessibilityIdentifier(pageIdentifier)
+        } else {
+            Text(title)
+                .font(DS.pageTitle)
+        }
     }
 }
 
 struct DSFeaturePage<Content: View>: View {
     let definition: FeatureDefinition
     let subtitle: String
+    var scrollTarget: String? = nil
     let content: Content
 
     init(
         _ definition: FeatureDefinition,
         subtitle: String,
+        scrollTarget: String? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.definition = definition
         self.subtitle = subtitle
+        self.scrollTarget = scrollTarget
         self.content = content()
     }
 
@@ -351,13 +385,14 @@ struct DSFeaturePage<Content: View>: View {
         DSPage(
             title: definition.name,
             subtitle: subtitle,
-            eyebrow: "Automation flow"
+            eyebrow: "Automation flow",
+            scrollTarget: scrollTarget,
+            pageIdentifier: "\(definition.id.rawValue)-page"
         ) {
             DSAutomationFlow(definition: definition)
                 .dsCard()
             content
         }
-        .accessibilityIdentifier("\(definition.id.rawValue)-page")
     }
 }
 
@@ -422,19 +457,25 @@ struct DSAutomationFlow: View {
 struct DSSection<Content: View>: View {
     let title: String
     var detail: String?
+    var identifier: String?
     let content: Content
 
-    init(_ title: String, detail: String? = nil, @ViewBuilder content: () -> Content) {
+    init(
+        _ title: String,
+        detail: String? = nil,
+        identifier: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
         self.title = title
         self.detail = detail
+        self.identifier = identifier
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.medium) {
             VStack(alignment: .leading, spacing: DS.Spacing.xSmall) {
-                Text(title)
-                    .font(DS.cardTitle)
+                sectionTitle
                 if let detail {
                     Text(detail)
                         .font(DS.meta)
@@ -442,6 +483,18 @@ struct DSSection<Content: View>: View {
                 }
             }
             content
+        }
+    }
+
+    @ViewBuilder
+    private var sectionTitle: some View {
+        if let identifier {
+            Text(title)
+                .font(DS.cardTitle)
+                .accessibilityIdentifier(identifier)
+        } else {
+            Text(title)
+                .font(DS.cardTitle)
         }
     }
 }
@@ -484,12 +537,22 @@ struct DSSharedSettingLink: View {
     let value: String
     let systemImage: String
     var destination: SettingsDestination = .writing
+    var focus: NavigationFocus? = nil
+    var returnToCurrentPage = false
+    var returnFocus: NavigationFocus? = nil
+
+    @ObservedObject private var navigation = MainNavigation.shared
 
     var body: some View {
         // Settings are sidebar pages in the same window, so a shared-setting
         // link is plain navigation — the page it names is the page it shows.
         Button {
-            MainNavigation.shared.page = destination.mainPage
+            navigation.navigate(
+                to: destination.mainPage,
+                focus: focus,
+                returningTo: returnToCurrentPage ? navigation.page : nil,
+                returnFocus: returnFocus
+            )
         } label: {
             HStack(spacing: DS.Spacing.medium) {
                 Image(systemName: systemImage)
@@ -514,6 +577,26 @@ struct DSSharedSettingLink: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("shared-setting-\(destination.rawValue)")
+    }
+}
+
+struct DSContextualBackLink: View {
+    let page: MainPage
+
+    @ObservedObject private var navigation = MainNavigation.shared
+
+    @ViewBuilder
+    var body: some View {
+        if let returnPage = navigation.returnPage(from: page) {
+            Button {
+                navigation.goBack(from: page)
+            } label: {
+                Label("Back to \(returnPage.title)", systemImage: "arrow.left")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("contextual-back-\(returnPage.rawValue)")
+        }
     }
 }
 
