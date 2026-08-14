@@ -141,6 +141,10 @@ enum OpenAITTSCatalog {
         }
     }
 
+    /// The raw TTS subset of a remote model list — possibly empty. Whether an
+    /// empty result should fall back to the built-in list is the caller's call,
+    /// because "the endpoint listed no TTS models" and "we're offline" deserve
+    /// different messages.
     static func models(fromRemoteIDs ids: [String]) -> [OpenAITTSCatalogOption] {
         var seen = Set<String>()
         let filtered = ids.filter { id in
@@ -150,7 +154,7 @@ enum OpenAITTSCatalog {
         .sorted { lhs, rhs in
             rank(forModelID: lhs) < rank(forModelID: rhs)
         }
-        let options = filtered.map { id in
+        return filtered.map { id in
             OpenAITTSCatalogOption(
                 id: id,
                 title: displayTitle(forModelID: id),
@@ -158,7 +162,17 @@ enum OpenAITTSCatalog {
                 kind: .model
             )
         }
-        return options.isEmpty ? fallbackModels : options
+    }
+
+    /// A picker option for an id outside the current catalog, so a stored
+    /// choice is always selectable rather than rendering a blank control.
+    static func storedOption(forModelID id: String) -> OpenAITTSCatalogOption {
+        OpenAITTSCatalogOption(
+            id: id,
+            title: displayTitle(forModelID: id),
+            detail: detail(forModelID: id),
+            kind: .model
+        )
     }
 
     private static func rank(forModelID id: String) -> (Int, String) {

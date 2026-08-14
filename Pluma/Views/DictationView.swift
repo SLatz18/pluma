@@ -12,6 +12,15 @@ struct DictationView: View {
     @State private var ollamaModels: [String] = []
     @State private var microphones: [MicrophoneSelection.Option] = []
     @State private var showAdvanced = false
+
+    /// The stored model stays selectable even when Ollama no longer lists it,
+    /// so the picker never renders blank.
+    private var ollamaPickerOptions: [String] {
+        if controller.ollamaModel.isEmpty || ollamaModels.contains(controller.ollamaModel) {
+            return ollamaModels
+        }
+        return [controller.ollamaModel] + ollamaModels
+    }
     @FocusState private var isEnginePickerFocused: Bool
 
     private let columns = [
@@ -54,6 +63,8 @@ struct DictationView: View {
         .task {
             microphones = MicrophoneSelection.availableMicrophones()
             ollamaModels = (try? await OllamaEngine().availableModels()) ?? []
+            // Seed only an empty selection; this key is shared with the writing
+            // engine, so replacing a stored value here would change that too.
             if controller.ollamaModel.isEmpty, let first = ollamaModels.first {
                 controller.ollamaModel = first
             }
@@ -373,7 +384,7 @@ struct DictationView: View {
                     .frame(width: 160)
             } else {
                 Picker("Ollama model", selection: $controller.ollamaModel) {
-                    ForEach(ollamaModels, id: \.self) { name in
+                    ForEach(ollamaPickerOptions, id: \.self) { name in
                         Text(name).tag(name)
                     }
                 }

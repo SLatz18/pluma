@@ -82,10 +82,13 @@ final class DictationController: ObservableObject {
     }
 
     // Shared with the rewrite provider's model choice rather than duplicated:
-    // there is one Ollama install and one obvious model to talk to.
+    // there is one Ollama install and one obvious model to talk to. The post
+    // keeps RewriteViewModel's copy of the shared preference in step.
     @Published var ollamaModel: String {
         didSet {
+            guard ollamaModel != oldValue else { return }
             defaults.set(ollamaModel, forKey: Preferences.ollamaModelKey)
+            NotificationCenter.default.post(name: .ollamaModelDidChange, object: self)
         }
     }
 
@@ -211,6 +214,20 @@ final class DictationController: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.reloadShortcutsFromPreferences()
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .ollamaModelDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard (notification.object as AnyObject?) !== self else { return }
+            Task { @MainActor in
+                guard let self else { return }
+                let stored = Preferences.ollamaModel(from: self.defaults)
+                if self.ollamaModel != stored {
+                    self.ollamaModel = stored
+                }
             }
         }
     }
