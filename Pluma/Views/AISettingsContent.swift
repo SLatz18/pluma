@@ -8,10 +8,13 @@ struct AISettingsContent: View {
     @EnvironmentObject private var dictation: DictationController
     @EnvironmentObject private var reader: ReaderController
     @EnvironmentObject private var credentials: OpenAICredentials
+    @EnvironmentObject private var customTTS: CustomTTSCredentials
 
     @ObservedObject private var navigation = MainNavigation.shared
     @State private var keyDraft = ""
     @State private var isReplacingKey = false
+    @State private var customKeyDraft = ""
+    @State private var isReplacingCustomKey = false
     @FocusState private var isKeyFieldFocused: Bool
 
     var body: some View {
@@ -20,6 +23,9 @@ struct AISettingsContent: View {
             writingSection
             dictationSection
             readerSection
+            if reader.speechProvider == .customOpenAICompatible {
+                customEndpointSection
+            }
         }
         .task {
             await model.refreshStatus()
@@ -295,11 +301,21 @@ struct AISettingsContent: View {
                     }
                 }
 
+                if reader.speechProvider == .customOpenAICompatible {
+                    DSRowDivider()
+                    DSSettingRow("Model", detail: "The speech model id your endpoint expects.") {
+                        TextField("tts-1", text: $reader.customTTSModelID)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: DS.Control.providerWidth)
+                            .accessibilityIdentifier("ai-custom-tts-model")
+                    }
+                }
+
                 DSRowDivider()
                 DSSettingRow("Data path") {
                     dataPathBadge(
-                        text: reader.speechProvider == .openAI ? "Text to OpenAI" : "On device",
-                        isCloud: reader.speechProvider == .openAI
+                        text: readerDataPathText,
+                        isCloud: !reader.speechProvider.isLocal
                     )
                 }
 
@@ -312,7 +328,10 @@ struct AISettingsContent: View {
                             reader.previewVoice()
                         }
                     }
-                    .disabled(reader.speechProvider == .openAI && !credentials.hasKey)
+                    .disabled(
+                        (reader.speechProvider == .openAI && !credentials.hasKey)
+                            || (reader.speechProvider == .customOpenAICompatible && !customTTS.isReady)
+                    )
                     .accessibilityIdentifier("ai-preview-reader-voice")
                 }
 
@@ -336,6 +355,84 @@ struct AISettingsContent: View {
             .dsCard()
         }
         .id(NavigationFocus.aiReader.scrollTarget)
+    }
+
+    private var customEndpointSection: some View {
+        DSSection(
+            "Custom endpoint",
+            detail: "An OpenAI-compatible service you run or trust. Reader sends only the text being spoken, with the key below."
+        ) {
+            VStack(spacing: 0) {
+                DSSettingRow(
+                    "Base URL",
+                    detail: "Usually ends in /v1. pluma appends /audio/speech."
+                ) {
+                    HStack(spacing: DS.Spacing.small) {
+                        if !customTTS.isBaseURLValid, !customTTS.baseURLString.isEmpty {
+                            DSBadge(text: "Needs https", tone: .attention, systemImage: "exclamationmark.triangle")
+                        }
+                        TextField("https://example.com/openai/v1", text: $customTTS.baseURLString)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 320)
+                            .accessibilityIdentifier("ai-custom-tts-base-url")
+                    }
+                }
+
+                DSRowDivider()
+
+                if customTTS.hasKey, !isReplacingCustomKey {
+                    HStack(spacing: DS.Spacing.small) {
+                        Button("Replace…") { isReplacingCustomKey = true }
+                        Spacer()
+                        Button("Remove", role: .destructive) {
+                            customTTS.removeKey()
+                            customKeyDraft = ""
+                        }
+                    }
+                } else {
+                    HStack(spacing: DS.Spacing.small) {
+                        SecureField("Endpoint API key", text: $customKeyDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("ai-custom-tts-key")
+                        Button("Save") {
+                            customTTS.save(key: customKeyDraft)
+                            customKeyDraft = ""
+                            isReplacingCustomKey = false
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(customKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        if customTTS.hasKey {
+                            Button("Cancel") {
+                                customKeyDraft = ""
+                                isReplacingCustomKey = false
+                            }
+                        }
+                    }
+                }
+
+                DSRowDivider()
+
+                DSSettingRow("Stored in") {
+                    DSBadge(text: "macOS Keychain", tone: .success, systemImage: "lock.fill")
+                }
+
+                if let age = customKeyAgeDays {
+                    DSRowDivider()
+                    DSStatusIndicator(
+                        tone: age >= 28 ? .attention : .neutral,
+                        text: age >= 28
+                            ? "Key saved \(age) days ago — endpoints that rotate keys may reject it now."
+                            : "Key saved \(age == 0 ? "today" : "\(age) days ago")."
+                    )
+                }
+            }
+            .dsCard()
+        }
+    }
+
+    private var customKeyAgeDays: Int? {
+        guard customTTS.hasKey, let savedAt = customTTS.keySavedAt else { return nil }
+        return max(0, Calendar.current.dateComponents([.day], from: savedAt, to: Date()).day ?? 0)
     }
 
     private var writingProviderBinding: Binding<RewriteProviderChoice> {
@@ -390,6 +487,19 @@ struct AISettingsContent: View {
             }
             .labelsHidden()
             .frame(width: DS.Control.providerWidth)
+        case .customOpenAICompatible:
+            TextField("alloy", text: $reader.customTTSVoiceID)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: DS.Control.providerWidth)
+                .accessibilityIdentifier("ai-custom-tts-voice")
+        }
+    }
+
+    private var readerDataPathText: String {
+        switch reader.speechProvider {
+        case .appleOnDevice: "On device"
+        case .openAI: "Text to OpenAI"
+        case .customOpenAICompatible: "Text to your endpoint"
         }
     }
 

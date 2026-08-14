@@ -6,6 +6,7 @@ struct ReaderView: View {
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
     @EnvironmentObject private var model: RewriteViewModel
     @EnvironmentObject private var credentials: OpenAICredentials
+    @EnvironmentObject private var customTTS: CustomTTSCredentials
     @ObservedObject private var navigation = MainNavigation.shared
 
     @State private var isRecording = false
@@ -159,7 +160,7 @@ struct ReaderView: View {
     private var speechProviderSection: some View {
         DSSection(
             "Speech",
-            detail: "Choose the voice engine. Apple stays on this Mac; OpenAI sends text for synthesis.",
+            detail: "Choose the voice engine. Apple stays on this Mac; OpenAI or a custom endpoint sends text for synthesis.",
             identifier: NavigationFocus.readerSpeech.scrollTarget
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
@@ -189,15 +190,17 @@ struct ReaderView: View {
                     appleVoiceControls
                 case .openAI:
                     openAIVoiceControls
+                case .customOpenAICompatible:
+                    customVoiceControls
                 }
 
                 DSRowDivider()
 
                 DSSettingRow(
                     "Rate",
-                    detail: controller.speechProvider == .openAI
-                        ? "Mapped to OpenAI playback speed."
-                        : "How quickly the voice reads."
+                    detail: controller.speechProvider.isLocal
+                        ? "How quickly the voice reads."
+                        : "Mapped to the endpoint's playback speed."
                 ) {
                     HStack(spacing: DS.Spacing.small) {
                         Text("Slow")
@@ -352,6 +355,51 @@ struct ReaderView: View {
         .padding(.vertical, 8)
     }
 
+    @ViewBuilder
+    private var customVoiceControls: some View {
+        DSSettingRow(
+            "Voice",
+            detail: "The voice id your endpoint expects. OpenAI-compatible services usually accept alloy."
+        ) {
+            TextField("alloy", text: $controller.customTTSVoiceID)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 180)
+                .focused($isSpeechControlFocused)
+        }
+
+        DSRowDivider()
+
+        DSSettingRow(
+            "Model",
+            detail: "The speech model id your endpoint expects."
+        ) {
+            TextField("tts-1", text: $controller.customTTSModelID)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 200)
+        }
+
+        DSRowDivider()
+
+        VStack(alignment: .leading, spacing: 10) {
+            DSNoticeRow(
+                systemImage: customTTS.isReady ? "key.fill" : "key",
+                tint: customTTS.isReady ? .green : .orange,
+                text: customTTS.isReady
+                    ? "Custom endpoint configured."
+                    : "Add the endpoint's base URL and API key in AI settings.",
+                actionTitle: "Manage in AI"
+            ) {
+                navigation.navigate(
+                    to: .ai,
+                    focus: .aiReader,
+                    returningTo: .reader,
+                    returnFocus: .readerSpeech
+                )
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
     private var openAICredentialRow: some View {
         DSNoticeRow(
             systemImage: credentials.hasKey ? "key.fill" : "key",
@@ -416,7 +464,8 @@ struct ReaderView: View {
         case .idle:
             if !autocomplete.isPermissionGranted
                 || controller.errorMessage != nil
-                || (controller.speechProvider == .openAI && !credentials.hasKey) {
+                || (controller.speechProvider == .openAI && !credentials.hasKey)
+                || (controller.speechProvider == .customOpenAICompatible && !customTTS.isReady) {
                 .orange
             } else {
                 .green
@@ -435,6 +484,8 @@ struct ReaderView: View {
                 "Needs Accessibility access to read the selection"
             } else if controller.speechProvider == .openAI && !credentials.hasKey {
                 "Add an OpenAI API key to speak with OpenAI"
+            } else if controller.speechProvider == .customOpenAICompatible && !customTTS.isReady {
+                "Add a base URL and API key to speak with your custom endpoint"
             } else if let error = controller.errorMessage {
                 "Couldn’t speak: \(error)"
             } else {
@@ -443,7 +494,7 @@ struct ReaderView: View {
         case .processing:
             "Summarizing for listening…"
         case .reading:
-            controller.speechProvider == .openAI ? "Preparing or reading…" : "Reading…"
+            controller.speechProvider.isLocal ? "Reading…" : "Preparing or reading…"
         }
     }
 
@@ -462,8 +513,10 @@ struct ReaderView: View {
         let result: String = switch (isSummary, speechProvider) {
         case (false, .appleOnDevice): "Speak it on this Mac"
         case (false, .openAI): "Speak it with OpenAI"
+        case (false, .customOpenAICompatible): "Speak it with your endpoint"
         case (true, .appleOnDevice): "Speak the summary on this Mac"
         case (true, .openAI): "Speak the summary with OpenAI"
+        case (true, .customOpenAICompatible): "Speak the summary with your endpoint"
         }
         return FeatureDefinition(
             id: .reader,
@@ -504,10 +557,14 @@ struct ReaderView: View {
             "Paste a passage and press Read. Speech stays on this Mac."
         case (.verbatim, .openAI):
             "Paste a passage and press Read. Text is sent to OpenAI for speech."
+        case (.verbatim, .customOpenAICompatible):
+            "Paste a passage and press Read. Text is sent to your custom endpoint for speech."
         case (.summarizeWhenHelpful, .appleOnDevice):
             "Paste a passage to run it through \(model.provider.title), then hear it on this Mac."
         case (.summarizeWhenHelpful, .openAI):
             "Paste a passage to summarize with \(model.provider.title), then speak with OpenAI."
+        case (.summarizeWhenHelpful, .customOpenAICompatible):
+            "Paste a passage to summarize with \(model.provider.title), then speak with your custom endpoint."
         }
     }
 
@@ -518,6 +575,8 @@ struct ReaderView: View {
             speech = "Speech uses Apple’s on-device voices."
         case .openAI:
             speech = "Speech sends text to OpenAI for synthesis."
+        case .customOpenAICompatible:
+            speech = "Speech sends text to your custom endpoint for synthesis."
         }
         switch controller.deliveryMode {
         case .verbatim:

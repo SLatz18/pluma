@@ -11,6 +11,7 @@ struct PlumaApp: App {
     @StateObject private var reader: ReaderController
     @StateObject private var developer: DeveloperMode
     @StateObject private var openAICredentials: OpenAICredentials
+    @StateObject private var customTTSCredentials: CustomTTSCredentials
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
@@ -40,6 +41,7 @@ struct PlumaApp: App {
         _reader = StateObject(wrappedValue: ReaderController(overlay: overlay))
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
         _openAICredentials = StateObject(wrappedValue: OpenAICredentials.forCurrentProcess())
+        _customTTSCredentials = StateObject(wrappedValue: CustomTTSCredentials())
 
         CapsLockExpander.shared.startMonitoring()
     }
@@ -60,6 +62,7 @@ struct PlumaApp: App {
                 .environmentObject(reader)
                 .environmentObject(developer)
                 .environmentObject(openAICredentials)
+                .environmentObject(customTTSCredentials)
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(SpellMemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)

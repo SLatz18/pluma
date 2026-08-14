@@ -76,6 +76,22 @@ final class ReaderController: ObservableObject {
         }
     }
 
+    @Published var customTTSVoiceID: String {
+        didSet {
+            guard customTTSVoiceID != oldValue else { return }
+            Preferences.setCustomTTSVoiceID(customTTSVoiceID, to: defaults)
+            configureCloudSpeechEngine()
+        }
+    }
+
+    @Published var customTTSModelID: String {
+        didSet {
+            guard customTTSModelID != oldValue else { return }
+            Preferences.setCustomTTSModelID(customTTSModelID, to: defaults)
+            configureCloudSpeechEngine()
+        }
+    }
+
     @Published var rate: Double {
         didSet {
             let clamped = Preferences.clampedReaderRate(rate)
@@ -124,6 +140,7 @@ final class ReaderController: ObservableObject {
     private let textProvider: any ReaderTextProviding
     private let summarizer: any ReaderSummarizing
     private let openAIKeyPresent: () -> Bool
+    private let customEndpointReady: () -> Bool
     private var debouncer = HotkeyDebouncer()
     private var pipelineGeneration = 0
     private var globalEscapeMonitor: Any?
@@ -135,7 +152,8 @@ final class ReaderController: ObservableObject {
         speech: (any SpeechSpeaking)? = nil,
         textProvider: (any ReaderTextProviding)? = nil,
         summarizer: (any ReaderSummarizing)? = nil,
-        openAIKeyPresent: @escaping () -> Bool = { OpenAIKey.isPresent }
+        openAIKeyPresent: @escaping () -> Bool = { OpenAIKey.isPresent },
+        customEndpointReady: (() -> Bool)? = nil
     ) {
         self.defaults = defaults
         self.overlay = overlay
@@ -143,12 +161,17 @@ final class ReaderController: ObservableObject {
         self.textProvider = textProvider ?? LiveReaderTextProvider()
         self.summarizer = summarizer ?? ConfiguredReaderSummarizer(defaults: defaults)
         self.openAIKeyPresent = openAIKeyPresent
+        self.customEndpointReady = customEndpointReady ?? {
+            CustomTTSKey.isPresent && CustomTTSEndpoint.baseURL(from: defaults) != nil
+        }
 
         let enabled = Preferences.readerEnabled(from: defaults)
         let provider = Preferences.readerSpeechProvider(from: defaults)
         let appleVoice = Preferences.readerVoiceIdentifier(from: defaults)
         let cloudVoice = Preferences.openAITTSVoiceID(from: defaults)
         let cloudModel = Preferences.openAITTSModelID(from: defaults)
+        let customVoice = Preferences.customTTSVoiceID(from: defaults)
+        let customModel = Preferences.customTTSModelID(from: defaults)
         let speakingRate = Preferences.readerRate(from: defaults)
         let mode = Preferences.readerDeliveryMode(from: defaults)
         let savedShortcut = Preferences.readerShortcut(from: defaults)
@@ -160,6 +183,8 @@ final class ReaderController: ObservableObject {
         self.voiceIdentifier = appleVoice
         self.openAIVoiceID = cloudVoice
         self.openAITTSModelID = cloudModel
+        self.customTTSVoiceID = customVoice
+        self.customTTSModelID = customModel
         self.rate = speakingRate
         self.deliveryMode = mode
         self.activity = enabled ? .idle : .off
@@ -323,6 +348,10 @@ final class ReaderController: ObservableObject {
             flash(systemImage: "key", message: OpenAITranscriptionError.missingKey.localizedDescription)
             return
         }
+        if speechProvider == .customOpenAICompatible, customEndpointReady() == false {
+            flash(systemImage: "key", message: Self.customEndpointNotReadyMessage)
+            return
+        }
         startSpeaking(trimmed, message: "Previewing voice…")
     }
 
@@ -362,6 +391,10 @@ final class ReaderController: ObservableObject {
 
         if speechProvider == .openAI, openAIKeyPresent() == false {
             flash(systemImage: "key", message: OpenAITranscriptionError.missingKey.localizedDescription)
+            return
+        }
+        if speechProvider == .customOpenAICompatible, customEndpointReady() == false {
+            flash(systemImage: "key", message: Self.customEndpointNotReadyMessage)
             return
         }
 
@@ -405,7 +438,7 @@ final class ReaderController: ObservableObject {
         DebugLog.log("reader start: \(text.count) chars via \(speechProvider.rawValue)")
         activity = .reading
         isSpeaking = true
-        let speakingMessage = speechProvider == .openAI ? "Preparing speech…" : message
+        let speakingMessage = speechProvider.isLocal ? message : "Preparing speech…"
         let anchor = SuggestionOverlayController.mouseTopLeftPoint()
         overlay.show(
             .status(
@@ -418,7 +451,7 @@ final class ReaderController: ObservableObject {
             from: .reader
         )
         installEscapeMonitors()
-        configureOpenAISpeechEngine()
+        configureCloudSpeechEngine()
         if let openAI = speech as? OpenAISpeechEngine {
             openAI.onPlaybackStarted = { [weak self] in
                 self?.overlay.show(
@@ -475,14 +508,29 @@ final class ReaderController: ObservableObject {
             )
         }
         if speech is OpenAISpeechEngine {
-            configureOpenAISpeechEngine()
+            configureCloudSpeechEngine()
         }
     }
 
+    static let customEndpointNotReadyMessage =
+        "Add a base URL and API key for the custom endpoint in settings"
+
+    /// Keeps `configureOpenAISpeechEngine()` callers working: the shared cloud
+    /// engine carries whichever provider's voice/model pair is active.
     private func configureOpenAISpeechEngine() {
-        guard let openAI = speech as? OpenAISpeechEngine else { return }
-        openAI.voiceID = openAIVoiceID
-        openAI.modelID = openAITTSModelID
+        configureCloudSpeechEngine()
+    }
+
+    private func configureCloudSpeechEngine() {
+        guard let cloud = speech as? OpenAISpeechEngine else { return }
+        switch speechProvider {
+        case .customOpenAICompatible:
+            cloud.voiceID = customTTSVoiceID
+            cloud.modelID = customTTSModelID
+        case .appleOnDevice, .openAI:
+            cloud.voiceID = openAIVoiceID
+            cloud.modelID = openAITTSModelID
+        }
     }
 
     private static func makeSpeechEngine(
@@ -491,6 +539,12 @@ final class ReaderController: ObservableObject {
         switch provider {
         case .appleOnDevice: SystemSpeechEngine()
         case .openAI: OpenAISpeechEngine()
+        case .customOpenAICompatible:
+            OpenAISpeechEngine(synthesize: { text, voiceID, modelID, speed in
+                try await CustomTTSClient.synthesize(
+                    text: text, voiceID: voiceID, modelID: modelID, speed: speed
+                )
+            })
         }
     }
 

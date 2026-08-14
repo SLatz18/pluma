@@ -33,6 +33,10 @@ enum Preferences {
     static let readerSpeechProviderKey = "pluma.readerSpeechProvider"
     static let openAITTSVoiceKey = "pluma.openAITTSVoice"
     static let openAITTSModelKey = "pluma.openAITTSModel"
+    static let customTTSBaseURLKey = "pluma.customTTSBaseURL"
+    static let customTTSVoiceKey = "pluma.customTTSVoice"
+    static let customTTSModelKey = "pluma.customTTSModel"
+    static let customTTSKeySavedAtKey = "pluma.customTTSKeySavedAt"
     static let developerModeEnabledKey = "pluma.developerModeEnabled"
     static let logLevelKey = "pluma.logLevel"
     static let inlineSuggestionsKey = "pluma.inlineSuggestions"
@@ -614,6 +618,66 @@ enum Preferences {
         to defaults: UserDefaults = .standard
     ) {
         defaults.set(modelID, forKey: openAITTSModelKey)
+    }
+
+    static func customTTSBaseURLString(from defaults: UserDefaults = .standard) -> String {
+        defaults.string(forKey: customTTSBaseURLKey) ?? ""
+    }
+
+    static func setCustomTTSBaseURLString(
+        _ urlString: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(urlString, forKey: customTTSBaseURLKey)
+    }
+
+    static func customTTSVoiceID(from defaults: UserDefaults = .standard) -> String {
+        guard
+            let rawValue = defaults.string(forKey: customTTSVoiceKey),
+            !rawValue.isEmpty
+        else {
+            return "alloy"
+        }
+        return rawValue
+    }
+
+    static func setCustomTTSVoiceID(
+        _ voiceID: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(voiceID, forKey: customTTSVoiceKey)
+    }
+
+    static func customTTSModelID(from defaults: UserDefaults = .standard) -> String {
+        guard
+            let rawValue = defaults.string(forKey: customTTSModelKey),
+            !rawValue.isEmpty
+        else {
+            return "tts-1"
+        }
+        return rawValue
+    }
+
+    static func setCustomTTSModelID(
+        _ modelID: String,
+        to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(modelID, forKey: customTTSModelKey)
+    }
+
+    static func customTTSKeySavedAt(from defaults: UserDefaults = .standard) -> Date? {
+        defaults.object(forKey: customTTSKeySavedAtKey) as? Date
+    }
+
+    static func setCustomTTSKeySavedAt(
+        _ date: Date?,
+        to defaults: UserDefaults = .standard
+    ) {
+        if let date {
+            defaults.set(date, forKey: customTTSKeySavedAtKey)
+        } else {
+            defaults.removeObject(forKey: customTTSKeySavedAtKey)
+        }
     }
 
     /// Carbon refuses the same chord twice in one process, so a collision would

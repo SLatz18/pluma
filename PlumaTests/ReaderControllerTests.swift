@@ -517,6 +517,40 @@ final class ReaderControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testCustomProviderWithoutConfigurationDoesNotSpeak() async {
+        let speech = FakeSpeechEngine()
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: speech,
+            textProvider: StubTextProvider(source: .selection("custom please")),
+            customEndpointReady: { false }
+        )
+        controller.isEnabled = true
+        controller.speechProvider = .customOpenAICompatible
+        await controller.handlePress()
+        XCTAssertTrue(speech.spoken.isEmpty)
+        XCTAssertEqual(controller.activity, .idle)
+    }
+
+    @MainActor
+    func testCustomProviderWhenConfiguredSpeaks() async {
+        let speech = FakeSpeechEngine()
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: speech,
+            textProvider: StubTextProvider(source: .selection("custom go")),
+            customEndpointReady: { true }
+        )
+        controller.isEnabled = true
+        controller.speechProvider = .customOpenAICompatible
+        await controller.handlePress()
+        XCTAssertEqual(speech.spoken.map(\.text), ["custom go"])
+        XCTAssertEqual(controller.activity, .reading)
+    }
+
+    @MainActor
     func testSpeechFailureFlashSurvivesFinish() async {
         let speech = FakeSpeechEngine()
         let overlay = SuggestionOverlayController()

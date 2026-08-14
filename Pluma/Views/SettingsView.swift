@@ -359,9 +359,7 @@ struct SettingsPageView: View {
                     DSRowDivider()
                     processingRow(
                         title: "Reader",
-                        value: reader.speechProvider == .openAI
-                            ? "Text sent to OpenAI for speech. Not stored by pluma."
-                            : "Spoken on this Mac. Text is not stored."
+                        value: readerProcessingPath
                     )
                     DSRowDivider()
                     processingRow(
@@ -491,6 +489,14 @@ struct SettingsPageView: View {
                         .controlSize(.small)
                 }
             }
+        }
+    }
+
+    private var readerProcessingPath: String {
+        switch reader.speechProvider {
+        case .appleOnDevice: "Spoken on this Mac. Text is not stored."
+        case .openAI: "Text sent to OpenAI for speech. Not stored by pluma."
+        case .customOpenAICompatible: "Text sent to your custom endpoint for speech. Not stored by pluma."
         }
     }
 
