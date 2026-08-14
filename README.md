@@ -11,7 +11,7 @@ Full name: **plumafina** (fine pen). Everyday name: **pluma**.
 
 [![CI](https://github.com/SLatz18/pluma/actions/workflows/ci-full.yml/badge.svg)](https://github.com/SLatz18/pluma/actions/workflows/ci-full.yml)
 
-[Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE) · [How this was built](docs/BUILT-WITH-AGENTS.md)
+[Privacy](PRIVACY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [License](LICENSE)
 
 > Status: **early open source (`0.1.x`)**. The core workflows work; polish,
 > packaging, and app coverage are active work. Contributions welcome.
@@ -30,14 +30,6 @@ path on-device, and makes every permission and network hop explicit.
 It is also a concrete showcase of modern macOS systems work — Accessibility,
 Carbon hotkeys, ScreenCaptureKit OCR, Speech, Foundation Models, Keychain,
 and a deliberate AppKit overlay — under Swift 6 strict concurrency.
-
-## Built with AI agents
-
-pluma was written almost entirely by AI coding agents (Claude Code on a Mac,
-plus cloud agents on Linux) directed by one person — with tests, self-imposed
-lints, decision records, and end-to-end verification keeping the output
-shippable. The workflow, and what made it work, is documented in
-[docs/BUILT-WITH-AGENTS.md](docs/BUILT-WITH-AGENTS.md).
 
 ## Features
 
