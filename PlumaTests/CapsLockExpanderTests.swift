@@ -109,6 +109,76 @@ final class CapsLockExpanderTests: XCTestCase {
         )
     }
 
+    // Mashing the same chord must deliver exactly one chorded press: there is
+    // no way to know whether the receiving app acted on the shortcut, so the
+    // tap suppresses identical re-presses inside a sliding window instead.
+    func testMashedChordFiresOnce() {
+        let state = CapsTapState()
+        _ = state.verdict(type: .keyDown, keyCode: Int64(kVK_F18), at: t0)
+        var fired = 0
+        for i in 0..<6 {
+            let at = t0 + 0.1 + Double(i) * 0.15
+            let down = state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2), at: at)
+            let up = state.verdict(type: .keyUp, keyCode: Int64(kVK_ANSI_2), at: at + 0.05)
+            if down == .passWithCapsChord {
+                fired += 1
+                XCTAssertEqual(up, .passWithCapsChord)
+            } else {
+                XCTAssertEqual(down, .consume)
+                // A suppressed press must not leak a bare keyUp either.
+                XCTAssertEqual(up, .consume)
+            }
+        }
+        XCTAssertEqual(fired, 1)
+    }
+
+    func testRepressAfterPauseFiresAgain() {
+        let state = CapsTapState()
+        _ = state.verdict(type: .keyDown, keyCode: Int64(kVK_F18), at: t0)
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2), at: t0 + 0.1),
+            .passWithCapsChord
+        )
+        _ = state.verdict(type: .keyUp, keyCode: Int64(kVK_ANSI_2), at: t0 + 0.15)
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2), at: t0 + 0.8),
+            .passWithCapsChord
+        )
+    }
+
+    // Every suppressed press slides the window, so continuous mashing never
+    // sneaks a second fire through.
+    func testSlidingWindowKeepsSuppressingWhileMashing() {
+        let state = CapsTapState()
+        _ = state.verdict(type: .keyDown, keyCode: Int64(kVK_F18), at: t0)
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2), at: t0 + 0.1),
+            .passWithCapsChord
+        )
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2), at: t0 + 0.5),
+            .consume
+        )
+        // 0.8s after the FIRST press, but 0.4s after the last suppressed one.
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2), at: t0 + 0.9),
+            .consume
+        )
+    }
+
+    func testDifferentChordKeysAreNotDebounced() {
+        let state = CapsTapState()
+        _ = state.verdict(type: .keyDown, keyCode: Int64(kVK_F18), at: t0)
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2), at: t0 + 0.1),
+            .passWithCapsChord
+        )
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_L), at: t0 + 0.2),
+            .passWithCapsChord
+        )
+    }
+
     func testReleaseAfterChordIsConsumedSilently() {
         var machine = CapsLockStateMachine()
         _ = machine.handle(.capsDown, at: t0)

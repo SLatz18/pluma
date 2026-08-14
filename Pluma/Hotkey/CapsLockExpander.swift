@@ -18,7 +18,7 @@ private let capsAliasKeyCode = Int64(kVK_F18)
 /// Serial queue for IOKit toggles — never block the event-tap callback.
 private let capsLockIOQueue = DispatchQueue(label: "com.scottlatz.Pluma.capsLockIO")
 
-enum CapsTapVerdict: Sendable {
+enum CapsTapVerdict: Equatable, Sendable {
     case consume
     case consumeAndToggleCapsLock
     case passUnmodified
@@ -27,12 +27,26 @@ enum CapsTapVerdict: Sendable {
 
 /// Shared with the C callback — no actor hops, NSLock only.
 final class CapsTapState: @unchecked Sendable {
+    /// A mashed chord fires once. There is no feedback channel telling us
+    /// whether the receiving app acted on a shortcut, so the reliable
+    /// equivalent is suppression: re-pressing the same key with the Caps
+    /// chord within this window is swallowed, and every suppressed press
+    /// slides the window — six rapid ⇪2s deliver exactly one ⌃⌥⌘2. A
+    /// deliberate re-press after a pause still fires.
+    static let chordDebounceInterval: TimeInterval = 0.5
+
     let lock = NSLock()
     var machine = CapsLockStateMachine()
     var tap: CFMachPort?
     var capsFlags: CGEventFlags = [.maskControl, .maskAlternate, .maskCommand]
     /// Run-loop the tap source lives on (dedicated thread).
     var runLoop: CFRunLoop?
+
+    private var lastChordKeyCode: Int64?
+    private var lastChordDownAt: CFAbsoluteTime = 0
+    /// Key whose last chorded keyDown was suppressed — its keyUp must be
+    /// swallowed too, so the app never sees a release without a press.
+    private var suppressedChordKeyCode: Int64?
 
     func configure(tapToggles: Bool, threshold: TimeInterval) {
         lock.lock()
@@ -77,7 +91,8 @@ final class CapsTapState: @unchecked Sendable {
         type: CGEventType,
         keyCode: Int64,
         isSynthetic: Bool = false,
-        isAutorepeat: Bool = false
+        isAutorepeat: Bool = false,
+        at now: CFAbsoluteTime = CFAbsoluteTimeGetCurrent()
     ) -> CapsTapVerdict {
         lock.lock()
         defer { lock.unlock() }
@@ -107,7 +122,6 @@ final class CapsTapState: @unchecked Sendable {
         if isSynthetic { return .passUnmodified }
 
         let isCapsAlias = keyCode == capsAliasKeyCode
-        let now = CFAbsoluteTimeGetCurrent()
 
         if isCapsAlias, type == .keyDown {
             return map(machine.handle(.capsDown, at: now))
@@ -116,10 +130,25 @@ final class CapsTapState: @unchecked Sendable {
             return map(machine.handle(.capsUp, at: now))
         }
         if type == .keyDown {
-            return map(machine.handle(isAutorepeat ? .otherKeyRepeat : .otherKeyDown, at: now))
+            let output = map(machine.handle(isAutorepeat ? .otherKeyRepeat : .otherKeyDown, at: now))
+            guard output == .passWithCapsChord else { return output }
+            if keyCode == lastChordKeyCode, now - lastChordDownAt < Self.chordDebounceInterval {
+                lastChordDownAt = now
+                suppressedChordKeyCode = keyCode
+                return .consume
+            }
+            lastChordKeyCode = keyCode
+            lastChordDownAt = now
+            suppressedChordKeyCode = nil
+            return output
         }
         if type == .keyUp {
-            return map(machine.handle(.otherKeyUp, at: now))
+            let output = map(machine.handle(.otherKeyUp, at: now))
+            if output == .passWithCapsChord, keyCode == suppressedChordKeyCode {
+                suppressedChordKeyCode = nil
+                return .consume
+            }
+            return output
         }
         return .passUnmodified
     }
