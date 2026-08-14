@@ -104,12 +104,20 @@ final class OpenAICredentialsTests: XCTestCase {
         }
     }
 
+    /// Isolated defaults are load-bearing: the test host is the app itself, so
+    /// `.standard` here is the user's real preference domain — a credentials
+    /// object writing endpoint settings through it would edit live settings.
     private func makeCredentials(
         store: CredentialMemoryStore,
-        validation: OpenAICredentialValidation
+        validation: OpenAICredentialValidation,
+        function: String = #function
     ) -> OpenAICredentials {
-        OpenAICredentials(
+        let suite = "OpenAICredentialsTests.\(function)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return OpenAICredentials(
             initialHasKey: store.hasKey,
+            defaults: defaults,
             hasStoredKey: { store.hasKey },
             keyProvider: { store.key },
             saveKey: { try store.save($0) },
