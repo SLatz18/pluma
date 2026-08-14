@@ -63,7 +63,17 @@ final class CapsTapState: @unchecked Sendable {
         return capsFlags
     }
 
-    func verdict(type: CGEventType, keyCode: Int64) -> CapsTapVerdict {
+    /// Whether a Caps hold is live right now. The expander never sets real
+    /// system modifier flags (it ORs the chord onto individual events), so
+    /// code that waits for "the chord to be released" — Reader's copy — must
+    /// ask the machine, not `CGEventSource.flagsState`.
+    func isCapsHeld() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return machine.capsHeld
+    }
+
+    func verdict(type: CGEventType, keyCode: Int64, isSynthetic: Bool = false) -> CapsTapVerdict {
         lock.lock()
         defer { lock.unlock() }
 
@@ -85,6 +95,11 @@ final class CapsTapState: @unchecked Sendable {
             _ = machine.handle(.forceRelease, at: CFAbsoluteTimeGetCurrent())
             return .passUnmodified
         }
+
+        // Pluma's own synthetic events (Reader's ⌘C, dictation's ⌘V) must pass
+        // untouched and must not advance the machine: ORing the Caps chord onto
+        // them turned Reader's copy into Hyper-C whenever ⇪L was still held.
+        if isSynthetic { return .passUnmodified }
 
         let isCapsAlias = keyCode == capsAliasKeyCode
         let now = CFAbsoluteTimeGetCurrent()
@@ -132,7 +147,11 @@ private func capsTapCallback(
     let state = Unmanaged<CapsTapState>.fromOpaque(userInfo).takeUnretainedValue()
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
 
-    switch state.verdict(type: type, keyCode: keyCode) {
+    switch state.verdict(
+        type: type,
+        keyCode: keyCode,
+        isSynthetic: SyntheticEventMarker.isPlumaEvent(event)
+    ) {
     case .consume:
         return nil
     case .consumeAndToggleCapsLock:
@@ -167,6 +186,9 @@ final class CapsLockExpander: ObservableObject {
 
     @Published private(set) var status: Status = .off
     @Published private(set) var lastError: String?
+
+    /// Live Caps-hold state for release-waiters (see `CapsTapState.isCapsHeld`).
+    var isCapsChordHeld: Bool { tapState.isCapsHeld() }
 
     nonisolated static let hyperAppBundleIDs = [
         "com.knollsoft.Hyperkey",

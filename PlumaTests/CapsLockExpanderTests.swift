@@ -25,6 +25,47 @@ final class CapsLockExpanderTests: XCTestCase {
         XCTAssertEqual(machine.handle(.otherKeyUp, at: t0 + 0.06), .passWithCapsChord)
     }
 
+    // Pluma's own synthetic ⌘C/⌘V must pass the tap untouched while Caps is
+    // held — and must not advance the machine, so the hold survives them.
+    func testSyntheticEventPassesUntouchedWhileCapsHeld() {
+        let state = CapsTapState()
+        XCTAssertEqual(state.verdict(type: .keyDown, keyCode: Int64(kVK_F18)), .consume)
+        XCTAssertTrue(state.isCapsHeld())
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_C), isSynthetic: true),
+            .passUnmodified
+        )
+        XCTAssertEqual(
+            state.verdict(type: .keyUp, keyCode: Int64(kVK_ANSI_C), isSynthetic: true),
+            .passUnmodified
+        )
+        XCTAssertTrue(state.isCapsHeld())
+        // A real key while held still gets the chord.
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_L)),
+            .passWithCapsChord
+        )
+    }
+
+    func testSyntheticMarkerRoundTrip() {
+        guard
+            let marked = CGEvent(keyboardEventSource: nil, virtualKey: 8, keyDown: true),
+            let unmarked = CGEvent(keyboardEventSource: nil, virtualKey: 8, keyDown: true)
+        else { return XCTFail("could not create CGEvents") }
+        SyntheticEventMarker.mark(marked)
+        XCTAssertTrue(SyntheticEventMarker.isPlumaEvent(marked))
+        XCTAssertFalse(SyntheticEventMarker.isPlumaEvent(unmarked))
+    }
+
+    func testIsCapsHeldClearsOnRelease() {
+        let state = CapsTapState()
+        _ = state.verdict(type: .keyDown, keyCode: Int64(kVK_F18))
+        _ = state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_L))
+        XCTAssertTrue(state.isCapsHeld())
+        _ = state.verdict(type: .keyUp, keyCode: Int64(kVK_F18))
+        XCTAssertFalse(state.isCapsHeld())
+    }
+
     func testReleaseAfterChordIsConsumedSilently() {
         var machine = CapsLockStateMachine()
         _ = machine.handle(.capsDown, at: t0)
