@@ -291,22 +291,6 @@ struct ReaderView: View {
     @ViewBuilder
     private var openAIVoiceControls: some View {
         DSSettingRow(
-            "Voice",
-            detail: "The documented built-in voices, filtered to what the selected model supports. No API lists voices."
-        ) {
-            Picker("OpenAI voice", selection: $controller.openAIVoiceID) {
-                ForEach(controller.openAIVoiceOptions) { voice in
-                    Text(voice.title).tag(voice.id)
-                }
-            }
-            .labelsHidden()
-            .frame(width: 180)
-            .focused($isSpeechControlFocused)
-        }
-
-        DSRowDivider()
-
-        DSSettingRow(
             "Model",
             detail: controller.selectedOpenAIModelDetail
         ) {
@@ -317,6 +301,22 @@ struct ReaderView: View {
             }
             .labelsHidden()
             .frame(width: 200)
+            .focused($isSpeechControlFocused)
+        }
+
+        DSRowDivider()
+
+        DSSettingRow(
+            "Voice",
+            detail: "The documented built-in voices, filtered to what the selected model supports. No API lists voices."
+        ) {
+            Picker("OpenAI voice", selection: $controller.openAIVoiceID) {
+                ForEach(controller.openAIVoiceOptions) { voice in
+                    Text(voice.title).tag(voice.id)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 180)
         }
 
         DSRowDivider()

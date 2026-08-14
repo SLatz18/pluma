@@ -348,16 +348,6 @@ struct AISettingsContent: View {
                     .accessibilityIdentifier("ai-reader-speech-engine")
                 }
 
-                DSRowDivider()
-                DSSettingRow(
-                    "Voice",
-                    detail: reader.speechProvider == .openAI
-                        ? "From the documented catalog, filtered to voices the selected model supports — no endpoint lists voices."
-                        : nil
-                ) {
-                    readerVoiceControl
-                }
-
                 if reader.speechProvider == .openAI {
                     DSRowDivider()
                     DSSettingRow("Model", detail: reader.selectedOpenAIModelDetail) {
@@ -376,6 +366,16 @@ struct AISettingsContent: View {
                             reader.refreshOpenAITTSCatalog()
                         }
                     }
+                }
+
+                DSRowDivider()
+                DSSettingRow(
+                    "Voice",
+                    detail: reader.speechProvider == .openAI
+                        ? "From the documented catalog, filtered to voices the selected model supports — no endpoint lists voices."
+                        : nil
+                ) {
+                    readerVoiceControl
                 }
 
                 DSRowDivider()
