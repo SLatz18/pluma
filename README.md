@@ -38,7 +38,7 @@ and a deliberate AppKit overlay — under Swift 6 strict concurrency.
 | **Rewrite** | Stack recipes (Improve, Shorten, Fix Grammar, Professional) into a pipeline. Run it from a global hotkey, the in-app playground, or the clipboard fallback (copy, press ⇪R, paste) for apps where selection fails, like Google Docs. |
 | **Autocomplete** | Debounced ghost text at the caret in other apps. Tab = next word, Shift-Tab = all, Escape dismisses. |
 | **Dictation** | Push-to-talk at the caret. On-device speech by default; optional cleanup; optional OpenAI transcription. Hold ⇪D and speak an intent to draft a reply from the visible conversation. |
-| **Reader** | Speak the selection verbatim, or summarize it with the configured writing model first. Apple on-device voices (with Premium setup help) by default; optional OpenAI or custom OpenAI-compatible endpoint TTS. Press again to stop. |
+| **Reader** | Speak the selection verbatim, or summarize it with the configured writing model first. Apple on-device voices (with Premium setup help) by default; optional cloud TTS (OpenAI, or any OpenAI-compatible endpoint you configure). Press again to stop. |
 | **Screen context** | Opt-in OCR of the frontmost window so names on screen bias dictation and completions. Nothing stored. |
 | **Style memory** | Opt-in local phrases from accepted suggestions (capped). Clear anytime. |
 
@@ -63,8 +63,7 @@ data paths, and the one shared OpenAI Keychain credential.
 | Ollama at `127.0.0.1` | No (loopback only) |
 | Apple Speech dictation | No |
 | Apple speech synthesis (Reader) | No |
-| OpenAI Reader TTS (opt-in) | **Yes — only when you choose it** |
-| Custom endpoint Reader TTS (opt-in) | **Yes — only when you choose it** |
+| Cloud Reader TTS (opt-in; OpenAI or your configured endpoint) | **Yes — only when you choose it** |
 | OpenAI dictation / cleanup (opt-in) | **Yes — only when you choose it** |
 | Analytics / accounts / pluma servers | None |
 

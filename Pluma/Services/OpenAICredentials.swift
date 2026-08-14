@@ -17,11 +17,7 @@ struct OpenAICredentialValidator: @unchecked Sendable {
     }
 
     func validate(apiKey: String) async -> OpenAICredentialValidation {
-        guard let url = URL(string: "https://api.openai.com/v1/models") else {
-            return .unavailable("OpenAI’s validation endpoint could not be created.")
-        }
-
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: OpenAIEndpoint.url("models"))
         request.httpMethod = "GET"
         request.timeoutInterval = 15
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -123,6 +119,31 @@ final class OpenAICredentials: ObservableObject {
     @Published private(set) var hasKey: Bool
     @Published private(set) var state: OpenAICredentialState
     @Published private(set) var revision = 0
+
+    /// The one key pairs with one destination: api.openai.com by default, or a
+    /// custom OpenAI-compatible base URL. Stored here so every settings surface
+    /// binds to the same value; empty string means the default.
+    @Published var endpointBaseURLString: String = Preferences.cloudBaseURLString() {
+        didSet {
+            guard endpointBaseURLString != oldValue else { return }
+            Preferences.setCloudBaseURLString(endpointBaseURLString)
+            revision &+= 1
+        }
+    }
+
+    var isEndpointCustom: Bool {
+        OpenAIEndpoint.validatedBaseURL(endpointBaseURLString) != nil
+    }
+
+    var isEndpointEntryValid: Bool {
+        endpointBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || OpenAIEndpoint.validatedBaseURL(endpointBaseURLString) != nil
+    }
+
+    var keySavedAt: Date? {
+        _ = revision
+        return Preferences.openAIKeySavedAt()
+    }
 
     private let hasStoredKey: @MainActor () -> Bool
     private let keyProvider: @Sendable () -> String?

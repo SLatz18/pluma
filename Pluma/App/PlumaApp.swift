@@ -11,10 +11,11 @@ struct PlumaApp: App {
     @StateObject private var reader: ReaderController
     @StateObject private var developer: DeveloperMode
     @StateObject private var openAICredentials: OpenAICredentials
-    @StateObject private var customTTSCredentials: CustomTTSCredentials
 
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
+        Preferences.migrateCustomTTSEndpointIfNeeded()
+        OpenAIKey.migrateFromLegacyCustomTTSKeyIfNeeded()
         // A clean exit always clears our mapping, so finding it at launch means
         // the last run died. Reset to a known-good keyboard before anything
         // else: drop only our entry (never the user's other remaps) and clear a
@@ -41,7 +42,6 @@ struct PlumaApp: App {
         _reader = StateObject(wrappedValue: ReaderController(overlay: overlay))
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
         _openAICredentials = StateObject(wrappedValue: OpenAICredentials.forCurrentProcess())
-        _customTTSCredentials = StateObject(wrappedValue: CustomTTSCredentials())
 
         CapsLockExpander.shared.startMonitoring()
     }
@@ -62,7 +62,6 @@ struct PlumaApp: App {
                 .environmentObject(reader)
                 .environmentObject(developer)
                 .environmentObject(openAICredentials)
-                .environmentObject(customTTSCredentials)
                 .environmentObject(MemoryStore.shared)
                 .environmentObject(SpellMemoryStore.shared)
                 .environmentObject(StyleProfileStore.shared)

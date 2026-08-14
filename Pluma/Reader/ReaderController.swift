@@ -21,9 +21,6 @@ final class ReaderController: ObservableObject {
     @Published private(set) var openAIModels: [OpenAITTSCatalogOption] = OpenAITTSCatalog.fallbackModels
     @Published private(set) var openAICatalogStatus: String?
     @Published private(set) var isRefreshingOpenAICatalog = false
-    @Published private(set) var customModels: [OpenAITTSCatalogOption] = OpenAITTSCatalog.fallbackModels
-    @Published private(set) var customCatalogStatus: String?
-    @Published private(set) var isRefreshingCustomCatalog = false
 
     @Published var isEnabled: Bool {
         didSet {
@@ -52,9 +49,6 @@ final class ReaderController: ObservableObject {
             if speechProvider == .openAI {
                 refreshOpenAITTSCatalog()
             }
-            if speechProvider == .customOpenAICompatible {
-                refreshCustomTTSCatalog()
-            }
         }
     }
 
@@ -79,23 +73,6 @@ final class ReaderController: ObservableObject {
             Preferences.setOpenAITTSModelID(openAITTSModelID, to: defaults)
             reconcileOpenAIVoiceForSelectedModel()
             configureOpenAISpeechEngine()
-        }
-    }
-
-    @Published var customTTSVoiceID: String {
-        didSet {
-            guard customTTSVoiceID != oldValue else { return }
-            Preferences.setCustomTTSVoiceID(customTTSVoiceID, to: defaults)
-            configureCloudSpeechEngine()
-        }
-    }
-
-    @Published var customTTSModelID: String {
-        didSet {
-            guard customTTSModelID != oldValue else { return }
-            Preferences.setCustomTTSModelID(customTTSModelID, to: defaults)
-            reconcileCustomVoiceForSelectedModel()
-            configureCloudSpeechEngine()
         }
     }
 
@@ -139,40 +116,6 @@ final class ReaderController: ObservableObject {
             ?? OpenAITTSCatalog.detail(forModelID: openAITTSModelID)
     }
 
-    /// The custom endpoint is OpenAI-compatible by definition, so the built-in
-    /// catalog is the picker source — with the stored id appended when it isn't
-    /// a catalog entry, so a hand-configured id never renders as an empty picker.
-    var customVoiceOptions: [OpenAITTSCatalogOption] {
-        var options = OpenAITTSCatalog.voices(compatibleWithModel: customTTSModelID)
-        if !options.contains(where: { $0.id == customTTSVoiceID }) {
-            options.append(OpenAITTSCatalogOption(
-                id: customTTSVoiceID,
-                title: customTTSVoiceID,
-                detail: "Custom voice id.",
-                kind: .builtInVoice
-            ))
-        }
-        return options
-    }
-
-    var customModelOptions: [OpenAITTSCatalogOption] {
-        var options = customModels
-        if !options.contains(where: { $0.id == customTTSModelID }) {
-            options.append(OpenAITTSCatalogOption(
-                id: customTTSModelID,
-                title: customTTSModelID,
-                detail: "Custom model id.",
-                kind: .model
-            ))
-        }
-        return options
-    }
-
-    var selectedCustomModelDetail: String {
-        customModelOptions.first(where: { $0.id == customTTSModelID })?.detail
-            ?? OpenAITTSCatalog.detail(forModelID: customTTSModelID)
-    }
-
     private let defaults: UserDefaults
     private let hotkey = HotkeyManager()
     private let overlay: SuggestionOverlayController
@@ -181,7 +124,6 @@ final class ReaderController: ObservableObject {
     private let textProvider: any ReaderTextProviding
     private let summarizer: any ReaderSummarizing
     private let openAIKeyPresent: () -> Bool
-    private let customEndpointReady: () -> Bool
     private var debouncer = HotkeyDebouncer()
     private var pipelineGeneration = 0
     private var globalEscapeMonitor: Any?
@@ -193,8 +135,7 @@ final class ReaderController: ObservableObject {
         speech: (any SpeechSpeaking)? = nil,
         textProvider: (any ReaderTextProviding)? = nil,
         summarizer: (any ReaderSummarizing)? = nil,
-        openAIKeyPresent: @escaping () -> Bool = { OpenAIKey.isPresent },
-        customEndpointReady: (() -> Bool)? = nil
+        openAIKeyPresent: @escaping () -> Bool = { OpenAIKey.isPresent }
     ) {
         self.defaults = defaults
         self.overlay = overlay
@@ -202,17 +143,12 @@ final class ReaderController: ObservableObject {
         self.textProvider = textProvider ?? LiveReaderTextProvider()
         self.summarizer = summarizer ?? ConfiguredReaderSummarizer(defaults: defaults)
         self.openAIKeyPresent = openAIKeyPresent
-        self.customEndpointReady = customEndpointReady ?? {
-            CustomTTSKey.isPresent && CustomTTSEndpoint.baseURL(from: defaults) != nil
-        }
 
         let enabled = Preferences.readerEnabled(from: defaults)
         let provider = Preferences.readerSpeechProvider(from: defaults)
         let appleVoice = Preferences.readerVoiceIdentifier(from: defaults)
         let cloudVoice = Preferences.openAITTSVoiceID(from: defaults)
         let cloudModel = Preferences.openAITTSModelID(from: defaults)
-        let customVoice = Preferences.customTTSVoiceID(from: defaults)
-        let customModel = Preferences.customTTSModelID(from: defaults)
         let speakingRate = Preferences.readerRate(from: defaults)
         let mode = Preferences.readerDeliveryMode(from: defaults)
         let savedShortcut = Preferences.readerShortcut(from: defaults)
@@ -224,8 +160,6 @@ final class ReaderController: ObservableObject {
         self.voiceIdentifier = appleVoice
         self.openAIVoiceID = cloudVoice
         self.openAITTSModelID = cloudModel
-        self.customTTSVoiceID = customVoice
-        self.customTTSModelID = customModel
         self.rate = speakingRate
         self.deliveryMode = mode
         self.activity = enabled ? .idle : .off
@@ -234,9 +168,6 @@ final class ReaderController: ObservableObject {
         refreshInstalledVoices()
         if provider == .openAI {
             refreshOpenAITTSCatalog()
-        }
-        if provider == .customOpenAICompatible {
-            refreshCustomTTSCatalog()
         }
 
         hotkey.onPress = { [weak self] slot in
@@ -329,52 +260,6 @@ final class ReaderController: ObservableObject {
         )
     }
 
-    func refreshCustomTTSCatalog() {
-        guard isRefreshingCustomCatalog == false else { return }
-        guard let base = CustomTTSEndpoint.baseURL(from: defaults) else {
-            customCatalogStatus = "Add a base URL to check the endpoint's model availability."
-            return
-        }
-        isRefreshingCustomCatalog = true
-        customCatalogStatus = "Checking model availability with your endpoint…"
-
-        let modelsURL = CustomTTSEndpoint.modelsURL(base: base)
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let snapshot = await OpenAITTSCatalogClient.fetch(
-                endpoint: modelsURL,
-                keyProvider: { CustomTTSKey.current },
-                missingKeyMessage: "Add your custom endpoint API key to refresh live model options."
-            )
-            self.applyCustomCatalog(snapshot)
-            self.isRefreshingCustomCatalog = false
-        }
-    }
-
-    private func applyCustomCatalog(_ snapshot: OpenAITTSCatalogClient.Snapshot) {
-        customModels = snapshot.models
-        customTTSModelID = OpenAITTSCatalog.resolveModelID(
-            preferred: customTTSModelID,
-            available: snapshot.models
-        )
-        reconcileCustomVoiceForSelectedModel()
-
-        if let errorMessage = snapshot.errorMessage, snapshot.modelsFromAPI == false {
-            customCatalogStatus = errorMessage
-        } else if snapshot.modelsFromAPI {
-            customCatalogStatus = "Confirmed \(snapshot.models.count) available TTS model\(snapshot.models.count == 1 ? "" : "s") with your endpoint. Voice names use the OpenAI-compatible catalog."
-        } else {
-            customCatalogStatus = "Showing the OpenAI-compatible voice catalog and fallback models."
-        }
-    }
-
-    private func reconcileCustomVoiceForSelectedModel() {
-        customTTSVoiceID = OpenAITTSCatalog.resolveVoiceID(
-            preferred: customTTSVoiceID,
-            available: OpenAITTSCatalog.voices(compatibleWithModel: customTTSModelID)
-        )
-    }
-
     func recordShortcut(_ newShortcut: GlobalShortcut) {
         guard let conflict = Self.conflict(for: newShortcut, defaults: defaults) else {
             shortcutConflict = nil
@@ -438,10 +323,6 @@ final class ReaderController: ObservableObject {
             flash(systemImage: "key", message: OpenAITranscriptionError.missingKey.localizedDescription)
             return
         }
-        if speechProvider == .customOpenAICompatible, customEndpointReady() == false {
-            flash(systemImage: "key", message: Self.customEndpointNotReadyMessage)
-            return
-        }
         startSpeaking(trimmed, message: "Previewing voice…")
     }
 
@@ -481,10 +362,6 @@ final class ReaderController: ObservableObject {
 
         if speechProvider == .openAI, openAIKeyPresent() == false {
             flash(systemImage: "key", message: OpenAITranscriptionError.missingKey.localizedDescription)
-            return
-        }
-        if speechProvider == .customOpenAICompatible, customEndpointReady() == false {
-            flash(systemImage: "key", message: Self.customEndpointNotReadyMessage)
             return
         }
 
@@ -541,7 +418,7 @@ final class ReaderController: ObservableObject {
             from: .reader
         )
         installEscapeMonitors()
-        configureCloudSpeechEngine()
+        configureOpenAISpeechEngine()
         if let openAI = speech as? OpenAISpeechEngine {
             openAI.onPlaybackStarted = { [weak self] in
                 self?.overlay.show(
@@ -598,29 +475,14 @@ final class ReaderController: ObservableObject {
             )
         }
         if speech is OpenAISpeechEngine {
-            configureCloudSpeechEngine()
+            configureOpenAISpeechEngine()
         }
     }
 
-    static let customEndpointNotReadyMessage =
-        "Add a base URL and API key for the custom endpoint in settings"
-
-    /// Keeps `configureOpenAISpeechEngine()` callers working: the shared cloud
-    /// engine carries whichever provider's voice/model pair is active.
     private func configureOpenAISpeechEngine() {
-        configureCloudSpeechEngine()
-    }
-
-    private func configureCloudSpeechEngine() {
-        guard let cloud = speech as? OpenAISpeechEngine else { return }
-        switch speechProvider {
-        case .customOpenAICompatible:
-            cloud.voiceID = customTTSVoiceID
-            cloud.modelID = customTTSModelID
-        case .appleOnDevice, .openAI:
-            cloud.voiceID = openAIVoiceID
-            cloud.modelID = openAITTSModelID
-        }
+        guard let openAI = speech as? OpenAISpeechEngine else { return }
+        openAI.voiceID = openAIVoiceID
+        openAI.modelID = openAITTSModelID
     }
 
     private static func makeSpeechEngine(
@@ -629,12 +491,6 @@ final class ReaderController: ObservableObject {
         switch provider {
         case .appleOnDevice: SystemSpeechEngine()
         case .openAI: OpenAISpeechEngine()
-        case .customOpenAICompatible:
-            OpenAISpeechEngine(synthesize: { text, voiceID, modelID, speed in
-                try await CustomTTSClient.synthesize(
-                    text: text, voiceID: voiceID, modelID: modelID, speed: speed
-                )
-            })
         }
     }
 

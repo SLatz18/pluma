@@ -516,68 +516,72 @@ final class ReaderControllerTests: XCTestCase {
         XCTAssertEqual(controller.activity, .idle)
     }
 
-    @MainActor
-    func testCustomProviderWithoutConfigurationDoesNotSpeak() async {
-        let speech = FakeSpeechEngine()
-        let controller = ReaderController(
-            defaults: defaults,
-            overlay: SuggestionOverlayController(),
-            speech: speech,
-            textProvider: StubTextProvider(source: .selection("custom please")),
-            customEndpointReady: { false }
+    func testCloudEndpointDefaultsToOpenAIAndAcceptsCustomBase() {
+        XCTAssertEqual(
+            OpenAIEndpoint.baseURL(from: defaults).absoluteString,
+            "https://api.openai.com/v1"
         )
-        controller.isEnabled = true
-        controller.speechProvider = .customOpenAICompatible
-        await controller.handlePress()
-        XCTAssertTrue(speech.spoken.isEmpty)
-        XCTAssertEqual(controller.activity, .idle)
+        Preferences.setCloudBaseURLString("https://example.com/openai/v1", to: defaults)
+        XCTAssertEqual(
+            OpenAIEndpoint.baseURL(from: defaults).absoluteString,
+            "https://example.com/openai/v1"
+        )
+        XCTAssertEqual(
+            OpenAIEndpoint.url("audio/speech", from: defaults).absoluteString,
+            "https://example.com/openai/v1/audio/speech"
+        )
+        XCTAssertEqual(
+            OpenAIEndpoint.websocketURL("realtime?intent=transcription", from: defaults).absoluteString,
+            "wss://example.com/openai/v1/realtime?intent=transcription"
+        )
+        Preferences.setCloudBaseURLString("", to: defaults)
+        XCTAssertEqual(
+            OpenAIEndpoint.baseURL(from: defaults).absoluteString,
+            "https://api.openai.com/v1"
+        )
     }
 
-    @MainActor
-    func testCustomProviderWhenConfiguredSpeaks() async {
-        let speech = FakeSpeechEngine()
-        let controller = ReaderController(
-            defaults: defaults,
-            overlay: SuggestionOverlayController(),
-            speech: speech,
-            textProvider: StubTextProvider(source: .selection("custom go")),
-            customEndpointReady: { true }
-        )
-        controller.isEnabled = true
-        controller.speechProvider = .customOpenAICompatible
-        await controller.handlePress()
-        XCTAssertEqual(speech.spoken.map(\.text), ["custom go"])
-        XCTAssertEqual(controller.activity, .reading)
+    func testCloudBaseURLValidationRejectsNonHTTPS() {
+        XCTAssertNil(OpenAIEndpoint.validatedBaseURL(""))
+        XCTAssertNil(OpenAIEndpoint.validatedBaseURL("http://example.com/v1"))
+        XCTAssertNil(OpenAIEndpoint.validatedBaseURL("not a url"))
+        XCTAssertNil(OpenAIEndpoint.validatedBaseURL("https://"))
+        XCTAssertNotNil(OpenAIEndpoint.validatedBaseURL("  https://example.com/v1  "))
     }
 
-    @MainActor
-    func testCustomModelSwitchReconcilesIncompatibleVoice() {
-        let controller = ReaderController(
-            defaults: defaults,
-            overlay: SuggestionOverlayController(),
-            speech: FakeSpeechEngine(),
-            textProvider: StubTextProvider(source: .empty)
-        )
-        controller.customTTSModelID = "gpt-4o-mini-tts"
-        controller.customTTSVoiceID = "marin" // 4o-only voice
-        controller.customTTSModelID = "tts-1" // classic set excludes marin
-
-        XCTAssertNotEqual(controller.customTTSVoiceID, "marin")
+    func testCloudEndpointFailureClassification() {
+        let old = Date(timeIntervalSinceNow: -30 * 24 * 60 * 60)
         XCTAssertTrue(
-            OpenAITTSCatalog.classicModelVoiceIDs.contains(controller.customTTSVoiceID)
+            CloudEndpointFailure.describe(status: 401, data: Data(), isCustomEndpoint: true, keySavedAt: old)
+                .contains("may have expired")
         )
+        XCTAssertTrue(
+            CloudEndpointFailure.describe(status: 403, data: Data(), isCustomEndpoint: true, keySavedAt: Date())
+                .contains("rejected")
+        )
+        // Against OpenAI proper, 401 keeps the standard envelope wording.
+        XCTAssertFalse(
+            CloudEndpointFailure.describe(status: 401, data: Data(), isCustomEndpoint: false, keySavedAt: old)
+                .contains("may have expired")
+        )
+        XCTAssertTrue(CloudEndpointFailure.isConnectionFailure(URLError(.cannotConnectToHost)))
+        XCTAssertTrue(CloudEndpointFailure.isConnectionFailure(URLError(.dnsLookupFailed)))
+        XCTAssertFalse(CloudEndpointFailure.isConnectionFailure(URLError(.badServerResponse)))
+        XCTAssertFalse(CloudEndpointFailure.isConnectionFailure(URLError(.cancelled)))
     }
 
-    @MainActor
-    func testCustomModelOptionsIncludeStoredUnknownID() {
-        Preferences.setCustomTTSModelID("gateway-special-tts", to: defaults)
-        let controller = ReaderController(
-            defaults: defaults,
-            overlay: SuggestionOverlayController(),
-            speech: FakeSpeechEngine(),
-            textProvider: StubTextProvider(source: .empty)
-        )
-        XCTAssertTrue(controller.customModelOptions.contains { $0.id == "gateway-special-tts" })
+    func testLegacyCustomTTSPreferenceMigration() {
+        defaults.set("https://example.com/openai/v1", forKey: "pluma.customTTSBaseURL")
+        defaults.set("customOpenAICompatible", forKey: Preferences.readerSpeechProviderKey)
+        let stamp = Date(timeIntervalSince1970: 1_755_000_000)
+        defaults.set(stamp, forKey: "pluma.customTTSKeySavedAt")
+
+        Preferences.migrateCustomTTSEndpointIfNeeded(defaults: defaults)
+
+        XCTAssertEqual(Preferences.cloudBaseURLString(from: defaults), "https://example.com/openai/v1")
+        XCTAssertEqual(Preferences.readerSpeechProvider(from: defaults), .openAI)
+        XCTAssertEqual(Preferences.openAIKeySavedAt(from: defaults), stamp)
+        XCTAssertNil(defaults.string(forKey: "pluma.customTTSBaseURL"))
     }
 
     @MainActor

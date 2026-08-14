@@ -5,7 +5,6 @@ import Foundation
 enum ReaderSpeechProviderChoice: String, CaseIterable, Codable, Identifiable, Sendable {
     case appleOnDevice
     case openAI
-    case customOpenAICompatible
 
     var id: String { rawValue }
 
@@ -13,15 +12,13 @@ enum ReaderSpeechProviderChoice: String, CaseIterable, Codable, Identifiable, Se
         switch self {
         case .appleOnDevice: "Apple (on device)"
         case .openAI: "OpenAI"
-        case .customOpenAICompatible: "Custom endpoint"
         }
     }
 
     var detail: String {
         switch self {
         case .appleOnDevice: "System voices. Premium downloads stay on this Mac."
-        case .openAI: "Sends the text to OpenAI for speech."
-        case .customOpenAICompatible: "Sends the text to an OpenAI-compatible endpoint you configure."
+        case .openAI: "Sends the text to OpenAI, or the custom endpoint configured in AI settings."
         }
     }
 
@@ -29,7 +26,6 @@ enum ReaderSpeechProviderChoice: String, CaseIterable, Codable, Identifiable, Se
         switch self {
         case .appleOnDevice: "laptopcomputer"
         case .openAI: "cloud"
-        case .customOpenAICompatible: "server.rack"
         }
     }
 
@@ -37,7 +33,6 @@ enum ReaderSpeechProviderChoice: String, CaseIterable, Codable, Identifiable, Se
         switch self {
         case .appleOnDevice: true
         case .openAI: false
-        case .customOpenAICompatible: false
         }
     }
 

@@ -36,6 +36,9 @@ enum OpenAIKey {
             secret.invalidate()
         }
         try KeychainStore.save(value, for: account)
+        // Custom gateways rotate keys (commonly every ~28 days); the save date
+        // powers an "is this key old?" hint when the endpoint starts rejecting.
+        Preferences.setOpenAIKeySavedAt(Date())
     }
 
     @MainActor
@@ -45,6 +48,20 @@ enum OpenAIKey {
             secret.invalidate()
         }
         try KeychainStore.remove(account: account)
+        Preferences.setOpenAIKeySavedAt(nil)
+    }
+
+    /// One-time migration from the short-lived separate custom-TTS credential:
+    /// adopt its secret as THE cloud key when no key is stored yet, then drop
+    /// the legacy item either way.
+    @MainActor
+    static func migrateFromLegacyCustomTTSKeyIfNeeded() {
+        let legacyAccount = "customTTS.apiKey"
+        guard KeychainStore.hasValue(for: legacyAccount) else { return }
+        if !isPresent, let value = KeychainStore.string(for: legacyAccount) {
+            try? save(value)
+        }
+        try? KeychainStore.remove(account: legacyAccount)
     }
 }
 

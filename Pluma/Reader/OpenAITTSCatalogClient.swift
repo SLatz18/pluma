@@ -6,7 +6,7 @@ import Foundation
 /// a GET endpoint for built-in or custom voices, so voices remain a curated
 /// catalog based on the speech endpoint's documented accepted values.
 enum OpenAITTSCatalogClient {
-    static let modelsEndpoint = URL(string: "https://api.openai.com/v1/models")!
+    static var modelsEndpoint: URL { OpenAIEndpoint.url("models") }
 
     struct Snapshot: Sendable {
         var models: [OpenAITTSCatalogOption]

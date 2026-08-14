@@ -218,7 +218,7 @@ final class OpenAITranscriptionEngine: DictationTranscribing {
 
     nonisolated static func realtimeRequest(key: String) -> URLRequest {
         var request = URLRequest(
-            url: URL(string: "wss://api.openai.com/v1/realtime?intent=transcription")!
+            url: OpenAIEndpoint.websocketURL("realtime?intent=transcription")
         )
         request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
         request.setValue("realtime=v1", forHTTPHeaderField: "OpenAI-Beta")

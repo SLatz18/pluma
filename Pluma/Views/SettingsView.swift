@@ -495,8 +495,7 @@ struct SettingsPageView: View {
     private var readerProcessingPath: String {
         switch reader.speechProvider {
         case .appleOnDevice: "Spoken on this Mac. Text is not stored."
-        case .openAI: "Text sent to OpenAI for speech. Not stored by pluma."
-        case .customOpenAICompatible: "Text sent to your custom endpoint for speech. Not stored by pluma."
+        case .openAI: "Text sent to the configured cloud endpoint for speech. Not stored by pluma."
         }
     }
 

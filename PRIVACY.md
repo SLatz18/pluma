@@ -38,14 +38,13 @@ engine. One credential is shared by those opt-in features. In those modes:
 The AI control center and the Dictation and Reader pages state which path is
 active before you talk or listen.
 
-## Optional custom endpoint (Reader speech)
+## Optional custom endpoint
 
-Reader speech can instead target a custom OpenAI-compatible endpoint you
-configure — a service you run or trust, reached at a base URL you enter on
-Settings → AI. In that mode the text being spoken is sent to that endpoint,
-authenticated with a separate API key stored in the macOS Keychain. pluma
-sends nothing to that endpoint unless you select it as the Reader speech
-engine, and never sends any other feature's content there.
+The OpenAI path's destination is configurable: by default requests go to
+OpenAI's API, or you can point the same features at a custom OpenAI-compatible
+endpoint you run or trust (a base URL entered on Settings → AI). The one
+stored key authenticates against whichever endpoint is selected. Everything
+above about what is sent — and when — applies unchanged to a custom endpoint.
 
 ## What pluma reads
 
@@ -59,7 +58,7 @@ engine, and never sends any other feature's content there.
 | Spelling memory (opt-in) | Accepted misspelling → correction pairs | Local JSON, capped at 200 entries |
 | Style profile (opt-in) | Imported writing guide | Local markdown, capped at 3,000 characters |
 | Dictation | Microphone while the shortcut is held | No audio on disk; transcript in memory for one insertion |
-| Reader | Selected text, or the clipboard if nothing is selected; optional in-memory summary; optional OpenAI or custom-endpoint speech request | No — spoken in memory, not stored |
+| Reader | Selected text, or the clipboard if nothing is selected; optional in-memory summary; optional cloud speech request (OpenAI or your configured endpoint) | No — spoken in memory, not stored |
 
 Password fields (`AXSecureTextField`) are never read for autocomplete or Reader.
 
