@@ -585,6 +585,24 @@ final class ReaderControllerTests: XCTestCase {
     }
 
     @MainActor
+    func testModelSwitchReconcilesIncompatibleVoice() {
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: FakeSpeechEngine(),
+            textProvider: StubTextProvider(source: .empty)
+        )
+        controller.openAITTSModelID = "gpt-4o-mini-tts"
+        controller.openAIVoiceID = "marin" // 4o-only voice
+        controller.openAITTSModelID = "tts-1" // classic set excludes marin
+
+        XCTAssertNotEqual(controller.openAIVoiceID, "marin")
+        XCTAssertTrue(
+            OpenAITTSCatalog.classicModelVoiceIDs.contains(controller.openAIVoiceID)
+        )
+    }
+
+    @MainActor
     func testSpeechFailureFlashSurvivesFinish() async {
         let speech = FakeSpeechEngine()
         let overlay = SuggestionOverlayController()

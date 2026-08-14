@@ -292,7 +292,7 @@ struct ReaderView: View {
     private var openAIVoiceControls: some View {
         DSSettingRow(
             "Voice",
-            detail: "OpenAI’s documented built-in voices. The API does not provide a voice-list endpoint."
+            detail: "The documented built-in voices, filtered to what the selected model supports. No API lists voices."
         ) {
             Picker("OpenAI voice", selection: $controller.openAIVoiceID) {
                 ForEach(controller.openAIVoiceOptions) { voice in

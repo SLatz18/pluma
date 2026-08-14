@@ -349,7 +349,12 @@ struct AISettingsContent: View {
                 }
 
                 DSRowDivider()
-                DSSettingRow("Voice") {
+                DSSettingRow(
+                    "Voice",
+                    detail: reader.speechProvider == .openAI
+                        ? "From the documented catalog, filtered to voices the selected model supports — no endpoint lists voices."
+                        : nil
+                ) {
                     readerVoiceControl
                 }
 
@@ -364,7 +369,7 @@ struct AISettingsContent: View {
                         .labelsHidden()
                         .frame(width: 200)
                         modelRefreshButton(
-                            help: "Re-query available TTS models from OpenAI",
+                            help: "Re-query available TTS models from the endpoint. The voice list updates to match the selected model.",
                             isRefreshing: reader.isRefreshingOpenAICatalog,
                             isEnabled: credentials.hasKey
                         ) {
