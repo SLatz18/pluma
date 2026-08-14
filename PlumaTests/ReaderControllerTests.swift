@@ -254,6 +254,25 @@ final class ReaderControllerTests: XCTestCase {
         XCTAssertTrue(conflict?.contains("Draft a Reply") == true)
     }
 
+    @MainActor
+    func testDismissingShortcutConflictKeepsTheCurrentShortcut() {
+        let controller = ReaderController(
+            defaults: defaults,
+            overlay: SuggestionOverlayController(),
+            speech: FakeSpeechEngine(),
+            textProvider: StubTextProvider(source: .empty)
+        )
+        let originalShortcut = controller.shortcut
+
+        controller.recordShortcut(.dictationDefault)
+        XCTAssertNotNil(controller.shortcutConflict)
+        XCTAssertEqual(controller.shortcut, originalShortcut)
+
+        controller.clearShortcutConflict()
+        XCTAssertNil(controller.shortcutConflict)
+        XCTAssertEqual(controller.shortcut, originalShortcut)
+    }
+
     // MARK: - Controller
 
     @MainActor

@@ -97,6 +97,10 @@ final class ClipboardRewriteController: ObservableObject {
         shortcutConflict = conflict
     }
 
+    func clearShortcutConflict() {
+        shortcutConflict = nil
+    }
+
     // Carbon refuses the same chord twice in one process, so a collision would
     // leave one feature silently dead rather than erroring. Pure function of its
     // arguments, so nonisolated: nothing here touches actor state.

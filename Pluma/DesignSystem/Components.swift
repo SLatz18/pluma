@@ -248,6 +248,7 @@ struct DSShortcutCard: View {
     let shortcut: GlobalShortcut
     @Binding var isRecording: Bool
     var conflict: String? = nil
+    var onDismissConflict: () -> Void = {}
     let onRecord: (GlobalShortcut) -> Void
 
     var body: some View {
@@ -275,6 +276,7 @@ struct DSShortcutCard: View {
                 ShortcutRecorderView(
                     shortcut: shortcut,
                     isRecording: $isRecording,
+                    onDismissConflict: onDismissConflict,
                     onRecord: onRecord
                 )
             }

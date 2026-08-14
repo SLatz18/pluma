@@ -141,7 +141,8 @@ private struct ClipboardFallbackSection: View {
 
                         ShortcutRecorderView(
                             shortcut: clipboardRewrite.shortcut,
-                            isRecording: $isRecording
+                            isRecording: $isRecording,
+                            onDismissConflict: clipboardRewrite.clearShortcutConflict
                         ) { shortcut in
                             clipboardRewrite.recordShortcut(shortcut)
                         }

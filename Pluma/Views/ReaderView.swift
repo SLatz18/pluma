@@ -10,6 +10,7 @@ struct ReaderView: View {
     @State private var playgroundText = ""
     @State private var hasOpenAIKey = OpenAIKey.isPresent
     @State private var apiKeyDraft = ""
+    @FocusState private var isPlaygroundFocused: Bool
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -133,7 +134,8 @@ struct ReaderView: View {
                 : "Press again to stop. Caps Lock L works when Caps shortcuts are on in Settings.",
             shortcut: controller.shortcut,
             isRecording: $isRecording,
-            conflict: controller.shortcutConflict
+            conflict: controller.shortcutConflict,
+            onDismissConflict: controller.clearShortcutConflict
         ) { shortcut in
             controller.recordShortcut(shortcut)
         }
@@ -208,7 +210,13 @@ struct ReaderView: View {
                 ForEach(controller.voiceSections, id: \.tier) { section in
                     Section(section.title) {
                         ForEach(section.voices, id: \.identifier) { voice in
-                            Text(voice.name).tag(voice.identifier)
+                            Text(
+                                ReaderVoiceCatalog.pickerLabel(
+                                    name: voice.name,
+                                    languageCode: voice.language
+                                )
+                            )
+                            .tag(voice.identifier)
                         }
                     }
                 }
@@ -368,6 +376,7 @@ struct ReaderView: View {
                 HStack {
                     Spacer()
                     Button {
+                        isPlaygroundFocused = false
                         Task { await controller.speakPlaygroundText(playgroundText) }
                     } label: {
                         if controller.activity == .processing || controller.activity == .reading {
@@ -385,13 +394,19 @@ struct ReaderView: View {
                     )
                 }
 
-                TextEditor(text: $playgroundText)
+                TextEditor(text: playgroundTextBinding)
                     .font(.body)
                     .scrollContentBackground(.hidden)
                     .padding(10)
                     .frame(maxWidth: .infinity, minHeight: 132)
                     .dsInsetSurface()
-                    .disabled(controller.activity == .processing || controller.activity == .reading)
+                    .focused($isPlaygroundFocused)
+                    .disabled(isPlaygroundBusy)
+                    .onChange(of: isPlaygroundBusy) { _, isBusy in
+                        if isBusy {
+                            isPlaygroundFocused = false
+                        }
+                    }
             }
             .dsCard()
         }
@@ -435,19 +450,53 @@ struct ReaderView: View {
     }
 
     private var flowDefinition: FeatureDefinition {
-        guard controller.deliveryMode == .summarizeWhenHelpful else { return .reader }
+        Self.flowDefinition(
+            deliveryMode: controller.deliveryMode,
+            speechProvider: controller.speechProvider
+        )
+    }
+
+    static func flowDefinition(
+        deliveryMode: ReaderDeliveryMode,
+        speechProvider: ReaderSpeechProviderChoice
+    ) -> FeatureDefinition {
+        let isSummary = deliveryMode == .summarizeWhenHelpful
+        let result: String = switch (isSummary, speechProvider) {
+        case (false, .appleOnDevice): "Speak it on this Mac"
+        case (false, .openAI): "Speak it with OpenAI"
+        case (true, .appleOnDevice): "Speak the summary on this Mac"
+        case (true, .openAI): "Speak the summary with OpenAI"
+        }
         return FeatureDefinition(
             id: .reader,
             name: "Reader",
             symbolName: "speaker.wave.2",
             tint: .reader,
             trigger: "Select text and press the shortcut",
-            action: "Summarize when helpful",
-            result: controller.speechProvider.isLocal
-                ? "Speak the summary on this Mac"
-                : "Speak the summary with OpenAI",
-            enabledStatus: "Ready to summarize and read selected text",
+            action: isSummary ? "Summarize when helpful" : "Read it verbatim",
+            result: result,
+            enabledStatus: isSummary
+                ? "Ready to summarize and read selected text"
+                : "Ready to read selected text",
             disabledStatus: "Reader is off"
+        )
+    }
+
+    static func allowsPlaygroundEditing(during activity: ReaderActivity) -> Bool {
+        activity != .processing && activity != .reading
+    }
+
+    private var isPlaygroundBusy: Bool {
+        !Self.allowsPlaygroundEditing(during: controller.activity)
+    }
+
+    private var playgroundTextBinding: Binding<String> {
+        Binding(
+            get: { playgroundText },
+            set: { newValue in
+                guard !isPlaygroundBusy else { return }
+                playgroundText = newValue
+            }
         )
     }
 

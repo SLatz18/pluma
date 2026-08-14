@@ -86,7 +86,8 @@ struct DictationView: View {
                 : "Hold Caps Lock Space when Caps shortcuts are on in Settings, or record any shortcut.",
             shortcut: controller.shortcut,
             isRecording: $isRecording,
-            conflict: controller.shortcutConflict
+            conflict: controller.shortcutConflict,
+            onDismissConflict: controller.clearShortcutConflict
         ) { shortcut in
             controller.recordShortcut(shortcut)
         }

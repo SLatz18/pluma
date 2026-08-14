@@ -18,7 +18,8 @@ struct AnywhereCard: View {
             detail: detail,
             shortcut: controller.shortcut,
             isRecording: $isRecording,
-            conflict: controller.shortcutConflict
+            conflict: controller.shortcutConflict,
+            onDismissConflict: controller.clearShortcutConflict
         ) { shortcut in
             controller.recordShortcut(shortcut)
         }

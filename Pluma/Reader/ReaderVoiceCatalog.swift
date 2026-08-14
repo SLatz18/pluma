@@ -42,8 +42,15 @@ enum ReaderVoiceCatalog {
         let tier: Tier
 
         var pickerLabel: String {
-            "\(voice.name) (\(tier.title))"
+            ReaderVoiceCatalog.pickerLabel(
+                name: voice.name,
+                languageCode: voice.language
+            )
         }
+    }
+
+    static func pickerLabel(name: String, languageCode: String) -> String {
+        "\(name) · \(languageCode)"
     }
 
     static func tier(for voice: AVSpeechSynthesisVoice) -> Tier {
