@@ -40,10 +40,18 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
   WHEN → THEN → RESULT flow, and overlay presentations (`DS.*`).
 - `Views/MainWindowView.swift` — the single window (`Window` scene, no
   Settings scene). Sidebar: Overview / Rewrite / Autocomplete / Dictation /
-  Reader, then a Settings group (General / Writing / Privacy, rendered by
+  Reader, then a Settings group (General / AI / Writing / Privacy, rendered by
   `SettingsPageView`) + Developer when unlocked. `MainNavigation.shared` is
-  the one selection; ⌘,, the menu bar Settings… item, and
-  `DSSharedSettingLink` all route through it.
+  the one selection plus contextual focus/return route; ⌘,, the menu bar
+  Settings… item, and `DSSharedSettingLink` all route through it.
+- `Views/AISettingsContent.swift` — the editable AI control center. Provider,
+  model, and voice controls bind directly to `RewriteViewModel`,
+  `DictationController`, and `ReaderController`; never mirror their selection
+  state. Feature-local controls may remain when they use those same bindings.
+- `Services/OpenAICredentials.swift` — the sole observable OpenAI credential
+  presence/validation state. The secret itself stays in Keychain and engines
+  read it only at request time. Views must not add local `hasKey` state or a
+  second key editor.
 - `Providers/RewriteRunner.swift` — chain runner. The `@MainActor` variant
   reports progress; the nonisolated variant exists because the macOS Services
   handler blocks its thread on a semaphore (a MainActor hop would deadlock).

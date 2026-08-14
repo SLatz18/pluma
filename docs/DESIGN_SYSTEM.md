@@ -28,19 +28,27 @@ Feature pages use `DSFeaturePage`, which supplies the shared header and
 WHEN → THEN → RESULT flow. Put feature-specific controls below it.
 
 There is one window and one navigation. Settings are ordinary sidebar pages
-(General, Writing, Privacy — a "Settings" sidebar group rendered by
+(General, AI, Writing, Privacy — a "Settings" sidebar group rendered by
 `SettingsPageView`), not a second window; ⌘, and the menu bar's Settings…
-select the General page. Shared writing, context, style, and privacy settings
+select the General page. Shared AI, context, style, and privacy settings
 appear once on those pages and are referenced from features with
 `DSSharedSettingLink`, which navigates the sidebar to the page it names.
 
-The boundary is strict in both directions: anything that configures a single
-feature — including every one of its shortcuts — lives on that feature's page,
-never on a settings page; settings pages hold only cross-feature concerns (app
-behavior, Caps Lock, shared writing model and context, privacy). A feature's
+The AI page is the one control center for every engine, model, voice, data-path
+badge, and shared OpenAI credential. It binds directly to each owning feature
+controller: never copy a selector into page-local state and never add a global
+provider or model that erases feature-specific choices. Feature pages may show
+the same selector when it helps the workflow, but it must use the identical
+binding. Enablement, shortcuts, recipes, Reader rate, and playgrounds remain on
+their feature pages. Other settings pages hold only cross-feature concerns (app
+behavior, Caps Lock, writing context and style, privacy). A feature's
 display name comes from `FeatureDefinition.name` and is the same string in the
 menu bar, the page hero toggle, and the Overview card — surfaces may add
 detail (a shortcut hint) but never rename the feature.
+
+AI → feature links use a contextual target and return route. They must land on
+the exact section they name, focus the relevant control when possible, and
+offer a predictable return to the originating AI section.
 
 Use:
 

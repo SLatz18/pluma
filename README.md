@@ -41,7 +41,9 @@ Default hotkeys use Caps Lock chords (⇪E rewrite, ⇪R rewrite what I copied,
 **Use Caps Lock for shortcuts** in Settings → General, or keep using
 [Hyperkey](https://hyperkey.app), or record any ordinary shortcut in-app with
 **Change…**. Settings live in the sidebar of the one pluma window — ⌘, or the
-menu bar icon takes you there.
+menu bar icon takes you there. Settings → AI is the unified control center for
+writing engines, dictation transcription and cleanup, Reader voices/models,
+data paths, and the one shared OpenAI Keychain credential.
 
 ## Privacy in one screen
 

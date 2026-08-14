@@ -3,14 +3,15 @@ import SwiftUI
 struct DictationView: View {
     @EnvironmentObject private var controller: DictationController
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
+    @EnvironmentObject private var credentials: OpenAICredentials
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var navigation = MainNavigation.shared
 
     @State private var isRecording = false
     @State private var isRecordingDraft = false
-    @State private var apiKeyDraft = ""
-    @State private var hasKey = OpenAIKey.isPresent
     @State private var ollamaModels: [String] = []
     @State private var showAdvanced = false
+    @FocusState private var isEnginePickerFocused: Bool
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -20,8 +21,11 @@ struct DictationView: View {
     var body: some View {
         DSFeaturePage(
             .dictation,
-            subtitle: "Hold the shortcut and talk. Release it to insert your words."
+            subtitle: "Hold the shortcut and talk. Release it to insert your words.",
+            scrollTarget: featureScrollTarget
         ) {
+            DSContextualBackLink(page: .dictation)
+
             heroCard
 
             shortcutCard
@@ -49,6 +53,13 @@ struct DictationView: View {
             if controller.ollamaModel.isEmpty, let first = ollamaModels.first {
                 controller.ollamaModel = first
             }
+        }
+        .onAppear { applyNavigationFocus(navigation.focus) }
+        .onChange(of: navigation.focus) { _, focus in
+            applyNavigationFocus(focus)
+        }
+        .onChange(of: credentials.revision) {
+            Task { await controller.prepare() }
         }
     }
 
@@ -152,7 +163,8 @@ struct DictationView: View {
     private var transcriptionSection: some View {
         DSSection(
             "Transcription and cleanup",
-            detail: "After you speak, polish and insert."
+            detail: "After you speak, polish and insert.",
+            identifier: NavigationFocus.dictationEngines.scrollTarget
         ) {
             VStack(spacing: 0) {
                 DSToggleRow(
@@ -177,6 +189,7 @@ struct DictationView: View {
                             }
                             .labelsHidden()
                             .frame(width: 160)
+                            .focused($isEnginePickerFocused)
                         }
 
                         if controller.cleanupEnabled {
@@ -199,7 +212,7 @@ struct DictationView: View {
 
                         if usesOpenAI {
                             DSRowDivider()
-                            apiKeyRow
+                            openAICredentialRow
                         }
                     }
                     .padding(.top, DS.Spacing.medium)
@@ -217,6 +230,7 @@ struct DictationView: View {
             .animation(DS.Motion.reveal(reduceMotion: reduceMotion), value: controller.cleanupEnabled)
             .dsCard()
         }
+        .id(NavigationFocus.dictationEngines.scrollTarget)
     }
 
     // MARK: Recipe
@@ -311,38 +325,19 @@ struct DictationView: View {
         }
     }
 
-    private var apiKeyRow: some View {
-        HStack(spacing: 10) {
-            Image(systemName: hasKey ? "key.fill" : "key")
-                .font(DS.cardBody.weight(.semibold))
-                .foregroundStyle(hasKey ? .green : .orange)
-                .frame(width: 18)
-            if hasKey {
-                Text("API key stored in the keychain")
-                    .font(DS.meta)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("Remove") {
-                    OpenAIKey.clear()
-                    hasKey = false
-                    apiKeyDraft = ""
-                    Task { await controller.prepare() }
-                }
-                .controlSize(.small)
-            } else {
-                SecureField("OpenAI API key", text: $apiKeyDraft)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 280)
-                Button("Save") {
-                    OpenAIKey.save(apiKeyDraft)
-                    hasKey = OpenAIKey.isPresent
-                    apiKeyDraft = ""
-                    Task { await controller.prepare() }
-                }
-                .controlSize(.small)
-                .disabled(apiKeyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-                Spacer()
-            }
+    private var openAICredentialRow: some View {
+        DSNoticeRow(
+            systemImage: credentials.hasKey ? "key.fill" : "key",
+            tint: credentialTint,
+            text: credentials.state.detail,
+            actionTitle: "Manage in AI"
+        ) {
+            navigation.navigate(
+                to: .ai,
+                focus: .aiOpenAIKey,
+                returningTo: .dictation,
+                returnFocus: .dictationEngines
+            )
         }
     }
 
@@ -358,6 +353,28 @@ struct DictationView: View {
 
     private var usesOpenAI: Bool {
         controller.provider == .openAI || controller.cleanupProvider == .openAI
+    }
+
+    private var credentialTint: Color {
+        switch credentials.state {
+        case .ready: .green
+        case .invalid, .keychainFailure: .red
+        default: .orange
+        }
+    }
+
+    private var featureScrollTarget: String? {
+        guard navigation.focus?.page == .dictation else { return nil }
+        return navigation.focus?.scrollTarget
+    }
+
+    private func applyNavigationFocus(_ focus: NavigationFocus?) {
+        guard focus == .dictationEngines else { return }
+        showAdvanced = true
+        Task { @MainActor in
+            await Task.yield()
+            isEnginePickerFocused = true
+        }
     }
 
     // Stated per selection rather than as a blanket claim, because the honest
