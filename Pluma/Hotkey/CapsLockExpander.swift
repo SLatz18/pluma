@@ -73,7 +73,12 @@ final class CapsTapState: @unchecked Sendable {
         return machine.capsHeld
     }
 
-    func verdict(type: CGEventType, keyCode: Int64, isSynthetic: Bool = false) -> CapsTapVerdict {
+    func verdict(
+        type: CGEventType,
+        keyCode: Int64,
+        isSynthetic: Bool = false,
+        isAutorepeat: Bool = false
+    ) -> CapsTapVerdict {
         lock.lock()
         defer { lock.unlock() }
 
@@ -111,7 +116,7 @@ final class CapsTapState: @unchecked Sendable {
             return map(machine.handle(.capsUp, at: now))
         }
         if type == .keyDown {
-            return map(machine.handle(.otherKeyDown, at: now))
+            return map(machine.handle(isAutorepeat ? .otherKeyRepeat : .otherKeyDown, at: now))
         }
         if type == .keyUp {
             return map(machine.handle(.otherKeyUp, at: now))
@@ -150,7 +155,8 @@ private func capsTapCallback(
     switch state.verdict(
         type: type,
         keyCode: keyCode,
-        isSynthetic: SyntheticEventMarker.isPlumaEvent(event)
+        isSynthetic: SyntheticEventMarker.isPlumaEvent(event),
+        isAutorepeat: event.getIntegerValueField(.keyboardEventAutorepeat) != 0
     ) {
     case .consume:
         return nil

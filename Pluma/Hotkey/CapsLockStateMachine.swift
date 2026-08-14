@@ -20,6 +20,8 @@ enum CapsLockExpanderEvent: Sendable {
     case capsDown
     case capsUp
     case otherKeyDown
+    /// OS autorepeat of a non-Caps key (keyboardEventAutorepeat set).
+    case otherKeyRepeat
     case otherKeyUp
     /// Synthetic: poll / tap-disabled / wake asked us to abandon a hold.
     case forceRelease
@@ -78,6 +80,15 @@ struct CapsLockStateMachine: Sendable {
             guard capsHeld else { return .passUnmodified }
             usedAsModifier = true
             return .passWithCapsChord
+        case .otherKeyRepeat:
+            // A chord fires once per physical press. Passing autorepeats with
+            // the chord re-triggered the target shortcut for as long as the
+            // keys stayed down (a held ⇪2 reopened the screenshot tool over
+            // and over). Consuming — not passing unmodified — also keeps the
+            // repeats from typing the bare character mid-chord.
+            guard capsHeld else { return .passUnmodified }
+            usedAsModifier = true
+            return .consume
         case .otherKeyUp:
             // Chord the release if still held, but do not mark usedAsModifier —
             // a key that went down before Caps must not suppress a Caps tap.

@@ -66,6 +66,49 @@ final class CapsLockExpanderTests: XCTestCase {
         XCTAssertFalse(state.isCapsHeld())
     }
 
+    // A chord fires once per physical press: OS autorepeat of the chorded key
+    // must be swallowed, not re-sent with the Caps chord (a held ⇪2 kept
+    // reopening the screenshot tool).
+    func testAutorepeatWhileHeldIsConsumedNotRefired() {
+        var machine = CapsLockStateMachine()
+        _ = machine.handle(.capsDown, at: t0)
+        XCTAssertEqual(machine.handle(.otherKeyDown, at: t0 + 0.05), .passWithCapsChord)
+        XCTAssertEqual(machine.handle(.otherKeyRepeat, at: t0 + 0.4), .consume)
+        XCTAssertEqual(machine.handle(.otherKeyRepeat, at: t0 + 0.5), .consume)
+        XCTAssertEqual(machine.handle(.otherKeyUp, at: t0 + 0.6), .passWithCapsChord)
+        // The repeat marked the hold as used, so release must not toggle Caps Lock.
+        XCTAssertEqual(machine.handle(.capsUp, at: t0 + 0.7), .consume)
+    }
+
+    func testAutorepeatWithoutCapsPassesUnmodified() {
+        var machine = CapsLockStateMachine()
+        XCTAssertEqual(machine.handle(.otherKeyDown, at: t0), .passUnmodified)
+        XCTAssertEqual(machine.handle(.otherKeyRepeat, at: t0 + 0.4), .passUnmodified)
+    }
+
+    func testDistinctPressesEachFireTheChord() {
+        var machine = CapsLockStateMachine()
+        _ = machine.handle(.capsDown, at: t0)
+        for i in 0..<4 {
+            let at = t0 + 0.1 + Double(i) * 0.2
+            XCTAssertEqual(machine.handle(.otherKeyDown, at: at), .passWithCapsChord)
+            XCTAssertEqual(machine.handle(.otherKeyUp, at: at + 0.05), .passWithCapsChord)
+        }
+    }
+
+    func testVerdictRoutesAutorepeatKeyDowns() {
+        let state = CapsTapState()
+        _ = state.verdict(type: .keyDown, keyCode: Int64(kVK_F18))
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2)),
+            .passWithCapsChord
+        )
+        XCTAssertEqual(
+            state.verdict(type: .keyDown, keyCode: Int64(kVK_ANSI_2), isAutorepeat: true),
+            .consume
+        )
+    }
+
     func testReleaseAfterChordIsConsumedSilently() {
         var machine = CapsLockStateMachine()
         _ = machine.handle(.capsDown, at: t0)
