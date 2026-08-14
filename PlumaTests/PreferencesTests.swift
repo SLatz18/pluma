@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 @testable import Pluma
 
@@ -40,5 +41,28 @@ final class PreferencesTests: XCTestCase {
         XCTAssertEqual(Preferences.provider(from: defaults), .ollama)
         XCTAssertEqual(Preferences.intent(from: defaults), .professional)
         XCTAssertEqual(Preferences.ollamaModel(from: defaults), "qwen3:8b")
+    }
+
+    func testDictationMicDefaultsToSystemAndRoundTrips() {
+        XCTAssertEqual(Preferences.dictationMicUID(from: defaults), "")
+        XCTAssertEqual(Preferences.dictationMicName(from: defaults), "")
+
+        Preferences.setDictationMic(uid: "BuiltInMicUID", name: "MacBook Pro Microphone", to: defaults)
+        XCTAssertEqual(Preferences.dictationMicUID(from: defaults), "BuiltInMicUID")
+        XCTAssertEqual(Preferences.dictationMicName(from: defaults), "MacBook Pro Microphone")
+
+        // Selecting the system default clears the pin and its display name.
+        Preferences.setDictationMic(uid: "", name: "", to: defaults)
+        XCTAssertEqual(Preferences.dictationMicUID(from: defaults), "")
+        XCTAssertEqual(Preferences.dictationMicName(from: defaults), "")
+    }
+
+    func testMissingPinnedMicFallsBackToSystemDefault() {
+        Preferences.setDictationMic(uid: "no-such-device-uid", name: "Ghost Mic", to: defaults)
+        XCTAssertFalse(MicrophoneSelection.isPinnedMicrophoneAvailable(from: defaults))
+        // Capture must not fail hard on a missing pin: it resolves to the
+        // system default device (or nil only when the Mac has no input at all).
+        let resolved = MicrophoneSelection.captureDevice(from: defaults)
+        XCTAssertEqual(resolved?.uniqueID, AVCaptureDevice.default(for: .audio)?.uniqueID)
     }
 }
