@@ -1,7 +1,7 @@
 # pluma
 
 <p align="center">
-  <img src="Pluma/Resources/Assets.xcassets/AppIcon.appiconset/icon_512x512.png" alt="plumafina app icon" width="180">
+  <img src="docs/images/plumafina-icon.png" alt="plumafina app icon" width="180">
 </p>
 
 **pluma** is a native macOS writing layer — on-device by default, cross-app by design.
