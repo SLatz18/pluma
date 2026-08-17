@@ -478,8 +478,14 @@ final class SuggestionOverlayController {
                 panel.orderFrontRegardless()
                 return
             }
+            // Autocomplete's pill earns a small rise as it fades in — it is
+            // arriving unbidden and the motion announces it. Dictation's does
+            // not: the writer pressed a key and is looking straight at the
+            // caret, so a 5pt lift reads as the pill drifting rather than
+            // entering. Fade it in where it will stay.
+            let rise = currentOwner == .dictation ? 0 : DS.Motion.rise
             panel.alphaValue = 0
-            panel.setFrameOrigin(CGPoint(x: target.x, y: target.y - DS.Motion.rise))
+            panel.setFrameOrigin(CGPoint(x: target.x, y: target.y - rise))
             panel.orderFrontRegardless()
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = DS.Motion.present
