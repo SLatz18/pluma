@@ -30,7 +30,7 @@ struct ReaderView: View {
 
             shortcutCard
 
-            listeningRecipeSection
+            listeningModeSection
 
             speechProviderSection
 
@@ -73,11 +73,11 @@ struct ReaderView: View {
         )
     }
 
-    private var listeningRecipeSection: some View {
+    private var listeningModeSection: some View {
         DSSection(
-            "Recipe",
+            "Listening mode",
             detail: "Choose how Reader prepares the selection before speaking.",
-            identifier: NavigationFocus.readerRecipe.scrollTarget
+            identifier: NavigationFocus.readerListening.scrollTarget
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
                 ForEach(ReaderDeliveryMode.allCases) { mode in
@@ -95,7 +95,7 @@ struct ReaderView: View {
                 }
             }
 
-            listeningPipelineStrip
+            listeningPathStrip
 
             if controller.deliveryMode == .summarizeWhenHelpful {
                 DSSharedSettingLink(
@@ -105,16 +105,16 @@ struct ReaderView: View {
                     destination: .ai,
                     focus: .aiWriting,
                     returnToCurrentPage: true,
-                    returnFocus: .readerRecipe
+                    returnFocus: .readerListening
                 )
                 .dsCard()
             }
         }
-        .id(NavigationFocus.readerRecipe.scrollTarget)
+        .id(NavigationFocus.readerListening.scrollTarget)
     }
 
-    private var listeningPipelineStrip: some View {
-        DSPipelineStrip {
+    private var listeningPathStrip: some View {
+        DSPipelineStrip(eyebrowTrigger: nil) {
             DSBadge(
                 text: controller.shortcut.display,
                 tone: .neutral,

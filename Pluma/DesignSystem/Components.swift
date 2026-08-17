@@ -293,8 +293,9 @@ struct DSShortcutCard: View {
 
 // MARK: - Page scaffold
 
-/// Every sidebar page: optional eyebrow, big rounded title, subtitle, then
-/// the page content on the shared page background.
+/// Every sidebar page: optional eyebrow, subtitle, then the page content on
+/// the shared page background. The page title lives in the window toolbar
+/// (Safari-style chrome), so this scaffold does not repeat it inline.
 struct DSPage<Content: View>: View {
     let title: String
     let subtitle: String
@@ -327,10 +328,16 @@ struct DSPage<Content: View>: View {
                         if let eyebrow {
                             DSEyebrow(trigger: eyebrow)
                         }
-                        pageTitle
-                        Text(subtitle)
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
+                        if let pageIdentifier {
+                            Text(subtitle)
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier(pageIdentifier)
+                        } else {
+                            Text(subtitle)
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     content
@@ -348,18 +355,7 @@ struct DSPage<Content: View>: View {
             }
         }
         .background(DS.pageBackground)
-    }
-
-    @ViewBuilder
-    private var pageTitle: some View {
-        if let pageIdentifier {
-            Text(title)
-                .font(DS.pageTitle)
-                .accessibilityIdentifier(pageIdentifier)
-        } else {
-            Text(title)
-                .font(DS.pageTitle)
-        }
+        .accessibilityLabel(title)
     }
 }
 
@@ -385,7 +381,7 @@ struct DSFeaturePage<Content: View>: View {
         DSPage(
             title: definition.name,
             subtitle: subtitle,
-            eyebrow: "Automation flow",
+            eyebrow: "How it works",
             scrollTarget: scrollTarget,
             pageIdentifier: "\(definition.id.rawValue)-page"
         ) {
@@ -775,9 +771,11 @@ struct DSPipelineStep: View {
     }
 }
 
-/// Horizontal recipe/pipeline strip. Rewrite and Reader show the default
-/// "Your pipeline → runs left to right" eyebrow; Autocomplete and Dictation
-/// omit it. Pass `isEmpty` plus `empty:` for the no-steps placeholder.
+/// Horizontal path/pipeline strip. Rewrite keeps the default
+/// "Your pipeline → runs left to right" eyebrow; Autocomplete, Dictation,
+/// and Reader omit it (directives, cleanup steps, and listening mode are
+/// not sequential rewrite recipes). Pass `isEmpty` plus `empty:` for the
+/// no-steps placeholder.
 struct DSPipelineStrip<Content: View, Empty: View>: View {
     var eyebrowTrigger: String? = "Your pipeline"
     var eyebrowAction: String? = "runs left to right"

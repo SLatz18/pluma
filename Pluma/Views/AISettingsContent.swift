@@ -218,8 +218,8 @@ struct AISettingsContent: View {
                         Button("Rewrite") {
                             openFeature(.rewrite, focus: .rewriteModel, returnFocus: .aiWriting)
                         }
-                        Button("Reader recipe") {
-                            openFeature(.reader, focus: .readerRecipe, returnFocus: .aiWriting)
+                        Button("Listening mode") {
+                            openFeature(.reader, focus: .readerListening, returnFocus: .aiWriting)
                         }
                     }
                 }
