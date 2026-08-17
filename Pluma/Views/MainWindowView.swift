@@ -213,16 +213,12 @@ struct MainWindowView: View {
     }
 
     /// Settings stay glued to the bottom of the sidebar, Safari/Finder-style.
-    /// Rows call `MainNavigation` directly so selection stays reliable outside
-    /// the feature List (a second `List` with the same binding was flaky).
+    /// Deliberately background-free so the sidebar's own material runs
+    /// unbroken from the feature list down through this block. Rows call
+    /// `MainNavigation` directly so selection stays reliable outside the
+    /// feature List (a second `List` with the same binding was flaky).
     private var settingsFooter: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Rectangle()
-                .fill(DS.hairline)
-                .frame(height: 1)
-                .padding(.horizontal, 10)
-                .padding(.bottom, 4)
-
             Text("Settings")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -233,9 +229,9 @@ struct MainWindowView: View {
                 settingsFooterRow(page)
             }
         }
+        .padding(.top, DS.Spacing.small)
         .padding(.bottom, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.bar)
     }
 
     private func settingsFooterRow(_ page: MainPage) -> some View {
