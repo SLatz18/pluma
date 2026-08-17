@@ -86,6 +86,12 @@ It holds the things worth having when a feature misbehaves in another app:
 - **Draw caret box on screen** — outlines the caret rect in red and the ghost
   text's actual frame in blue, so a few points of misalignment is something you
   see rather than something you calculate.
+- **Recipe prompts** — edit every recipe directive and the high-leverage system
+  instructions (rewrite, autocomplete, draft reply, spelling). Changes apply on
+  the next run; Reset restores shipped text.
+- **Prompt A/B** — same fixture text through two prompt variants on the active
+  rewrite provider. Compare outputs, inspect the composed system + user payload,
+  and promote a winner into Recipe prompts. Results stay in the sheet.
 - **Diagnostics log** — a live tail of `autocomplete-debug.log` with a text
   filter, a Clear button, and three detail levels. **Verbose** adds per-probe
   caret results and every overlay presentation; **quiet** keeps only failures

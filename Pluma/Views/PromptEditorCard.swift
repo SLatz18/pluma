@@ -74,7 +74,7 @@ final class PromptEditorModel: ObservableObject {
         let items: [RecipePrompt]
     }
 
-    private static let groupOrder = ["Rewrite", "Autocomplete", "Dictation", "Reader"]
+    private static let groupOrder = ["System", "Rewrite", "Autocomplete", "Dictation", "Reader"]
 
     @Published var drafts: [String: String]
 

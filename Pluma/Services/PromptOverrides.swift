@@ -15,6 +15,10 @@ struct RecipePrompt: Identifiable, Equatable, Sendable {
 enum PromptOverrides: Sendable {
     static let key = "pluma.promptOverrides"
     static let readerSummarizeID = "reader.summarize"
+    static let systemRewriteID = "system.rewrite"
+    static let systemCompletionID = "system.completion"
+    static let systemDraftReplyID = "system.draftReply"
+    static let systemSpellingID = "system.spelling"
 
     private static let box = StoreBox()
 
@@ -33,6 +37,32 @@ enum PromptOverrides: Sendable {
     }
 
     static var catalog: [RecipePrompt] {
+        let system = [
+            RecipePrompt(
+                id: systemRewriteID,
+                group: "System",
+                title: "Rewrite system",
+                defaultText: PromptComposer.shippedSystemInstructions
+            ),
+            RecipePrompt(
+                id: systemCompletionID,
+                group: "System",
+                title: "Autocomplete system",
+                defaultText: PromptComposer.shippedCompletionSystemInstructions
+            ),
+            RecipePrompt(
+                id: systemDraftReplyID,
+                group: "System",
+                title: "Draft reply system",
+                defaultText: PromptComposer.shippedDraftReplySystemInstructions
+            ),
+            RecipePrompt(
+                id: systemSpellingID,
+                group: "System",
+                title: "Spelling correction system",
+                defaultText: PromptComposer.shippedSpellingCorrectionInstructions
+            )
+        ]
         let rewrite = RewriteIntent.allCases.map { intent in
             RecipePrompt(
                 id: intent.promptID,
@@ -65,7 +95,7 @@ enum PromptOverrides: Sendable {
                 defaultText: PromptComposer.shippedReaderSummaryDirective
             )
         ]
-        return rewrite + autocomplete + dictation + reader
+        return system + rewrite + autocomplete + dictation + reader
     }
 
     static func text(for id: String, default fallback: String) -> String {
