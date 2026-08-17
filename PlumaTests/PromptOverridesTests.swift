@@ -27,6 +27,10 @@ final class PromptOverridesTests: XCTestCase {
 
     func testCatalogCoversEveryEditableRecipe() {
         let ids = Set(PromptOverrides.catalog.map(\.id))
+        XCTAssertTrue(ids.contains(PromptOverrides.systemRewriteID))
+        XCTAssertTrue(ids.contains(PromptOverrides.systemCompletionID))
+        XCTAssertTrue(ids.contains(PromptOverrides.systemDraftReplyID))
+        XCTAssertTrue(ids.contains(PromptOverrides.systemSpellingID))
         for intent in RewriteIntent.allCases {
             XCTAssertTrue(ids.contains(intent.promptID), intent.title)
         }
@@ -53,7 +57,40 @@ final class PromptOverridesTests: XCTestCase {
             PromptComposer.readerSummaryDirective,
             PromptComposer.shippedReaderSummaryDirective
         )
+        XCTAssertEqual(
+            PromptComposer.systemInstructions,
+            PromptComposer.shippedSystemInstructions
+        )
+        XCTAssertEqual(
+            PromptComposer.completionSystemInstructions,
+            PromptComposer.shippedCompletionSystemInstructions
+        )
+        XCTAssertEqual(
+            PromptComposer.draftReplySystemInstructions,
+            PromptComposer.shippedDraftReplySystemInstructions
+        )
+        XCTAssertEqual(
+            PromptComposer.spellingCorrectionInstructions,
+            PromptComposer.shippedSpellingCorrectionInstructions
+        )
         XCTAssertFalse(PromptOverrides.hasAnyOverride())
+    }
+
+    func testSystemOverrideRoundTripsAndResets() {
+        PromptOverrides.set(
+            "You edit with extreme brevity.",
+            for: PromptOverrides.systemRewriteID,
+            default: PromptComposer.shippedSystemInstructions
+        )
+        XCTAssertEqual(
+            PromptComposer.systemInstructions,
+            "You edit with extreme brevity."
+        )
+        PromptOverrides.reset(PromptOverrides.systemRewriteID)
+        XCTAssertEqual(
+            PromptComposer.systemInstructions,
+            PromptComposer.shippedSystemInstructions
+        )
     }
 
     func testOverrideRoundTripsAndResets() {

@@ -338,6 +338,32 @@ final class FocusedFieldTracker {
         frame.width >= 60 && frame.height >= 14
     }
 
+    // A last anchor before the pointer, for a focused field too narrow for the
+    // edge heuristic. A terminal TUI (Codex, and its kind) draws its own cursor
+    // and answers no AXBoundsForRange, so the caret ladder comes up empty — but
+    // it exposes the focused field as a single character cell sitting exactly at
+    // that cursor. The cell's own frame is therefore the best caret we will get,
+    // and sitting under it beats fleeing to the mouse, which points nowhere near
+    // where the text will land.
+    nonisolated static func caretCellAnchor(for element: AXUIElement) -> CGPoint? {
+        guard let frame = frame(of: element) else { return nil }
+        return caretCellAnchor(inFrame: frame)
+    }
+
+    // Pure half, so the cell-vs-garbage judgement can be tested without a live
+    // element. One line high (not a zero/oversized garbage rect) and narrower
+    // than a real field (which fieldEdgeAnchor already claims), with a finite
+    // on-screen origin. Nonisolated to match frame(of:) — a pure geometry
+    // decision that touches no tracker state.
+    nonisolated static func caretCellAnchor(inFrame frame: CGRect) -> CGPoint? {
+        guard
+            frame.origin.x.isFinite, frame.origin.y.isFinite,
+            (8..<400).contains(frame.height),
+            (1..<60).contains(frame.width)
+        else { return nil }
+        return CGPoint(x: frame.minX, y: frame.maxY + 4)
+    }
+
     // Nonisolated because AXCaretProbe reads it from outside the main actor;
     // it is a pure Accessibility round trip and touches no tracker state.
     nonisolated static func frame(of element: AXUIElement) -> CGRect? {

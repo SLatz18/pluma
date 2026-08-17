@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Carbon.HIToolbox
 import SwiftUI
 
 enum DictationActivity: Equatable {
@@ -144,6 +145,9 @@ final class DictationController: ObservableObject {
     private var isSessionActive = false
     private var isStarting = false
     private var stopRequested = false
+    private var isFinishing = false
+    private var escapeMonitors: [Any] = []
+    private var lastHUDAnchor: CGPoint?
 
     // A tap that never held long enough to say anything is a mis-press, not a
     // zero-length dictation.
@@ -373,7 +377,18 @@ final class DictationController: ObservableObject {
         ghostEligibility = Self.ghostEligibility(of: element)
         liveText = ""
         activity = .listening
+        // A new session's first pill anchors at this session's caret, never
+        // eased toward a pill left over from the last one. A lingering notice or
+        // an autocomplete suggestion can keep the panel visible across a caret
+        // move, and without this the "Listening…" pill would spawn on the old
+        // line and only jump right when "Transcribing…" replaced it.
+        overlay.resetPillAnchorBaseline()
         showHUD()
+        installEscapeMonitors()
+        // Session boundaries are logged at .quiet on purpose: when a session
+        // stalls, the last boundary written names the step that never finished,
+        // and that has to be true at every log level.
+        DebugLog.log("dictation session started via \(provider.rawValue)", at: .quiet)
 
         let useScreenContext = Preferences.screenContextEnabled(from: defaults)
         do {
@@ -385,11 +400,13 @@ final class DictationController: ObservableObject {
         } catch {
             DebugLog.log("dictation start failed: \(error.localizedDescription)", at: .quiet)
             isStarting = false
+            let anchor = chipAnchor
             await cancelSession()
             flash(
                 systemImage: "exclamationmark.triangle",
                 message: error.localizedDescription,
-                tone: .failure
+                tone: .failure,
+                at: anchor
             )
             return
         }
@@ -414,9 +431,25 @@ final class DictationController: ObservableObject {
         }
 
         if let pressedAt, ContinuousClock.Instant.now - pressedAt < Self.minimumHold {
+            let anchor = chipAnchor
             await cancelSession()
-            flash(systemImage: "mic", message: "Hold to talk")
+            flash(systemImage: "mic", message: "Hold to talk", at: anchor)
             return
+        }
+
+        // The session stays active until the text lands, so a second press and
+        // release inside that window arrives here again. Finishing twice
+        // finalizes an analyzer that is already finalizing and inserts the
+        // transcript twice.
+        guard !isFinishing else { return }
+        isFinishing = true
+
+        if let pressedAt {
+            DebugLog.log(
+                "dictation released after \(ContinuousClock.Instant.now - pressedAt), "
+                    + "cleanup \(cleanupEnabled ? "on" : "off")",
+                at: .quiet
+            )
         }
 
         activity = .tidying
@@ -428,14 +461,28 @@ final class DictationController: ObservableObject {
             message: isDrafting ? "Drafting…" : (cleanupEnabled ? "Tidying…" : "Transcribing…"),
             systemImage: isDrafting ? "arrowshape.turn.up.left" : (cleanupEnabled ? "sparkles" : "waveform")
         )
+        let finishStarted = ContinuousClock.Instant.now
         let transcript = await engine.finish()
+        DebugLog.log(
+            "dictation transcribed \(transcript.count) chars in "
+                + "\(ContinuousClock.Instant.now - finishStarted)",
+            at: .quiet
+        )
+        // Escape can end the session while transcription or the model is still
+        // working. Inserting after that would write text the writer cancelled.
+        guard isFinishing else { return }
         guard !transcript.isEmpty else {
+            // Cancel first so the notice outlives the session's own hide, but
+            // read the anchor before that: this belongs at the caret the writer
+            // was dictating into.
+            let anchor = chipAnchor
             await cancelSession()
-            flash(systemImage: "mic.slash", message: "Nothing was heard")
+            flash(systemImage: "mic.slash", message: "Nothing was heard", at: anchor)
             return
         }
 
         if isDrafting, let draft = await draftReply(intent: transcript) {
+            guard isFinishing else { return }
             await insert(draft)
             return
         }
@@ -443,7 +490,17 @@ final class DictationController: ObservableObject {
         // Draft mode falls through to exactly today's dictation when no
         // conversation was readable or the draft model failed — the user's
         // words are never lost to a feature that could not run.
+        let cleanupStarted = ContinuousClock.Instant.now
         let output = await cleanedOutput(for: transcript)
+        if cleanupEnabled {
+            DebugLog.log(
+                "dictation cleanup returned \(output.count) chars in "
+                    + "\(ContinuousClock.Instant.now - cleanupStarted) "
+                    + "via \(cleanupProvider.rawValue)",
+                at: .quiet
+            )
+        }
+        guard isFinishing else { return }
 
         await insert(DictationTranscript.withoutFragmentPeriod(output))
     }
@@ -535,7 +592,7 @@ final class DictationController: ObservableObject {
         )
 
         if await AXTextInsertion.insert(insertion, into: element) {
-            DebugLog.log("dictation inserted \(insertion.count) chars")
+            DebugLog.log("dictation inserted \(insertion.count) chars", at: .quiet)
             remember(insertion, in: element)
             overlay.hide(from: .dictation)
         } else {
@@ -612,6 +669,39 @@ final class DictationController: ObservableObject {
         return pid
     }
 
+    // Every feature that takes over the caret needs one obvious way out, and
+    // Escape is the key Reader already answers to. Live only while a session is,
+    // so ordinary Escape presses reach the app the writer is typing in.
+    private func installEscapeMonitors() {
+        guard escapeMonitors.isEmpty else { return }
+        let global = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == UInt16(kVK_Escape) else { return }
+            Task { @MainActor [weak self] in await self?.cancelFromEscape() }
+        }
+        let local = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == UInt16(kVK_Escape) else { return event }
+            Task { @MainActor [weak self] in await self?.cancelFromEscape() }
+            return nil
+        }
+        escapeMonitors = [global, local].compactMap { $0 }
+    }
+
+    private func removeEscapeMonitors() {
+        for monitor in escapeMonitors {
+            NSEvent.removeMonitor(monitor)
+        }
+        escapeMonitors = []
+    }
+
+    private func cancelFromEscape() async {
+        guard isSessionActive else { return }
+        // The notice logs itself; a second line for the same instant would
+        // clutter the boundary trail this session leaves behind.
+        let anchor = chipAnchor
+        await cancelSession()
+        flash(systemImage: "xmark", message: "Dictation cancelled", at: anchor)
+    }
+
     private func cancelSession() async {
         await engine.cancel()
         resetSession()
@@ -619,17 +709,20 @@ final class DictationController: ObservableObject {
     }
 
     private func resetSession() {
+        removeEscapeMonitors()
         conversationTask?.cancel()
         conversationTask = nil
         sessionMode = .dictation
         isSessionActive = false
         isStarting = false
         stopRequested = false
+        isFinishing = false
         pressedAt = nil
         savedElement = nil
         savedPrefix = nil
         caret = nil
         caretReadAt = nil
+        lastHUDAnchor = nil
         ghostEligibility = .unknown
         liveText = ""
         updateActivity()
@@ -678,8 +771,11 @@ final class DictationController: ObservableObject {
     }
 
     // Just below the caret's line, so a chip never covers the words already
-    // there. The mouse is the last resort because it is the one anchor with no
-    // relationship to where the transcript will land.
+    // there. Order is most-precise first: the resolved caret, then a real
+    // field's edge, then — for a terminal TUI whose field is a lone cursor cell
+    // that answers no caret geometry — that cell. The mouse is the last resort
+    // because it is the one anchor with no relationship to where the transcript
+    // will land.
     private var chipAnchor: CGPoint {
         if let caret {
             return CGPoint(x: caret.rect.minX, y: caret.rect.maxY + 4)
@@ -687,11 +783,57 @@ final class DictationController: ObservableObject {
         if let element = savedElement, let anchor = FocusedFieldTracker.fieldEdgeAnchor(for: element) {
             return anchor
         }
+        if let element = savedElement, let anchor = FocusedFieldTracker.caretCellAnchor(for: element) {
+            return anchor
+        }
         return SuggestionOverlayController.mouseTopLeftPoint()
     }
 
+    // Names the branch chipAnchor took, mirroring its order so the log never
+    // claims a source the anchor didn't actually come from.
+    private var anchorDerivation: String {
+        if let caret {
+            return "\(caret.source.rawValue) \(FocusedFieldTracker.describe(caret.rect))"
+        }
+        if let element = savedElement, let frame = FocusedFieldTracker.frame(of: element) {
+            if FocusedFieldTracker.fieldEdgeAnchor(for: element) != nil {
+                return "field edge of \(FocusedFieldTracker.describe(frame))"
+            }
+            if FocusedFieldTracker.caretCellAnchor(for: element) != nil {
+                return "caret cell of \(FocusedFieldTracker.describe(frame))"
+            }
+        }
+        return "pointer"
+    }
+
+    // The anchor the pill is actually placed at, logged whenever it changes
+    // inside a session. A pill that lands wrong is always one of a few things —
+    // a probe that answered differently, the field edge standing in, a terminal
+    // cursor cell, or nothing at all and the pointer standing in — and they want
+    // different fixes. Which one it was should not require guessing, so the label
+    // reports the branch chipAnchor actually took rather than merely that a frame
+    // existed.
+    private func hudAnchor() -> CGPoint {
+        let anchor = chipAnchor
+        guard lastHUDAnchor != anchor else { return anchor }
+        let origin = lastHUDAnchor == nil ? "placed" : "moved"
+        DebugLog.log(
+            "dictation pill \(origin) at x \(Int(anchor.x)) y \(Int(anchor.y)) via \(anchorDerivation)",
+            at: .quiet
+        )
+        lastHUDAnchor = anchor
+        return anchor
+    }
+
     private func showHUD(message: String? = nil, systemImage: String = "mic.fill") {
-        refreshCaret()
+        // A status message means the key is already up and nothing has been
+        // inserted yet, so the caret cannot have moved. Re-reading it here only
+        // lets AX geometry jitter shift the pill at the listening→transcribing
+        // boundary — the exact seam the writer is watching. Freeze the anchor to
+        // the last listening frame instead of refreshing it.
+        if message == nil {
+            refreshCaret()
+        }
 
         // "Tidying…" and the like are the app talking about itself, not the
         // user's words, so they wear the chip instead of posing as transcript
@@ -702,7 +844,7 @@ final class DictationController: ObservableObject {
                     systemImage: systemImage,
                     message: message,
                     tone: .accent,
-                    anchor: chipAnchor
+                    anchor: hudAnchor()
                 ),
                 from: .dictation
             )
@@ -717,7 +859,7 @@ final class DictationController: ObservableObject {
             Preferences.inlineSuggestions(from: defaults),
             let caret, ghostEligibility.allows(caret)
         else {
-            overlay.show(.dictation(transcript: liveText, anchor: chipAnchor), from: .dictation)
+            overlay.show(.dictation(transcript: liveText, anchor: hudAnchor()), from: .dictation)
             return
         }
         overlay.show(
@@ -731,17 +873,30 @@ final class DictationController: ObservableObject {
         )
     }
 
+    // `anchor` is for notices that report on a session already torn down: the
+    // teardown drops the caret, so asking for the anchor afterwards yields the
+    // pointer. Callers read it first and pass it in. Left nil, a live session
+    // still points at its caret, and everything else — permission walls, "Click
+    // into a text field first" — has no field to point at and belongs at the
+    // pointer by design.
     private func flash(
         systemImage: String,
         message: String,
-        tone: OverlayTone = .warning
+        tone: OverlayTone = .warning,
+        at anchor: CGPoint? = nil
     ) {
+        // Every notice the writer sees leaves a line behind. These are the
+        // refusals and dead ends — a press that hit a permission wall, an
+        // utterance nothing was heard in, a field that rejected the text — and
+        // without them the log goes quiet exactly when it is being read.
+        DebugLog.log("dictation notice: \(message)", at: .quiet)
         overlay.flash(
             systemImage: systemImage,
             message: message,
             tone: tone,
-            atTopLeftPoint: isSessionActive
-                ? chipAnchor : SuggestionOverlayController.mouseTopLeftPoint(),
+            atTopLeftPoint: anchor
+                ?? (isSessionActive
+                    ? chipAnchor : SuggestionOverlayController.mouseTopLeftPoint()),
             from: .dictation
         )
     }

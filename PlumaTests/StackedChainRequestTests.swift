@@ -14,6 +14,8 @@ final class StackedChainRequestTests: XCTestCase {
         var completionPrompt: String?
         var cleanupDirective: String?
         var cleanupTranscript: String?
+        var rewriteSystem: String?
+        var rewritePrompt: String?
 
         func completionRequested(instructions: String, prompt: String) async throws -> String {
             completionInstructions = instructions
@@ -25,6 +27,12 @@ final class StackedChainRequestTests: XCTestCase {
             cleanupDirective = directive
             cleanupTranscript = transcript
             return "spy cleanup"
+        }
+
+        func rewriteRequested(system: String, prompt: String) async throws -> String {
+            rewriteSystem = system
+            rewritePrompt = prompt
+            return "spy rewrite"
         }
     }
 

@@ -305,6 +305,18 @@ final class SuggestionOverlayController {
         }
     }
 
+    // Forget the vertical smoothing baseline so the next pill anchors at its own
+    // proposed point instead of easing toward the last one. The baseline is
+    // otherwise only cleared on hide, but a terminating notice ("Nothing was
+    // heard") lingers for DS.Motion.flash and an autocomplete suggestion can sit
+    // there too — either keeps the panel visible across a caret move, and the
+    // next session's first pill would inherit that stale line (as a jitter snap
+    // within tolerance, or verbatim across an owner handover). A new session
+    // calls this so "Listening…" lands where the caret actually is.
+    func resetPillAnchorBaseline() {
+        lastPillTopLeftAnchor = nil
+    }
+
     private func stabilizedPillAnchor(
         _ proposed: CGPoint,
         preserveVertical: Bool
@@ -478,8 +490,14 @@ final class SuggestionOverlayController {
                 panel.orderFrontRegardless()
                 return
             }
+            // Autocomplete's pill earns a small rise as it fades in — it is
+            // arriving unbidden and the motion announces it. Dictation's does
+            // not: the writer pressed a key and is looking straight at the
+            // caret, so a 5pt lift reads as the pill drifting rather than
+            // entering. Fade it in where it will stay.
+            let rise = currentOwner == .dictation ? 0 : DS.Motion.rise
             panel.alphaValue = 0
-            panel.setFrameOrigin(CGPoint(x: target.x, y: target.y - DS.Motion.rise))
+            panel.setFrameOrigin(CGPoint(x: target.x, y: target.y - rise))
             panel.orderFrontRegardless()
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = DS.Motion.present

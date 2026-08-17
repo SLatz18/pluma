@@ -17,7 +17,7 @@ struct AutocompleteView: View {
             heroCard
 
             DSSection(
-                "Recipe",
+                "Directives",
                 detail: "Stack directives to shape suggestions. They apply in order."
             ) {
                 LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {

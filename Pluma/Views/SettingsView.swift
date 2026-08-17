@@ -42,7 +42,7 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
         switch self {
         case .general: "Caps Lock shortcuts and how pluma starts."
         case .ai: "Engines, models, voices, and OpenAI access for every feature."
-        case .writing: "Context, memory, and style shared by writing features."
+        case .writing: "Context, memory, and style shared across features that write or summarize."
         case .privacy: "Where text goes, what pluma can access, and what it stores."
         }
     }

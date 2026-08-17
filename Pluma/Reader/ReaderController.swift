@@ -326,7 +326,7 @@ final class ReaderController: ObservableObject {
     }
 
     /// Settings preview path: speak a fixed sample with the selected voice and
-    /// model, bypassing the Reader recipe and every cross-app text source.
+    /// model, bypassing Reader's listening mode and every cross-app text source.
     func previewVoice(_ text: String = "This is your selected pluma voice.") {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

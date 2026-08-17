@@ -165,4 +165,43 @@ final class CaretResolverTests: XCTestCase {
             CaretResolver.isPlausible(CGRect(x: 0, y: 0, width: 1, height: 0), in: nil)
         )
     }
+
+    // MARK: Terminal cursor-cell fallback
+
+    // Codex and other TUIs expose the focused field as a single character cell
+    // at the cursor and answer no caret geometry. The pill sits just under that
+    // cell rather than fleeing to the pointer.
+    func testCaretCellAnchorSitsUnderATerminalCursorCell() {
+        XCTAssertEqual(
+            FocusedFieldTracker.caretCellAnchor(
+                inFrame: CGRect(x: 509, y: 912, width: 7, height: 17)
+            ),
+            CGPoint(x: 509, y: 933)
+        )
+    }
+
+    // A real field is fieldEdgeAnchor's job; the cell path must not also claim
+    // it, or the two would disagree about where to sit.
+    func testCaretCellAnchorRejectsAFullWidthField() {
+        XCTAssertNil(
+            FocusedFieldTracker.caretCellAnchor(
+                inFrame: CGRect(x: 100, y: 200, width: 400, height: 20)
+            )
+        )
+    }
+
+    // A zero/degenerate or oversized frame is garbage, not a cursor cell.
+    func testCaretCellAnchorRejectsGarbageFrames() {
+        XCTAssertNil(
+            FocusedFieldTracker.caretCellAnchor(inFrame: CGRect(x: 10, y: 10, width: 6, height: 2))
+        )
+        XCTAssertNil(
+            FocusedFieldTracker.caretCellAnchor(inFrame: CGRect(x: 10, y: 10, width: 6, height: 500))
+        )
+        XCTAssertNil(
+            FocusedFieldTracker.caretCellAnchor(
+                inFrame: CGRect(x: CGFloat.infinity, y: 10, width: 6, height: 17)
+            )
+        )
+    }
 }
