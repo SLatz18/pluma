@@ -34,8 +34,15 @@ enum OpenAITTSCatalogClient {
 
         do {
             let remoteIDs = try await listModelIDs(endpoint: endpoint, key: key, session: session)
-            models = OpenAITTSCatalog.models(fromRemoteIDs: remoteIDs)
-            modelsFromAPI = true
+            let recognized = OpenAITTSCatalog.models(fromRemoteIDs: remoteIDs)
+            if recognized.isEmpty {
+                // A successful fetch that names no TTS models is not a
+                // confirmation — say what actually happened.
+                errorMessage = "The endpoint listed \(remoteIDs.count) models, none recognized as TTS — showing the standard list."
+            } else {
+                models = recognized
+                modelsFromAPI = true
+            }
         } catch {
             errorMessage = error.localizedDescription
             DebugLog.log("openai tts models fetch failed: \(error.localizedDescription)", at: .quiet)

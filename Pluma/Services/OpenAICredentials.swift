@@ -122,29 +122,50 @@ final class OpenAICredentials: ObservableObject {
 
     /// The one key pairs with one destination: api.openai.com by default, or a
     /// custom OpenAI-compatible base URL. Stored here so every settings surface
-    /// binds to the same value; empty string means the default.
-    @Published var endpointBaseURLString: String = Preferences.cloudBaseURLString() {
+    /// binds to the same value.
+    @Published var endpointBaseURLString: String {
         didSet {
             guard endpointBaseURLString != oldValue else { return }
-            Preferences.setCloudBaseURLString(endpointBaseURLString)
+            Preferences.setCloudBaseURLString(endpointBaseURLString, to: defaults)
+            invalidateValidation()
+            revision &+= 1
+        }
+    }
+
+    /// Which destination is in use. Selecting OpenAI keeps the typed URL so the
+    /// choice can be flipped back without retyping — the flag, not the URL's
+    /// emptiness, decides where requests go.
+    @Published var useCustomEndpoint: Bool {
+        didSet {
+            guard useCustomEndpoint != oldValue else { return }
+            Preferences.setCloudUseCustomEndpoint(useCustomEndpoint, to: defaults)
+            invalidateValidation()
             revision &+= 1
         }
     }
 
     var isEndpointCustom: Bool {
-        OpenAIEndpoint.validatedBaseURL(endpointBaseURLString) != nil
+        useCustomEndpoint && OpenAIEndpoint.validatedBaseURL(endpointBaseURLString) != nil
     }
 
     var isEndpointEntryValid: Bool {
-        endpointBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !useCustomEndpoint
             || OpenAIEndpoint.validatedBaseURL(endpointBaseURLString) != nil
+    }
+
+    /// A validation verdict describes one destination; changing the destination
+    /// makes it stale. Back to "stored, not yet checked" until the next check.
+    private func invalidateValidation() {
+        validationGeneration &+= 1
+        state = hasKey ? .stored : .missing
     }
 
     var keySavedAt: Date? {
         _ = revision
-        return Preferences.openAIKeySavedAt()
+        return Preferences.openAIKeySavedAt(from: defaults)
     }
 
+    private let defaults: UserDefaults
     private let hasStoredKey: @MainActor () -> Bool
     private let keyProvider: @Sendable () -> String?
     private let saveKey: @MainActor (String) throws -> Void
@@ -166,6 +187,7 @@ final class OpenAICredentials: ObservableObject {
     init(
         initialHasKey: Bool,
         initialState: OpenAICredentialState? = nil,
+        defaults: UserDefaults = .standard,
         hasStoredKey: @escaping @MainActor () -> Bool,
         keyProvider: @escaping @Sendable () -> String?,
         saveKey: @escaping @MainActor (String) throws -> Void,
@@ -174,6 +196,9 @@ final class OpenAICredentials: ObservableObject {
     ) {
         hasKey = initialHasKey
         state = initialState ?? (initialHasKey ? .stored : .missing)
+        self.defaults = defaults
+        endpointBaseURLString = Preferences.cloudBaseURLString(from: defaults)
+        useCustomEndpoint = Preferences.cloudUseCustomEndpoint(from: defaults)
         self.hasStoredKey = hasStoredKey
         self.keyProvider = keyProvider
         self.saveKey = saveKey

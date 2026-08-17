@@ -11,11 +11,11 @@ struct OverviewView: View {
     var body: some View {
         DSPage(
             title: "Overview",
-            subtitle: "Your writing automations, permissions, and readiness at a glance.",
+            subtitle: "Features, permissions, and readiness at a glance.",
             eyebrow: "pluma"
         ) {
             DSSection(
-                "Automation health",
+                "Features",
                 detail: "Open a feature to use or configure it. Shared writing and privacy choices live in Settings."
             ) {
                 ForEach(FeatureDefinition.all) { feature in
@@ -62,8 +62,8 @@ struct OverviewView: View {
                             .font(DS.cardTitle)
                         Spacer()
                         DSBadge(
-                            text: enabled(feature) ? "Enabled" : "Off",
-                            tone: enabled(feature) ? .success : .neutral
+                            text: badge(feature).text,
+                            tone: badge(feature).tone
                         )
                     }
 
@@ -84,6 +84,41 @@ struct OverviewView: View {
         .buttonStyle(.plain)
         .dsCard()
         .accessibilityIdentifier("overview-\(feature.id.rawValue)")
+    }
+
+    /// Badge reflects readiness, not just the on/off toggle — so a feature
+    /// that is enabled but blocked on Accessibility or the mic does not show
+    /// a green "Enabled" next to an orange status row.
+    private func badge(_ feature: FeatureDefinition) -> (text: String, tone: DS.Tone) {
+        if !enabled(feature) {
+            return ("Off", .neutral)
+        }
+        if needsAccess(feature) {
+            return ("Needs access", .attention)
+        }
+        switch tone(feature) {
+        case .recording:
+            return ("Active", .recording)
+        case .failure:
+            return ("Error", .failure)
+        case .attention:
+            return ("Not ready", .attention)
+        case .success, .neutral:
+            return ("Enabled", .success)
+        }
+    }
+
+    private func needsAccess(_ feature: FeatureDefinition) -> Bool {
+        switch feature.id {
+        case .rewrite:
+            false
+        case .autocomplete:
+            autocomplete.activity == .needsPermission
+        case .dictation:
+            dictation.activity == .needsPermission
+        case .reader:
+            reader.isEnabled && !autocomplete.isPermissionGranted
+        }
     }
 
     private func enabled(_ feature: FeatureDefinition) -> Bool {

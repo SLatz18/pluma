@@ -83,11 +83,25 @@ final class DictationController: ObservableObject {
     }
 
     // Shared with the rewrite provider's model choice rather than duplicated:
-    // there is one Ollama install and one obvious model to talk to.
+    // there is one Ollama install and one obvious model to talk to. The post
+    // keeps RewriteViewModel's copy of the shared preference in step.
     @Published var ollamaModel: String {
         didSet {
+            guard ollamaModel != oldValue else { return }
             defaults.set(ollamaModel, forKey: Preferences.ollamaModelKey)
+            NotificationCenter.default.post(name: .ollamaModelDidChange, object: self)
         }
+    }
+
+    /// Pinned input device UID; empty follows the system default. Capture
+    /// resolves this at each session start, so no re-registration is needed.
+    @Published private(set) var microphoneUID: String
+    @Published private(set) var microphoneName: String
+
+    func setMicrophone(uid: String, name: String) {
+        microphoneUID = uid
+        microphoneName = uid.isEmpty ? "" : name
+        Preferences.setDictationMic(uid: uid, name: name, to: defaults)
     }
 
     private let defaults: UserDefaults
@@ -162,6 +176,8 @@ final class DictationController: ObservableObject {
         cleanupProvider = Preferences.cleanupProvider(from: defaults)
         openAIModel = Preferences.openAICleanupModel(from: defaults)
         ollamaModel = Preferences.ollamaModel(from: defaults)
+        microphoneUID = Preferences.dictationMicUID(from: defaults)
+        microphoneName = Preferences.dictationMicName(from: defaults)
         isMicPermitted = mic.isGranted
 
         mic.onChange = { [weak self] granted in
@@ -202,6 +218,20 @@ final class DictationController: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.reloadShortcutsFromPreferences()
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: .ollamaModelDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard (notification.object as AnyObject?) !== self else { return }
+            Task { @MainActor in
+                guard let self else { return }
+                let stored = Preferences.ollamaModel(from: self.defaults)
+                if self.ollamaModel != stored {
+                    self.ollamaModel = stored
+                }
             }
         }
     }

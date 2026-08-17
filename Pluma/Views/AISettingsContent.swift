@@ -12,7 +12,6 @@ struct AISettingsContent: View {
     @ObservedObject private var navigation = MainNavigation.shared
     @State private var keyDraft = ""
     @State private var isReplacingKey = false
-    @State private var isCustomEndpointSelected = false
     @FocusState private var isKeyFieldFocused: Bool
 
     var body: some View {
@@ -32,6 +31,11 @@ struct AISettingsContent: View {
         .onChange(of: navigation.focus) { _, focus in
             applyNavigationFocus(focus)
         }
+        // Switching destinations makes the model catalog, dictation readiness,
+        // and writing status describe the wrong server — refresh them all.
+        .onChange(of: credentials.useCustomEndpoint) {
+            refreshCredentialDependents()
+        }
     }
 
     private var cloudAccessSection: some View {
@@ -41,6 +45,42 @@ struct AISettingsContent: View {
             identifier: NavigationFocus.aiOpenAIKey.scrollTarget
         ) {
             VStack(spacing: 0) {
+                // Endpoint first: the key's meaning — and every check verdict —
+                // depends on which destination is selected.
+                DSSettingRow(
+                    "Endpoint",
+                    detail: credentials.useCustomEndpoint
+                        ? "An OpenAI-compatible service you run or trust. pluma appends the standard API paths."
+                        : "Requests go to OpenAI's API."
+                ) {
+                    Picker("Endpoint", selection: $credentials.useCustomEndpoint) {
+                        Text("OpenAI").tag(false)
+                        Text("Custom URL").tag(true)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
+                    .accessibilityIdentifier("ai-endpoint-choice")
+                }
+
+                if credentials.useCustomEndpoint {
+                    HStack(spacing: DS.Spacing.small) {
+                        if !credentials.isEndpointEntryValid {
+                            DSBadge(text: "Needs https", tone: .attention, systemImage: "exclamationmark.triangle")
+                        }
+                        TextField(
+                            "https://example.com/openai/v1",
+                            text: $credentials.endpointBaseURLString
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("ai-endpoint-url")
+                        .onSubmit { refreshCredentialDependents() }
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                DSRowDivider()
+
                 DSSettingRow("API key", detail: credentials.state.detail) {
                     if credentials.state == .checking {
                         ProgressView()
@@ -64,7 +104,7 @@ struct AISettingsContent: View {
                         Button("Check") {
                             Task { await checkCredentialAndRefreshDependents() }
                         }
-                        .disabled(credentials.state == .checking)
+                        .disabled(credentials.state == .checking || !credentials.isEndpointEntryValid)
                         Spacer()
                         Button("Remove", role: .destructive) {
                             credentials.remove()
@@ -97,39 +137,6 @@ struct AISettingsContent: View {
 
                 DSRowDivider()
 
-                DSSettingRow(
-                    "Endpoint",
-                    detail: credentials.isEndpointCustom
-                        ? "An OpenAI-compatible service you run or trust. pluma appends the standard API paths."
-                        : "Requests go to OpenAI's API."
-                ) {
-                    Picker("Endpoint", selection: endpointChoiceBinding) {
-                        Text("OpenAI").tag(false)
-                        Text("Custom URL").tag(true)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.segmented)
-                    .frame(width: 220)
-                    .accessibilityIdentifier("ai-endpoint-choice")
-                }
-
-                if isEditingCustomEndpoint {
-                    HStack(spacing: DS.Spacing.small) {
-                        if !credentials.isEndpointEntryValid {
-                            DSBadge(text: "Needs https", tone: .attention, systemImage: "exclamationmark.triangle")
-                        }
-                        TextField(
-                            "https://example.com/openai/v1",
-                            text: $credentials.endpointBaseURLString
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("ai-endpoint-url")
-                    }
-                    .padding(.vertical, 6)
-                }
-
-                DSRowDivider()
-
                 DSSettingRow("Stored in") {
                     DSBadge(text: "macOS Keychain", tone: .success, systemImage: "lock.fill")
                 }
@@ -147,26 +154,6 @@ struct AISettingsContent: View {
             .dsCard()
         }
         .id(NavigationFocus.aiOpenAIKey.scrollTarget)
-    }
-
-    /// Segmented control state: true = custom URL. Selecting OpenAI clears the
-    /// stored URL; selecting Custom just reveals the field until a URL is typed.
-    private var endpointChoiceBinding: Binding<Bool> {
-        Binding(
-            get: { isEditingCustomEndpoint },
-            set: { wantsCustom in
-                if wantsCustom {
-                    isCustomEndpointSelected = true
-                } else {
-                    isCustomEndpointSelected = false
-                    credentials.endpointBaseURLString = ""
-                }
-            }
-        )
-    }
-
-    private var isEditingCustomEndpoint: Bool {
-        isCustomEndpointSelected || !credentials.endpointBaseURLString.isEmpty
     }
 
     private var keyAgeDays: Int? {
@@ -201,7 +188,7 @@ struct AISettingsContent: View {
                                 .frame(width: DS.Control.providerWidth)
                         } else {
                             Picker("Ollama model", selection: writingOllamaModelBinding) {
-                                ForEach(model.availableOllamaModels, id: \.self) { name in
+                                ForEach(model.ollamaModelOptions, id: \.self) { name in
                                     Text(name).tag(name)
                                 }
                             }
@@ -231,8 +218,8 @@ struct AISettingsContent: View {
                         Button("Rewrite") {
                             openFeature(.rewrite, focus: .rewriteModel, returnFocus: .aiWriting)
                         }
-                        Button("Reader recipe") {
-                            openFeature(.reader, focus: .readerRecipe, returnFocus: .aiWriting)
+                        Button("Listening mode") {
+                            openFeature(.reader, focus: .readerListening, returnFocus: .aiWriting)
                         }
                     }
                 }

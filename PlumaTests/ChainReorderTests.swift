@@ -227,4 +227,28 @@ final class ChainReorderTests: XCTestCase {
             [.removeFiller, .addPunctuation, .fixGrammar]
         )
     }
+
+    // MARK: - Shared Ollama model (one key, two owners)
+
+    func testOllamaModelChangePropagatesBetweenOwners() async throws {
+        let defaults = makeDefaults()
+        let writing = RewriteViewModel(defaults: defaults)
+        let dictation = makeDictationController(defaults)
+
+        dictation.ollamaModel = "llama3:8b"
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(writing.ollamaModel, "llama3:8b")
+        XCTAssertEqual(Preferences.ollamaModel(from: defaults), "llama3:8b")
+
+        writing.setOllamaModel("qwen3:4b")
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(dictation.ollamaModel, "qwen3:4b")
+    }
+
+    func testOllamaPickerOptionsAlwaysContainStoredModel() {
+        let defaults = makeDefaults()
+        defaults.set("retired-model", forKey: Preferences.ollamaModelKey)
+        let writing = RewriteViewModel(defaults: defaults)
+        XCTAssertTrue(writing.ollamaModelOptions.contains("retired-model"))
+    }
 }

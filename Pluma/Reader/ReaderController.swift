@@ -166,6 +166,7 @@ final class ReaderController: ObservableObject {
 
         wireSpeechCallbacks()
         refreshInstalledVoices()
+        ensureSelectedModelIsListed()
         if provider == .openAI {
             refreshOpenAITTSCatalog()
         }
@@ -238,10 +239,17 @@ final class ReaderController: ObservableObject {
 
     private func applyOpenAICatalog(_ snapshot: OpenAITTSCatalogClient.Snapshot) {
         openAIModels = snapshot.models
-        openAITTSModelID = OpenAITTSCatalog.resolveModelID(
-            preferred: openAITTSModelID,
-            available: snapshot.models
-        )
+        // Coerce the stored model only against a list the endpoint actually
+        // confirmed. Resolving against the offline fallback (no key, no
+        // network) silently rewrote a saved model — and could cascade into
+        // rewriting the voice — on any failed refresh.
+        if snapshot.modelsFromAPI {
+            openAITTSModelID = OpenAITTSCatalog.resolveModelID(
+                preferred: openAITTSModelID,
+                available: snapshot.models
+            )
+        }
+        ensureSelectedModelIsListed()
         reconcileOpenAIVoiceForSelectedModel()
 
         if let errorMessage = snapshot.errorMessage, snapshot.modelsFromAPI == false {
@@ -251,6 +259,14 @@ final class ReaderController: ObservableObject {
         } else {
             openAICatalogStatus = "Showing OpenAI’s documented voice catalog and fallback models."
         }
+    }
+
+    /// The stored model stays selectable even when the current list doesn't
+    /// contain it (fallback list at launch, endpoint that stopped serving it),
+    /// so the picker never renders blank and the preference is never lost.
+    private func ensureSelectedModelIsListed() {
+        guard !openAIModels.contains(where: { $0.id == openAITTSModelID }) else { return }
+        openAIModels.append(OpenAITTSCatalog.storedOption(forModelID: openAITTSModelID))
     }
 
     private func reconcileOpenAIVoiceForSelectedModel() {
@@ -310,7 +326,7 @@ final class ReaderController: ObservableObject {
     }
 
     /// Settings preview path: speak a fixed sample with the selected voice and
-    /// model, bypassing the Reader recipe and every cross-app text source.
+    /// model, bypassing Reader's listening mode and every cross-app text source.
     func previewVoice(_ text: String = "This is your selected pluma voice.") {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
