@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import Carbon.HIToolbox
 import SwiftUI
 
 enum DictationActivity: Equatable {
@@ -130,6 +131,8 @@ final class DictationController: ObservableObject {
     private var isSessionActive = false
     private var isStarting = false
     private var stopRequested = false
+    private var isFinishing = false
+    private var escapeMonitors: [Any] = []
 
     // A tap that never held long enough to say anything is a mis-press, not a
     // zero-length dictation.
@@ -344,6 +347,8 @@ final class DictationController: ObservableObject {
         liveText = ""
         activity = .listening
         showHUD()
+        installEscapeMonitors()
+        DebugLog.log("dictation session started via \(provider.rawValue)")
 
         let useScreenContext = Preferences.screenContextEnabled(from: defaults)
         do {
@@ -389,6 +394,13 @@ final class DictationController: ObservableObject {
             return
         }
 
+        // The session stays active until the text lands, so a second press and
+        // release inside that window arrives here again. Finishing twice
+        // finalizes an analyzer that is already finalizing and inserts the
+        // transcript twice.
+        guard !isFinishing else { return }
+        isFinishing = true
+
         activity = .tidying
         // Recording is over the moment the key comes up, but the HUD would
         // keep pulsing until insertion. Switch it to an honest status for the
@@ -399,6 +411,9 @@ final class DictationController: ObservableObject {
             systemImage: isDrafting ? "arrowshape.turn.up.left" : (cleanupEnabled ? "sparkles" : "waveform")
         )
         let transcript = await engine.finish()
+        // Escape can end the session while transcription or the model is still
+        // working. Inserting after that would write text the writer cancelled.
+        guard isFinishing else { return }
         guard !transcript.isEmpty else {
             await cancelSession()
             flash(systemImage: "mic.slash", message: "Nothing was heard")
@@ -406,6 +421,7 @@ final class DictationController: ObservableObject {
         }
 
         if isDrafting, let draft = await draftReply(intent: transcript) {
+            guard isFinishing else { return }
             await insert(draft)
             return
         }
@@ -414,6 +430,7 @@ final class DictationController: ObservableObject {
         // conversation was readable or the draft model failed — the user's
         // words are never lost to a feature that could not run.
         let output = await cleanedOutput(for: transcript)
+        guard isFinishing else { return }
 
         await insert(DictationTranscript.withoutFragmentPeriod(output))
     }
@@ -582,6 +599,45 @@ final class DictationController: ObservableObject {
         return pid
     }
 
+    // Every feature that takes over the caret needs one obvious way out, and
+    // Escape is the key Reader already answers to. Live only while a session is,
+    // so ordinary Escape presses reach the app the writer is typing in.
+    private func installEscapeMonitors() {
+        guard escapeMonitors.isEmpty else { return }
+        let global = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == UInt16(kVK_Escape) else { return }
+            Task { @MainActor [weak self] in await self?.cancelFromEscape() }
+        }
+        let local = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard event.keyCode == UInt16(kVK_Escape) else { return event }
+            Task { @MainActor [weak self] in await self?.cancelFromEscape() }
+            return nil
+        }
+        escapeMonitors = [global, local].compactMap { $0 }
+    }
+
+    private func removeEscapeMonitors() {
+        for monitor in escapeMonitors {
+            NSEvent.removeMonitor(monitor)
+        }
+        escapeMonitors = []
+    }
+
+    private func cancelFromEscape() async {
+        guard isSessionActive else { return }
+        DebugLog.log("dictation cancelled by Escape", at: .quiet)
+        // Read the anchor before the session is torn down: the notice belongs at
+        // the caret the writer was dictating into, not wherever the pointer sits.
+        let anchor = chipAnchor
+        await cancelSession()
+        overlay.flash(
+            systemImage: "xmark",
+            message: "Dictation cancelled",
+            atTopLeftPoint: anchor,
+            from: .dictation
+        )
+    }
+
     private func cancelSession() async {
         await engine.cancel()
         resetSession()
@@ -589,12 +645,14 @@ final class DictationController: ObservableObject {
     }
 
     private func resetSession() {
+        removeEscapeMonitors()
         conversationTask?.cancel()
         conversationTask = nil
         sessionMode = .dictation
         isSessionActive = false
         isStarting = false
         stopRequested = false
+        isFinishing = false
         pressedAt = nil
         savedElement = nil
         savedPrefix = nil
