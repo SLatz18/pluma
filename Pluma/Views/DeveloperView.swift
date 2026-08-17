@@ -9,10 +9,12 @@ struct DeveloperView: View {
     @EnvironmentObject private var dictation: DictationController
     @EnvironmentObject private var autocomplete: AutocompleteCoordinator
     @EnvironmentObject private var credentials: OpenAICredentials
+    @EnvironmentObject private var rewrite: RewriteViewModel
 
     @StateObject private var inspector = CaretInspector()
     @StateObject private var log = LogViewerModel()
     @State private var isComparing = false
+    @State private var isComparingPrompts = false
     @State private var didCopyDebugInfo = false
     @State private var conversationPreview: String?
     @State private var conversationCountdown: Int?
@@ -25,6 +27,7 @@ struct DeveloperView: View {
         ) {
             caretCard
             promptEditorCard
+            promptABCard
             completionCard
             conversationCard
             componentGalleryCard
@@ -45,12 +48,35 @@ struct DeveloperView: View {
         .sheet(isPresented: $isComparing) {
             CleanupComparisonView()
         }
+        .sheet(isPresented: $isComparingPrompts) {
+            PromptABComparisonView()
+                .environmentObject(rewrite)
+        }
     }
 
     // MARK: Recipe prompts
 
     private var promptEditorCard: some View {
         PromptEditorCard()
+    }
+
+    // MARK: Prompt A/B
+
+    private var promptABCard: some View {
+        DSCard {
+            VStack(alignment: .leading, spacing: 14) {
+                header(
+                    symbol: "arrow.left.arrow.right",
+                    tint: DS.FeatureColor.rewrite.color,
+                    title: "Prompt A/B",
+                    detail: "Same fixture text, two prompt variants, one rewrite provider. Promote a winner into Recipe prompts."
+                )
+                HStack {
+                    Button("Compare prompts…") { isComparingPrompts = true }
+                    Spacer()
+                }
+            }
+        }
     }
 
     // MARK: Component gallery

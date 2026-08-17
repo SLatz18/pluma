@@ -12,6 +12,7 @@ enum ChainProgress {
 protocol AIRequestSpying: AnyObject, Sendable {
     func completionRequested(instructions: String, prompt: String) async throws -> String
     func cleanupRequested(directive: String, transcript: String) async throws -> String
+    func rewriteRequested(system: String, prompt: String) async throws -> String
 }
 
 enum RewriteRunner {
@@ -80,7 +81,13 @@ enum RewriteRunner {
         text: String,
         ollamaModel: String
     ) async throws -> String {
-        switch provider {
+        if let spy = await MainActor.run(body: { requestSpy }) {
+            return try await spy.rewriteRequested(
+                system: PromptComposer.systemInstructions,
+                prompt: PromptComposer.userPrompt(directive: directive, text: text)
+            )
+        }
+        return switch provider {
         case .appleIntelligence:
             try await AppleIntelligenceEngine.rewrite(text, directive: directive)
         case .ollama:
