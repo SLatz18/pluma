@@ -74,7 +74,7 @@ enum NavigationFocus: String, Hashable, Sendable {
     case aiReader = "ai-reader-settings"
     case rewriteModel = "rewrite-model-controls"
     case dictationEngines = "dictation-engine-controls"
-    case readerRecipe = "reader-recipe-controls"
+    case readerListening = "reader-listening-controls"
     case readerSpeech = "reader-speech-controls"
 
     var page: MainPage {
@@ -82,7 +82,7 @@ enum NavigationFocus: String, Hashable, Sendable {
         case .aiOpenAIKey, .aiWriting, .aiDictation, .aiReader: .ai
         case .rewriteModel: .rewrite
         case .dictationEngines: .dictation
-        case .readerRecipe, .readerSpeech: .reader
+        case .readerListening, .readerSpeech: .reader
         }
     }
 

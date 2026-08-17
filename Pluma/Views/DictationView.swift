@@ -233,16 +233,16 @@ struct DictationView: View {
         .id(NavigationFocus.dictationEngines.scrollTarget)
     }
 
-    // MARK: Recipe
+    // MARK: Cleanup directives
 
-    // Always in the same slot as the other feature recipes (after the
+    // Always in the same slot as the other feature builders (after the
     // shortcut). Directives only run when cleanup is on; the cards stay
     // visible so the page layout does not jump.
     private var cleanupRecipeSection: some View {
         DSSection(
-            "Recipe",
+            "Cleanup steps",
             detail: controller.cleanupEnabled
-                ? "Stack directives to shape the cleanup pass. They apply in order."
+                ? "Stack directives for the cleanup pass. They apply in order."
                 : "Stack directives for the cleanup pass. Turn on Clean up with AI below to use them."
         ) {
             LazyVGrid(columns: columns, spacing: DS.Spacing.medium) {
