@@ -771,8 +771,11 @@ final class DictationController: ObservableObject {
     }
 
     // Just below the caret's line, so a chip never covers the words already
-    // there. The mouse is the last resort because it is the one anchor with no
-    // relationship to where the transcript will land.
+    // there. Order is most-precise first: the resolved caret, then a real
+    // field's edge, then — for a terminal TUI whose field is a lone cursor cell
+    // that answers no caret geometry — that cell. The mouse is the last resort
+    // because it is the one anchor with no relationship to where the transcript
+    // will land.
     private var chipAnchor: CGPoint {
         if let caret {
             return CGPoint(x: caret.rect.minX, y: caret.rect.maxY + 4)
@@ -780,24 +783,42 @@ final class DictationController: ObservableObject {
         if let element = savedElement, let anchor = FocusedFieldTracker.fieldEdgeAnchor(for: element) {
             return anchor
         }
+        if let element = savedElement, let anchor = FocusedFieldTracker.caretCellAnchor(for: element) {
+            return anchor
+        }
         return SuggestionOverlayController.mouseTopLeftPoint()
     }
 
+    // Names the branch chipAnchor took, mirroring its order so the log never
+    // claims a source the anchor didn't actually come from.
+    private var anchorDerivation: String {
+        if let caret {
+            return "\(caret.source.rawValue) \(FocusedFieldTracker.describe(caret.rect))"
+        }
+        if let element = savedElement, let frame = FocusedFieldTracker.frame(of: element) {
+            if FocusedFieldTracker.fieldEdgeAnchor(for: element) != nil {
+                return "field edge of \(FocusedFieldTracker.describe(frame))"
+            }
+            if FocusedFieldTracker.caretCellAnchor(for: element) != nil {
+                return "caret cell of \(FocusedFieldTracker.describe(frame))"
+            }
+        }
+        return "pointer"
+    }
+
     // The anchor the pill is actually placed at, logged whenever it changes
-    // inside a session. A pill that jumps mid-session is always one of two
-    // things — a probe that answered differently, or no probe answering at all
-    // and the field edge standing in — and the two want opposite fixes. Which
-    // one it was should not require guessing.
+    // inside a session. A pill that lands wrong is always one of a few things —
+    // a probe that answered differently, the field edge standing in, a terminal
+    // cursor cell, or nothing at all and the pointer standing in — and they want
+    // different fixes. Which one it was should not require guessing, so the label
+    // reports the branch chipAnchor actually took rather than merely that a frame
+    // existed.
     private func hudAnchor() -> CGPoint {
         let anchor = chipAnchor
         guard lastHUDAnchor != anchor else { return anchor }
         let origin = lastHUDAnchor == nil ? "placed" : "moved"
-        let derivation =
-            caret.map { "\($0.source.rawValue) \(FocusedFieldTracker.describe($0.rect))" }
-            ?? (savedElement.flatMap { FocusedFieldTracker.frame(of: $0) }
-                .map { "field edge of \(FocusedFieldTracker.describe($0))" } ?? "pointer")
         DebugLog.log(
-            "dictation pill \(origin) at x \(Int(anchor.x)) y \(Int(anchor.y)) via \(derivation)",
+            "dictation pill \(origin) at x \(Int(anchor.x)) y \(Int(anchor.y)) via \(anchorDerivation)",
             at: .quiet
         )
         lastHUDAnchor = anchor
