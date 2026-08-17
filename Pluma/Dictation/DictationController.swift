@@ -348,7 +348,10 @@ final class DictationController: ObservableObject {
         activity = .listening
         showHUD()
         installEscapeMonitors()
-        DebugLog.log("dictation session started via \(provider.rawValue)")
+        // Session boundaries are logged at .quiet on purpose: when a session
+        // stalls, the last boundary written names the step that never finished,
+        // and that has to be true at every log level.
+        DebugLog.log("dictation session started via \(provider.rawValue)", at: .quiet)
 
         let useScreenContext = Preferences.screenContextEnabled(from: defaults)
         do {
@@ -401,6 +404,14 @@ final class DictationController: ObservableObject {
         guard !isFinishing else { return }
         isFinishing = true
 
+        if let pressedAt {
+            DebugLog.log(
+                "dictation released after \(ContinuousClock.Instant.now - pressedAt), "
+                    + "cleanup \(cleanupEnabled ? "on" : "off")",
+                at: .quiet
+            )
+        }
+
         activity = .tidying
         // Recording is over the moment the key comes up, but the HUD would
         // keep pulsing until insertion. Switch it to an honest status for the
@@ -410,7 +421,13 @@ final class DictationController: ObservableObject {
             message: isDrafting ? "Drafting…" : (cleanupEnabled ? "Tidying…" : "Transcribing…"),
             systemImage: isDrafting ? "arrowshape.turn.up.left" : (cleanupEnabled ? "sparkles" : "waveform")
         )
+        let finishStarted = ContinuousClock.Instant.now
         let transcript = await engine.finish()
+        DebugLog.log(
+            "dictation transcribed \(transcript.count) chars in "
+                + "\(ContinuousClock.Instant.now - finishStarted)",
+            at: .quiet
+        )
         // Escape can end the session while transcription or the model is still
         // working. Inserting after that would write text the writer cancelled.
         guard isFinishing else { return }
@@ -429,7 +446,16 @@ final class DictationController: ObservableObject {
         // Draft mode falls through to exactly today's dictation when no
         // conversation was readable or the draft model failed — the user's
         // words are never lost to a feature that could not run.
+        let cleanupStarted = ContinuousClock.Instant.now
         let output = await cleanedOutput(for: transcript)
+        if cleanupEnabled {
+            DebugLog.log(
+                "dictation cleanup returned \(output.count) chars in "
+                    + "\(ContinuousClock.Instant.now - cleanupStarted) "
+                    + "via \(cleanupProvider.rawValue)",
+                at: .quiet
+            )
+        }
         guard isFinishing else { return }
 
         await insert(DictationTranscript.withoutFragmentPeriod(output))
@@ -522,7 +548,7 @@ final class DictationController: ObservableObject {
         )
 
         if await AXTextInsertion.insert(insertion, into: element) {
-            DebugLog.log("dictation inserted \(insertion.count) chars")
+            DebugLog.log("dictation inserted \(insertion.count) chars", at: .quiet)
             remember(insertion, in: element)
             overlay.hide(from: .dictation)
         } else {
@@ -764,6 +790,11 @@ final class DictationController: ObservableObject {
         message: String,
         tone: OverlayTone = .warning
     ) {
+        // Every notice the writer sees leaves a line behind. These are the
+        // refusals and dead ends — a press that hit a permission wall, an
+        // utterance nothing was heard in, a field that rejected the text — and
+        // without them the log goes quiet exactly when it is being read.
+        DebugLog.log("dictation notice: \(message)", at: .quiet)
         overlay.flash(
             systemImage: systemImage,
             message: message,
