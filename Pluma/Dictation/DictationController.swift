@@ -746,7 +746,14 @@ final class DictationController: ObservableObject {
     }
 
     private func showHUD(message: String? = nil, systemImage: String = "mic.fill") {
-        refreshCaret()
+        // A status message means the key is already up and nothing has been
+        // inserted yet, so the caret cannot have moved. Re-reading it here only
+        // lets AX geometry jitter shift the pill at the listening→transcribing
+        // boundary — the exact seam the writer is watching. Freeze the anchor to
+        // the last listening frame instead of refreshing it.
+        if message == nil {
+            refreshCaret()
+        }
 
         // "Tidying…" and the like are the app talking about itself, not the
         // user's words, so they wear the chip instead of posing as transcript
