@@ -74,7 +74,7 @@ enum NavigationFocus: String, Hashable, Sendable {
     case aiReader = "ai-reader-settings"
     case rewriteModel = "rewrite-model-controls"
     case dictationEngines = "dictation-engine-controls"
-    case readerRecipe = "reader-recipe-controls"
+    case readerListening = "reader-listening-controls"
     case readerSpeech = "reader-speech-controls"
 
     var page: MainPage {
@@ -82,7 +82,7 @@ enum NavigationFocus: String, Hashable, Sendable {
         case .aiOpenAIKey, .aiWriting, .aiDictation, .aiReader: .ai
         case .rewriteModel: .rewrite
         case .dictationEngines: .dictation
-        case .readerRecipe, .readerSpeech: .reader
+        case .readerListening, .readerSpeech: .reader
         }
     }
 
@@ -175,45 +175,30 @@ struct MainWindowView: View {
         )
     }
 
+    private var currentPage: MainPage {
+        navigation.page ?? .overview
+    }
+
     var body: some View {
         NavigationSplitView {
-            List(selection: pageSelection) {
-                Section {
-                    ForEach(featurePages) { page in
-                        sidebarRow(page)
+            VStack(spacing: 0) {
+                List(selection: pageSelection) {
+                    Section {
+                        ForEach(featurePages) { page in
+                            sidebarRow(page)
+                        }
                     }
                 }
-                Section("Settings") {
-                    ForEach(settingsPages) { page in
-                        sidebarRow(page)
-                    }
-                }
+                .listStyle(.sidebar)
+                .frame(maxHeight: .infinity, alignment: .top)
+
+                settingsFooter
             }
-            .listStyle(.sidebar)
             .navigationTitle("pluma")
         } detail: {
-            switch navigation.page ?? .overview {
-            case .overview:
-                OverviewView(selection: $navigation.page)
-            case .rewrite:
-                HomeView()
-            case .autocomplete:
-                AutocompleteView()
-            case .dictation:
-                DictationView()
-            case .reader:
-                ReaderView()
-            case .general:
-                SettingsPageView(destination: .general)
-            case .ai:
-                SettingsPageView(destination: .ai)
-            case .writing:
-                SettingsPageView(destination: .writing)
-            case .privacy:
-                SettingsPageView(destination: .privacy)
-            case .developer:
-                DeveloperView()
-            }
+            detailContent
+                .navigationTitle(currentPage.title)
+                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         }
         .frame(minWidth: 860, minHeight: 620)
         // The cheat-code monitor exists only while the window is open, which
@@ -224,6 +209,81 @@ struct MainWindowView: View {
             if !unlocked, navigation.page == .developer {
                 navigation.page = .overview
             }
+        }
+    }
+
+    /// Settings stay glued to the bottom of the sidebar, Safari/Finder-style.
+    /// Deliberately background-free so the sidebar's own material runs
+    /// unbroken from the feature list down through this block. Rows call
+    /// `MainNavigation` directly so selection stays reliable outside the
+    /// feature List (a second `List` with the same binding was flaky).
+    private var settingsFooter: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Settings")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 2)
+
+            ForEach(settingsPages) { page in
+                settingsFooterRow(page)
+            }
+        }
+        .padding(.top, DS.Spacing.small)
+        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func settingsFooterRow(_ page: MainPage) -> some View {
+        let isSelected = currentPage == page
+        return Button {
+            navigation.select(page)
+        } label: {
+            Label {
+                Text(page.title)
+            } icon: {
+                Image(systemName: page.symbolName)
+                    .foregroundStyle(isSelected ? Color.white : page.tint)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                isSelected ? Color.accentColor : Color.clear,
+                in: RoundedRectangle(cornerRadius: DS.Radius.badge, style: .continuous)
+            )
+            .foregroundStyle(isSelected ? Color.white : Color.primary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        .accessibilityIdentifier("nav-\(page.rawValue)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var detailContent: some View {
+        switch currentPage {
+        case .overview:
+            OverviewView(selection: $navigation.page)
+        case .rewrite:
+            HomeView()
+        case .autocomplete:
+            AutocompleteView()
+        case .dictation:
+            DictationView()
+        case .reader:
+            ReaderView()
+        case .general:
+            SettingsPageView(destination: .general)
+        case .ai:
+            SettingsPageView(destination: .ai)
+        case .writing:
+            SettingsPageView(destination: .writing)
+        case .privacy:
+            SettingsPageView(destination: .privacy)
+        case .developer:
+            DeveloperView()
         }
     }
 

@@ -69,7 +69,7 @@ struct PlumaApp: App {
         }
         .defaultSize(width: 980, height: 700)
         .windowResizability(.contentMinSize)
-        .windowToolbarStyle(.unified)
+        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
         .commands {
             CommandGroup(replacing: .appSettings) {
                 OpenSettingsPageCommand()
