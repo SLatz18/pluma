@@ -133,6 +133,7 @@ final class DictationController: ObservableObject {
     private var stopRequested = false
     private var isFinishing = false
     private var escapeMonitors: [Any] = []
+    private var lastHUDAnchor: CGPoint?
 
     // A tap that never held long enough to say anything is a mis-press, not a
     // zero-length dictation.
@@ -685,6 +686,7 @@ final class DictationController: ObservableObject {
         savedPrefix = nil
         caret = nil
         caretReadAt = nil
+        lastHUDAnchor = nil
         ghostEligibility = .unknown
         liveText = ""
         updateActivity()
@@ -745,6 +747,27 @@ final class DictationController: ObservableObject {
         return SuggestionOverlayController.mouseTopLeftPoint()
     }
 
+    // The anchor the pill is actually placed at, logged whenever it changes
+    // inside a session. A pill that jumps mid-session is always one of two
+    // things — a probe that answered differently, or no probe answering at all
+    // and the field edge standing in — and the two want opposite fixes. Which
+    // one it was should not require guessing.
+    private func hudAnchor() -> CGPoint {
+        let anchor = chipAnchor
+        guard lastHUDAnchor != anchor else { return anchor }
+        let origin = lastHUDAnchor == nil ? "placed" : "moved"
+        let derivation =
+            caret.map { "\($0.source.rawValue) \(FocusedFieldTracker.describe($0.rect))" }
+            ?? (savedElement.flatMap { FocusedFieldTracker.frame(of: $0) }
+                .map { "field edge of \(FocusedFieldTracker.describe($0))" } ?? "pointer")
+        DebugLog.log(
+            "dictation pill \(origin) at x \(Int(anchor.x)) y \(Int(anchor.y)) via \(derivation)",
+            at: .quiet
+        )
+        lastHUDAnchor = anchor
+        return anchor
+    }
+
     private func showHUD(message: String? = nil, systemImage: String = "mic.fill") {
         // A status message means the key is already up and nothing has been
         // inserted yet, so the caret cannot have moved. Re-reading it here only
@@ -764,7 +787,7 @@ final class DictationController: ObservableObject {
                     systemImage: systemImage,
                     message: message,
                     tone: .accent,
-                    anchor: chipAnchor
+                    anchor: hudAnchor()
                 ),
                 from: .dictation
             )
@@ -779,7 +802,7 @@ final class DictationController: ObservableObject {
             Preferences.inlineSuggestions(from: defaults),
             let caret, ghostEligibility.allows(caret)
         else {
-            overlay.show(.dictation(transcript: liveText, anchor: chipAnchor), from: .dictation)
+            overlay.show(.dictation(transcript: liveText, anchor: hudAnchor()), from: .dictation)
             return
         }
         overlay.show(
