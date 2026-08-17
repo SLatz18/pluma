@@ -377,6 +377,12 @@ final class DictationController: ObservableObject {
         ghostEligibility = Self.ghostEligibility(of: element)
         liveText = ""
         activity = .listening
+        // A new session's first pill anchors at this session's caret, never
+        // eased toward a pill left over from the last one. A lingering notice or
+        // an autocomplete suggestion can keep the panel visible across a caret
+        // move, and without this the "Listening…" pill would spawn on the old
+        // line and only jump right when "Transcribing…" replaced it.
+        overlay.resetPillAnchorBaseline()
         showHUD()
         installEscapeMonitors()
         // Session boundaries are logged at .quiet on purpose: when a session
