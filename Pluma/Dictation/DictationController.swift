@@ -363,11 +363,13 @@ final class DictationController: ObservableObject {
         } catch {
             DebugLog.log("dictation start failed: \(error.localizedDescription)", at: .quiet)
             isStarting = false
+            let anchor = chipAnchor
             await cancelSession()
             flash(
                 systemImage: "exclamationmark.triangle",
                 message: error.localizedDescription,
-                tone: .failure
+                tone: .failure,
+                at: anchor
             )
             return
         }
@@ -392,8 +394,9 @@ final class DictationController: ObservableObject {
         }
 
         if let pressedAt, ContinuousClock.Instant.now - pressedAt < Self.minimumHold {
+            let anchor = chipAnchor
             await cancelSession()
-            flash(systemImage: "mic", message: "Hold to talk")
+            flash(systemImage: "mic", message: "Hold to talk", at: anchor)
             return
         }
 
@@ -432,8 +435,12 @@ final class DictationController: ObservableObject {
         // working. Inserting after that would write text the writer cancelled.
         guard isFinishing else { return }
         guard !transcript.isEmpty else {
+            // Cancel first so the notice outlives the session's own hide, but
+            // read the anchor before that: this belongs at the caret the writer
+            // was dictating into.
+            let anchor = chipAnchor
             await cancelSession()
-            flash(systemImage: "mic.slash", message: "Nothing was heard")
+            flash(systemImage: "mic.slash", message: "Nothing was heard", at: anchor)
             return
         }
 
@@ -651,17 +658,11 @@ final class DictationController: ObservableObject {
 
     private func cancelFromEscape() async {
         guard isSessionActive else { return }
-        DebugLog.log("dictation cancelled by Escape", at: .quiet)
-        // Read the anchor before the session is torn down: the notice belongs at
-        // the caret the writer was dictating into, not wherever the pointer sits.
+        // The notice logs itself; a second line for the same instant would
+        // clutter the boundary trail this session leaves behind.
         let anchor = chipAnchor
         await cancelSession()
-        overlay.flash(
-            systemImage: "xmark",
-            message: "Dictation cancelled",
-            atTopLeftPoint: anchor,
-            from: .dictation
-        )
+        flash(systemImage: "xmark", message: "Dictation cancelled", at: anchor)
     }
 
     private func cancelSession() async {
@@ -785,10 +786,17 @@ final class DictationController: ObservableObject {
         )
     }
 
+    // `anchor` is for notices that report on a session already torn down: the
+    // teardown drops the caret, so asking for the anchor afterwards yields the
+    // pointer. Callers read it first and pass it in. Left nil, a live session
+    // still points at its caret, and everything else — permission walls, "Click
+    // into a text field first" — has no field to point at and belongs at the
+    // pointer by design.
     private func flash(
         systemImage: String,
         message: String,
-        tone: OverlayTone = .warning
+        tone: OverlayTone = .warning,
+        at anchor: CGPoint? = nil
     ) {
         // Every notice the writer sees leaves a line behind. These are the
         // refusals and dead ends — a press that hit a permission wall, an
@@ -799,8 +807,9 @@ final class DictationController: ObservableObject {
             systemImage: systemImage,
             message: message,
             tone: tone,
-            atTopLeftPoint: isSessionActive
-                ? chipAnchor : SuggestionOverlayController.mouseTopLeftPoint(),
+            atTopLeftPoint: anchor
+                ?? (isSessionActive
+                    ? chipAnchor : SuggestionOverlayController.mouseTopLeftPoint()),
             from: .dictation
         )
     }
