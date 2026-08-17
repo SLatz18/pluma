@@ -146,3 +146,9 @@ Read intent, not the literal command name — requests describe outcomes.
   it.
 - Uncommitted work is the ONLY unrecoverable state. Commit before a session
   ends, and commit freely on feature branches without being asked.
+- **Name branches, commits, and PRs for what pluma does**, not for another
+  app's brand. Using Safari/Finder/Notes as an internal reference while
+  designing is fine; putting those names in `feat/…`, commit subjects, or
+  PR titles reads like imitation. Prefer outcome names
+  (`feat/pinned-settings-sidebar`, "Adopt a native unified toolbar…") over
+  reference names (`feat/safari-chrome`).
