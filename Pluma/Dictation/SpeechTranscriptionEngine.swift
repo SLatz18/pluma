@@ -34,6 +34,13 @@ final class SpeechTranscriptionEngine: DictationTranscribing {
     private var capture: AudioCaptureSession?
     private var resultsTask: Task<Void, Never>?
     private var finalText = ""
+    private var isDrained = false
+
+    // Finalizing an on-device session takes well under a second. Waiting for it
+    // is bounded anyway: whatever wedges the analyzer, the words already
+    // transcribed belong to the writer, and a HUD that never clears is the one
+    // outcome worse than a truncated tail.
+    private static let drainTimeout: Duration = .seconds(8)
 
     init(locale: Locale = .current) {
         requestedLocale = locale
@@ -140,6 +147,30 @@ final class SpeechTranscriptionEngine: DictationTranscribing {
         capture?.stop()
         capture = nil
 
+        isDrained = false
+        let drain = Task { [weak self] in
+            await self?.drain()
+            self?.isDrained = true
+        }
+        // Polled rather than raced inside a task group: a group waits for every
+        // child before returning, so an analyzer that ignores cancellation would
+        // make the timeout itself hang. This loop can't be held hostage.
+        let deadline = ContinuousClock.Instant.now + Self.drainTimeout
+        while !isDrained, ContinuousClock.Instant.now < deadline {
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        if !isDrained {
+            DebugLog.log("dictation finalize stalled; using what was transcribed", at: .quiet)
+            drain.cancel()
+            resultsTask?.cancel()
+        }
+        resultsTask = nil
+        analyzer = nil
+
+        return DictationTranscript.assemble(finalText)
+    }
+
+    private func drain() async {
         if let analyzer {
             do {
                 try await analyzer.finalizeAndFinishThroughEndOfInput()
@@ -148,10 +179,6 @@ final class SpeechTranscriptionEngine: DictationTranscribing {
             }
         }
         await resultsTask?.value
-        resultsTask = nil
-        analyzer = nil
-
-        return DictationTranscript.assemble(finalText)
     }
 
     func cancel() async {

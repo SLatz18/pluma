@@ -76,20 +76,28 @@ final class AudioCaptureSession: NSObject, @unchecked Sendable {
         return stream
     }
 
+    // The whole teardown runs on the capture queue holding a *strong* reference,
+    // and both details are load-bearing. Callers release this session on the line
+    // after stop(), so a `[weak self]` hop finds nothing to do and never finishes
+    // the stream — and an audio stream that never ends leaves the analyzer
+    // waiting for an end of input that never arrives, with dictation's HUD stuck
+    // and nothing inserted. Queueing also orders the teardown behind the start:
+    // AVCaptureSession throws if startRunning lands between beginConfiguration
+    // and commitConfiguration.
     func stop() {
-        session.stopRunning()
-        captureQueue.async { [weak self] in
-            self?.continuation?.finish()
-            self?.continuation = nil
+        captureQueue.async { [self] in
+            continuation?.finish()
+            continuation = nil
+            session.stopRunning()
+            session.beginConfiguration()
+            for input in session.inputs {
+                session.removeInput(input)
+            }
+            if session.outputs.contains(output) {
+                session.removeOutput(output)
+            }
+            session.commitConfiguration()
         }
-        session.beginConfiguration()
-        for input in session.inputs {
-            session.removeInput(input)
-        }
-        if session.outputs.contains(output) {
-            session.removeOutput(output)
-        }
-        session.commitConfiguration()
     }
 }
 
