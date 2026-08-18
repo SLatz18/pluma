@@ -1,5 +1,9 @@
 # pluma
 
+<p align="center">
+  <img src="docs/images/plumafina-icon.png" alt="plumafina app icon" width="180">
+</p>
+
 **pluma** is a native macOS writing layer — on-device by default, cross-app by design.
 
 Select text anywhere and rewrite it. Get ghost-text completions as you type.
