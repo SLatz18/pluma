@@ -235,3 +235,197 @@ final class SuggestionPresentationTests: XCTestCase {
         XCTAssertFalse(midLine.allows(precise))
     }
 }
+
+// MARK: - Where status lives
+
+// Status is the app talking about itself, so it may leave the caret for the
+// notch. Text the writer is about to accept never does. The geometry is pure so
+// it can be checked against hand-built displays without a screen.
+final class NotchPlacementTests: XCTestCase {
+    private var defaults: UserDefaults!
+    private var suiteName: String!
+
+    // A 14-inch laptop display with a 190 pt notch in a 37 pt menu bar.
+    private let laptop = NotchGeometry.Display(
+        frame: CGRect(x: 0, y: 0, width: 1512, height: 982),
+        visibleFrame: CGRect(x: 0, y: 0, width: 1512, height: 945),
+        notch: CGRect(x: 661, y: 945, width: 190, height: 37)
+    )
+
+    // An external monitor to the right of it, with a 25 pt menu bar and no notch.
+    private let external = NotchGeometry.Display(
+        frame: CGRect(x: 1512, y: 0, width: 2560, height: 1440),
+        visibleFrame: CGRect(x: 1512, y: 0, width: 2560, height: 1415),
+        notch: nil
+    )
+
+    override func setUp() {
+        super.setUp()
+        suiteName = "pluma.tests.\(UUID().uuidString)"
+        defaults = UserDefaults(suiteName: suiteName)
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults = nil
+        suiteName = nil
+        super.tearDown()
+    }
+
+    func testStatusNoticesDefaultToTheNotch() {
+        XCTAssertEqual(Preferences.statusPlacement(from: defaults), .notch)
+    }
+
+    func testStatusPlacementRoundTrips() {
+        Preferences.setStatusPlacement(.caret, to: defaults)
+        XCTAssertEqual(Preferences.statusPlacement(from: defaults), .caret)
+        Preferences.setStatusPlacement(.notch, to: defaults)
+        XCTAssertEqual(Preferences.statusPlacement(from: defaults), .notch)
+    }
+
+    func testOnlyStatusMovesToTheNotch() {
+        let status = OverlayPresentation.Content.status(
+            systemImage: "sparkles", message: "Rewriting 2 of 3…", tone: .accent, pulses: false
+        )
+        XCTAssertTrue(
+            OverlayPlacementPolicy.usesNotch(for: status, placement: .notch, companionRunning: false)
+        )
+        XCTAssertFalse(
+            OverlayPlacementPolicy.usesNotch(for: status, placement: .caret, companionRunning: false),
+            "the setting keeps status at the caret"
+        )
+        XCTAssertFalse(
+            OverlayPlacementPolicy.usesNotch(for: status, placement: .notch, companionRunning: true),
+            "another notch app owns those pixels"
+        )
+        XCTAssertFalse(
+            OverlayPlacementPolicy.usesNotch(
+                for: .suggestion(text: "word"), placement: .notch, companionRunning: false
+            ),
+            "a suggestion is about to be accepted and belongs at the caret"
+        )
+        XCTAssertFalse(
+            OverlayPlacementPolicy.usesNotch(
+                for: .dictation(transcript: "live words"), placement: .notch, companionRunning: false
+            ),
+            "the live transcript stays where the words will land"
+        )
+    }
+
+    // MARK: Finding the notch
+
+    func testNotchIsTheGapBetweenTheMenuBarAreas() {
+        let notch = NotchGeometry.notchRect(
+            screenFrame: laptop.frame,
+            safeAreaTop: 37,
+            auxiliaryTopLeft: CGRect(x: 0, y: 945, width: 661, height: 37),
+            auxiliaryTopRight: CGRect(x: 851, y: 945, width: 661, height: 37)
+        )
+        XCTAssertEqual(notch, CGRect(x: 661, y: 945, width: 190, height: 37))
+    }
+
+    func testNoSafeAreaMeansNoNotch() {
+        XCTAssertNil(
+            NotchGeometry.notchRect(
+                screenFrame: external.frame, safeAreaTop: 0,
+                auxiliaryTopLeft: nil, auxiliaryTopRight: nil
+            )
+        )
+    }
+
+    func testSafeAreaWithoutAuxiliaryAreasAssumesACentredNotch() {
+        let notch = NotchGeometry.notchRect(
+            screenFrame: laptop.frame, safeAreaTop: 37,
+            auxiliaryTopLeft: nil, auxiliaryTopRight: nil
+        )
+        XCTAssertEqual(notch?.midX ?? -1, laptop.frame.midX, accuracy: 0.5)
+        XCTAssertEqual(notch?.height, 37)
+        XCTAssertEqual(notch?.width, DS.Overlay.assumedNotchWidth)
+    }
+
+    // MARK: Framing the HUD
+
+    func testHUDIsCentredOnTheNotchAndTopsOutAboveTheScreen() {
+        let size = CGSize(width: 320, height: 100)
+        let frame = NotchGeometry.panelFrame(for: laptop, size: size)
+        XCTAssertEqual(frame.midX, 756, accuracy: 0.5)
+        XCTAssertEqual(frame.maxY, laptop.frame.maxY + DS.Overlay.notchHeadroom)
+        XCTAssertEqual(frame.size, size)
+    }
+
+    func testHUDHidesItsHeadroomAndTheNotch() {
+        XCTAssertEqual(NotchGeometry.hiddenTopHeight(for: laptop), DS.Overlay.notchHeadroom + 37)
+        XCTAssertEqual(NotchGeometry.hiddenTopHeight(for: external), 0)
+    }
+
+    func testHUDFlaresPastTheNotchOnBothSides() {
+        XCTAssertEqual(NotchGeometry.minimumWidth(for: laptop), 190 + 2 * DS.Overlay.notchFlare)
+        XCTAssertEqual(NotchGeometry.minimumWidth(for: external), 0)
+    }
+
+    func testWithoutANotchTheHUDHangsUnderTheMenuBar() {
+        let size = CGSize(width: 320, height: 36)
+        let frame = NotchGeometry.panelFrame(for: external, size: size)
+        XCTAssertEqual(frame.midX, external.visibleFrame.midX, accuracy: 0.5)
+        XCTAssertEqual(frame.maxY, external.visibleFrame.maxY - DS.Overlay.screenInset)
+        XCTAssertEqual(frame.size, size)
+    }
+
+    func testAWideMessageStaysInsideTheDisplay() {
+        let frame = NotchGeometry.panelFrame(for: laptop, size: CGSize(width: 1600, height: 100))
+        XCTAssertEqual(frame.minX, laptop.frame.minX)
+        XCTAssertEqual(frame.width, laptop.frame.width)
+
+        let offCentre = NotchGeometry.Display(
+            frame: laptop.frame, visibleFrame: laptop.visibleFrame,
+            notch: CGRect(x: 40, y: 945, width: 190, height: 37)
+        )
+        let nearEdge = NotchGeometry.panelFrame(for: offCentre, size: CGSize(width: 600, height: 100))
+        XCTAssertEqual(nearEdge.minX, 0, "slid right rather than falling off the left edge")
+    }
+
+    // Tucked, the HUD's bottom edge sits exactly at the notch's bottom edge, so
+    // nothing of it shows below the menu bar before it descends.
+    func testTheHUDStartsTuckedBehindTheNotch() {
+        let target = NotchGeometry.panelFrame(for: laptop, size: CGSize(width: 320, height: 100))
+        let tucked = NotchGeometry.tuckedFrame(for: laptop, target: target)
+        XCTAssertEqual(tucked.size, target.size)
+        XCTAssertEqual(tucked.minY, laptop.notch!.minY, accuracy: 0.5)
+    }
+
+    // Hanging free, all of the capsule is visible, so it starts one full height
+    // higher — behind the menu bar — and slides down into place.
+    func testWithoutANotchTheHUDStartsBehindTheMenuBar() {
+        let target = NotchGeometry.panelFrame(for: external, size: CGSize(width: 320, height: 36))
+        let tucked = NotchGeometry.tuckedFrame(for: external, target: target)
+        XCTAssertEqual(tucked.minY, target.maxY, accuracy: 0.5)
+    }
+
+    // The real controller, on a real screen: a status ends up at the notch and
+    // hands the panel back to the caret when a suggestion follows.
+    @MainActor
+    func testStatusPresentsAtTheNotchOnAScreen() throws {
+        guard !NSScreen.screens.isEmpty else {
+            throw XCTSkip("needs a display")
+        }
+        let overlay = SuggestionOverlayController()
+        overlay.show(
+            .status(
+                systemImage: "sparkles", message: "Rewriting…", tone: .accent,
+                anchor: CGPoint(x: 100, y: 100)
+            ),
+            from: .rewrite
+        )
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        XCTAssertTrue(overlay.isShowingAtNotch)
+
+        overlay.hide(from: .rewrite)
+        overlay.show(
+            .suggestion(text: "a suggestion", anchor: CGPoint(x: 100, y: 100)),
+            from: .autocomplete
+        )
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        XCTAssertFalse(overlay.isShowingAtNotch)
+        overlay.hide()
+    }
+}

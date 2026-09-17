@@ -30,6 +30,12 @@ enum PlumaTheme {
         static let dismiss: TimeInterval = 0.12
         static let flash: Duration = .seconds(2.5)
         static let rise: CGFloat = 5
+        /// The notch HUD descends out from under the notch rather than fading
+        /// in place, so it earns a slightly longer entrance than the chip.
+        static let notchPresent: TimeInterval = 0.22
+        /// Width changes while the HUD is up (a longer message replacing a
+        /// short one) glide instead of snapping.
+        static let notchResize: TimeInterval = 0.18
         /// The one spring for revealing/hiding rows and disclosures, so every
         /// surface settles with the same character.
         static let spring = Animation.spring(response: 0.32, dampingFraction: 0.85)
@@ -63,6 +69,24 @@ enum PlumaTheme {
         static let maximumTextWidth: CGFloat = 460
         static let screenInset: CGFloat = 6
         static let verticalJitterTolerance: CGFloat = 8
+
+        /// The notch HUD's bottom corners. Larger than the card radius so the
+        /// glass reads as the notch flaring out, not as a chip parked under it.
+        static let notchRadius: CGFloat = 18
+        /// How far the HUD's frame extends above the top edge of the screen.
+        /// The glass is one uniformly rounded shape; hiding its top corners
+        /// offscreen is what makes the visible part flush with the notch.
+        static let notchHeadroom: CGFloat = 24
+        /// The glass reaches this far past the notch on each side before it
+        /// turns the corner.
+        static let notchFlare: CGFloat = 12
+        /// Padding between the notch's bottom edge and the message.
+        static let notchTopInset: CGFloat = 8
+        /// Padding under the message, above the rounded bottom.
+        static let notchBottomInset: CGFloat = 9
+        /// Fallback notch width when the screen reports a top safe area but
+        /// not the auxiliary areas around it.
+        static let assumedNotchWidth: CGFloat = 190
     }
 
     enum FeatureColor: String, Hashable, Sendable {

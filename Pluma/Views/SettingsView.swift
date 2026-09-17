@@ -40,7 +40,7 @@ enum SettingsDestination: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .general: "Caps Lock shortcuts and how pluma starts."
+        case .general: "Caps Lock shortcuts, where notices appear, and how pluma starts."
         case .ai: "Engines, models, voices, and OpenAI access for every feature."
         case .writing: "Context, memory, and style shared across features that write or summarize."
         case .privacy: "Where text goes, what pluma can access, and what it stores."
@@ -66,6 +66,7 @@ struct SettingsPageView: View {
 
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @State private var launchAtLoginError: String?
+    @State private var statusPlacement = Preferences.statusPlacement()
     @State private var showImporter = false
     @State private var showStyleEditor = false
     @State private var importError: String?
@@ -219,6 +220,22 @@ struct SettingsPageView: View {
                             tint: .red,
                             text: launchAtLoginError
                         )
+                    }
+
+                    DSRowDivider()
+
+                    DSSettingRow(
+                        "Status notices",
+                        detail: "Progress and notices (“Rewriting…”, “Listening”, permission requests) appear as a glass capsule under the notch, or near the caret. Suggestions and live dictation always stay at the caret."
+                    ) {
+                        Picker("Status notices", selection: statusPlacementBinding) {
+                            ForEach(StatusPlacement.allCases, id: \.self) { placement in
+                                Text(placement.title).tag(placement)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
+                        .frame(width: 240)
                     }
 
                     DSRowDivider()
@@ -517,6 +534,16 @@ struct SettingsPageView: View {
                 } catch {
                     launchAtLoginError = "Couldn't update login items: \(error.localizedDescription)"
                 }
+            }
+        )
+    }
+
+    private var statusPlacementBinding: Binding<StatusPlacement> {
+        Binding(
+            get: { statusPlacement },
+            set: { newValue in
+                Preferences.setStatusPlacement(newValue)
+                statusPlacement = newValue
             }
         )
     }

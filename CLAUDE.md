@@ -36,6 +36,15 @@ xcodebuild -project Pluma.xcodeproj -scheme Pluma -configuration Debug \
 
 - `App/PlumaApp.swift` — builds shared `SuggestionOverlayController` and
   injects it into all presenters. One overlay panel, owner-scoped hides.
+  Status presentations (`.status`) go to the notch HUD (`NotchHUDRenderer`, a
+  `NSGlassEffectView` capsule framed by `NotchGeometry` in
+  `DesignSystem/OverlayPresentation.swift`) unless Settings → General says
+  caret or a notch companion app is running; ghost text, the suggestion chip,
+  and the live transcript always stay at the caret. `NotchGeometry`,
+  `StatusPlacement`, `OverlayPlacementPolicy`, `NotchHUDRenderer`, and the
+  `NotchPlacementTests` case live inside existing files because they were
+  written where `xcodegen` could not run — split them out and regenerate when
+  next on a Mac.
 - `DesignSystem/` — semantic tokens, feature definitions, shared surfaces,
   WHEN → THEN → RESULT flow, and overlay presentations (`DS.*`).
 - `Views/MainWindowView.swift` — the single window (`Window` scene, no

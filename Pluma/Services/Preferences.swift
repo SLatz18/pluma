@@ -61,6 +61,8 @@ enum Preferences {
     static let capsTapTogglesCapsLockKey = "pluma.capsTapTogglesCapsLock"
     /// Max Caps press duration still counted as a tap (seconds).
     static let capsTapThresholdKey = "pluma.capsTapThreshold"
+    /// Where status notices appear: at the notch (default) or near the caret.
+    static let statusPlacementKey = "pluma.statusPlacement"
 
     static func provider(from defaults: UserDefaults = .standard) -> RewriteProviderChoice {
         guard
@@ -572,6 +574,24 @@ enum Preferences {
 
     static func setReaderRate(_ rate: Double, to defaults: UserDefaults = .standard) {
         defaults.set(clampedReaderRate(rate), forKey: readerRateKey)
+    }
+
+    /// Status notices default to the notch: it is the one place on a Mac laptop
+    /// that is never covered by a window, and the caret is left to the words.
+    static func statusPlacement(from defaults: UserDefaults = .standard) -> StatusPlacement {
+        guard
+            let rawValue = defaults.string(forKey: statusPlacementKey),
+            let placement = StatusPlacement(rawValue: rawValue)
+        else {
+            return .defaultPlacement
+        }
+        return placement
+    }
+
+    static func setStatusPlacement(
+        _ placement: StatusPlacement, to defaults: UserDefaults = .standard
+    ) {
+        defaults.set(placement.rawValue, forKey: statusPlacementKey)
     }
 
     static func readerDeliveryMode(

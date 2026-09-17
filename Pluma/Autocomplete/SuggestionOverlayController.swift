@@ -173,6 +173,150 @@ final class OverlayPillRenderer: NSVisualEffectView {
     }
 }
 
+// The notch HUD: a Liquid Glass capsule that descends out from under the
+// notch when pluma has something to say about itself — "Rewriting 2 of 3…",
+// "Listening", a permission wall — and retracts when it is done. On a display
+// without a notch the same capsule hangs from the top centre of the screen.
+//
+// The glass is one uniformly rounded shape. Its top corners are hidden above
+// the screen edge (the panel's frame extends past the top by
+// DS.Overlay.notchHeadroom), so the visible part is flush with the notch and
+// only the bottom corners show. Nothing here pretends to be the document, so
+// unlike ghost text it is free to look like a piece of the system.
+//
+// Pure AppKit for the same reason the pill is: the overlay must stay outside
+// SwiftUI's display cycle.
+final class NotchHUDRenderer: NSView {
+    private let glass = NSGlassEffectView()
+    private let body = NSView()
+    private let iconView = NSImageView()
+    private let label = NSTextField(labelWithString: "")
+    private let stack = NSStackView()
+    private var stackTop: NSLayoutConstraint?
+    private var hiddenTopHeight: CGFloat = 0
+    private var minimumWidth: CGFloat = 0
+    private(set) var isFlushWithScreenTop = false
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+
+        glass.frame = bounds
+        glass.autoresizingMask = [.width, .height]
+        addSubview(glass)
+        // Sized before it is handed over so the stack's constraints have a real
+        // reference even if the glass view keeps the content view's own frame.
+        body.frame = glass.bounds
+        body.autoresizingMask = [.width, .height]
+        glass.contentView = body
+
+        label.font = DS.roundedUIFont(ofSize: DS.Overlay.textSize, weight: .medium)
+        label.textColor = .labelColor
+        label.lineBreakMode = .byTruncatingTail
+        label.maximumNumberOfLines = 1
+        label.preferredMaxLayoutWidth = DS.Overlay.maximumTextWidth
+        label.alignment = .center
+
+        iconView.contentTintColor = .secondaryLabelColor
+
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = DS.Overlay.itemSpacing
+        stack.edgeInsets = NSEdgeInsets(
+            top: 0, left: DS.Overlay.horizontalInset + DS.Spacing.xSmall,
+            bottom: 0, right: DS.Overlay.horizontalInset + DS.Spacing.xSmall
+        )
+        stack.addArrangedSubview(iconView)
+        stack.addArrangedSubview(label)
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        body.addSubview(stack)
+
+        let top = stack.topAnchor.constraint(
+            equalTo: body.topAnchor, constant: DS.Overlay.notchTopInset
+        )
+        stackTop = top
+        NSLayoutConstraint.activate([
+            top,
+            stack.bottomAnchor.constraint(
+                equalTo: body.bottomAnchor, constant: -DS.Overlay.notchBottomInset
+            ),
+            stack.centerXAnchor.constraint(equalTo: body.centerXAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: body.leadingAnchor),
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    // Which display the HUD hangs from decides how much of it is hidden (the
+    // headroom plus the notch) and how wide it must be to clear the notch.
+    func configure(for display: NotchGeometry.Display) {
+        isFlushWithScreenTop = display.notch != nil
+        hiddenTopHeight = NotchGeometry.hiddenTopHeight(for: display)
+        minimumWidth = NotchGeometry.minimumWidth(for: display)
+        stackTop?.constant = hiddenTopHeight + DS.Overlay.notchTopInset
+        needsLayout = true
+    }
+
+    // The message plus the part of the shape nobody sees. The controller sizes
+    // the panel from this, so it has to include the offscreen headroom.
+    override var fittingSize: NSSize {
+        let inner = stack.fittingSize
+        let width = max(inner.width, minimumWidth)
+        let height = hiddenTopHeight + DS.Overlay.notchTopInset + inner.height
+            + DS.Overlay.notchBottomInset
+        return NSSize(width: ceil(width), height: ceil(height))
+    }
+
+    // Flush with the screen the shape keeps the notch radius on its bottom
+    // corners; hanging free under a menu bar it becomes a capsule.
+    override func layout() {
+        super.layout()
+        glass.cornerRadius = isFlushWithScreenTop
+            ? DS.Overlay.notchRadius
+            : min(bounds.height / 2, DS.Overlay.notchRadius)
+    }
+
+    func showStatus(
+        systemImage: String,
+        message: String,
+        tone: OverlayTone,
+        pulses: Bool
+    ) {
+        iconView.contentTintColor = tone.color
+        iconView.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: DS.Overlay.textSize, weight: .semibold))
+        iconView.isHidden = iconView.image == nil
+        if pulses {
+            RecordingPulse.start(on: iconView)
+        } else {
+            RecordingPulse.stop(on: iconView)
+        }
+        label.stringValue = message
+        // Alarm tones wash the glass faintly in their colour; progress and
+        // neutral notices leave it clear so the tint means something.
+        switch tone {
+        case .neutral, .accent:
+            glass.tintColor = nil
+        case .recording, .warning, .failure:
+            glass.tintColor = tone.color.withAlphaComponent(0.18)
+        }
+        needsLayout = true
+    }
+}
+
+// The one panel behind every overlay. The notch HUD's frame deliberately
+// extends past the top edge of the screen; AppKit's default would pull it back
+// inside and expose the glass's top corners.
+private final class OverlayPanel: NSPanel {
+    var allowsFrameAboveScreen = false
+
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        allowsFrameAboveScreen ? frameRect : super.constrainFrameRect(frameRect, to: screen)
+    }
+}
+
 @MainActor
 final class SuggestionOverlayController {
     // One panel is shared by autocomplete, selection rewrite, dictation, and
@@ -192,11 +336,13 @@ final class SuggestionOverlayController {
     private enum Placement {
         case topLeft(CGPoint)
         case ghost(CaretGeometry)
+        case notch(NotchGeometry.Display)
     }
 
-    private var panel: NSPanel?
+    private var panel: OverlayPanel?
     private var pill: OverlayPillRenderer?
     private var ghost: GhostTextView?
+    private var notchHUD: NotchHUDRenderer?
     private var pendingContent: NSView?
     private var pendingPlacement: Placement?
     private var currentOwner: Owner?
@@ -291,6 +437,28 @@ final class SuggestionOverlayController {
 
         case let .status(systemImage, message, tone, pulses):
             guard let anchor = presentation.anchor else { return }
+            // Status is the app talking about itself, so it may leave the
+            // caret for the notch. The anchor still picks the display: a
+            // notice about a field on the external monitor hangs from that
+            // monitor's top edge, not the laptop's notch.
+            if let notchHUD,
+               OverlayPlacementPolicy.usesNotch(
+                   for: presentation.content,
+                   placement: Preferences.statusPlacement(),
+                   companionRunning: NotchCompanions.isRunning
+               ),
+               let screen = NotchGeometry.screen(forTopLeftAnchor: anchor)
+            {
+                lastPillTopLeftAnchor = nil
+                notchHUD.showStatus(
+                    systemImage: systemImage,
+                    message: message,
+                    tone: tone,
+                    pulses: pulses
+                )
+                present(notchHUD, placement: .notch(NotchGeometry.display(for: screen)))
+                return
+            }
             pill.showStatus(
                 systemImage: systemImage,
                 message: message,
@@ -303,6 +471,11 @@ final class SuggestionOverlayController {
                 placement: .topLeft(stabilizedPillAnchor(anchor, preserveVertical: isPillHandover))
             )
         }
+    }
+
+    // True while the notch HUD is the panel's content, visible or fading.
+    var isShowingAtNotch: Bool {
+        panel?.contentView === notchHUD && panel?.isVisible == true
     }
 
     // Forget the vertical smoothing baseline so the next pill anchors at its own
@@ -393,7 +566,8 @@ final class SuggestionOverlayController {
         guard panel == nil else { return }
         let pill = OverlayPillRenderer(frame: .zero)
         let ghost = GhostTextView(frame: .zero)
-        let panel = NSPanel(
+        let notchHUD = NotchHUDRenderer(frame: .zero)
+        let panel = OverlayPanel(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -411,6 +585,7 @@ final class SuggestionOverlayController {
         self.panel = panel
         self.pill = pill
         self.ghost = ghost
+        self.notchHUD = notchHUD
     }
 
     // Deferred one run loop turn so window mutations never land inside an
@@ -427,9 +602,21 @@ final class SuggestionOverlayController {
                 let content = pendingContent,
                 let placement = pendingPlacement
             else { return }
-            if panel.contentView !== content {
+            let previousContent = panel.contentView
+            if previousContent !== content {
                 panel.contentView = content
             }
+            if case let .notch(display) = placement {
+                presentAtNotch(
+                    content, display: display, panel: panel,
+                    wasAlreadyAtNotch: panel.isVisible && previousContent === content
+                )
+                return
+            }
+            // Back from the notch: the chip and ghost text live among ordinary
+            // windows, inside the screen.
+            panel.level = .floating
+            panel.allowsFrameAboveScreen = false
             // The chip is a thing sitting above the document and casts a shadow
             // like the system's own. Ghost text is pretending to be the document,
             // and a shadow would give it away instantly.
@@ -439,7 +626,10 @@ final class SuggestionOverlayController {
 
             // A handover animates its whole frame, so the size must not be
             // applied up front — that is the change the writer is meant to see.
+            // Only chip-to-chip counts: a frame gliding from the notch down to
+            // the caret would read as the notice falling out of the screen.
             let handover = animatesNextFrameChange && panel.isVisible && !reduceMotion
+                && previousContent === self.pill && content === self.pill
             animatesNextFrameChange = false
             if !handover {
                 panel.setContentSize(fitting)
@@ -505,6 +695,60 @@ final class SuggestionOverlayController {
                 panel.animator().alphaValue = 1
                 panel.animator().setFrameOrigin(target)
             }
+        }
+    }
+
+    // The HUD is sized from its own fitting size (message plus the hidden top),
+    // framed by NotchGeometry, and shown above the menu bar. A fresh appearance
+    // descends from behind the notch; a message replacing one already up glides
+    // to its new width in place.
+    private func presentAtNotch(
+        _ content: NSView,
+        display: NotchGeometry.Display,
+        panel: OverlayPanel,
+        wasAlreadyAtNotch: Bool
+    ) {
+        (content as? NotchHUDRenderer)?.configure(for: display)
+        panel.level = .statusBar
+        panel.allowsFrameAboveScreen = display.notch != nil
+        // Flush with the notch the shape has no visible top edge to shadow; a
+        // free-hanging capsule casts one like the chip does.
+        panel.hasShadow = display.notch == nil
+        content.layoutSubtreeIfNeeded()
+        let fitting = content.fittingSize
+        let target = NotchGeometry.panelFrame(for: display, size: fitting)
+        DebugLog.log(
+            "notch HUD \(display.notch == nil ? "island" : "flush") "
+                + "\(Int(target.width))×\(Int(target.height)) at \(Int(target.minX)),\(Int(target.minY))",
+            at: .verbose
+        )
+
+        if wasAlreadyAtNotch, !reduceMotion {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = DS.Motion.notchResize
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                panel.animator().setFrame(target, display: true)
+            }
+            return
+        }
+
+        guard !reduceMotion else {
+            panel.alphaValue = 1
+            panel.setFrame(target, display: true)
+            panel.orderFrontRegardless()
+            return
+        }
+
+        panel.alphaValue = 0
+        panel.setFrame(NotchGeometry.tuckedFrame(for: display, target: target), display: false)
+        panel.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = DS.Motion.notchPresent
+            // Fast out of the notch, soft landing — the same shape the system's
+            // own notch animations have.
+            context.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.9, 0.3, 1)
+            panel.animator().alphaValue = 1
+            panel.animator().setFrame(target, display: true)
         }
     }
 

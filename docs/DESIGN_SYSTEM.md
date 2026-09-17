@@ -64,8 +64,9 @@ buttons are valid exceptions when they are not restyled into a new visual
 component. The hidden Developer page is intentionally utilitarian and exempt.
 
 Non-activating overlays that must remain outside SwiftUI's display cycle are a
-documented AppKit exception. The autocomplete pill and rewrite-feedback HUD may
-use `NSPanel`, `NSVisualEffectView`, and native AppKit controls because hosting
+documented AppKit exception. The autocomplete pill, the notch HUD, and the
+rewrite-feedback HUD may use `NSPanel`, `NSVisualEffectView`,
+`NSGlassEffectView`, and native AppKit controls because hosting
 these transient surfaces in SwiftUI previously caused display-cycle constraint
 re-entry crashes. These overlays must still use semantic system colors and
 native controls, remain non-activating, and preserve keyboard and accessibility
@@ -73,6 +74,22 @@ behavior. Renderer-specific AppKit geometry and type metrics may remain local
 when they are not reusable by SwiftUI surfaces. Keep each exception explicitly
 allowlisted in `scripts/check-design-system.sh` so new AppKit visual primitives
 still fail CI.
+
+### Where status lives
+
+Status — the app talking about itself: "Rewriting 2 of 3…", "Listening",
+permission walls, failures — is presented by `SuggestionOverlayController` as
+a Liquid Glass capsule that descends out from under the notch (`NotchHUDRenderer`,
+framed by `NotchGeometry`). Displays without a notch get the same capsule
+hanging from the top centre. Settings → General → Status notices moves it back
+to the caret; the HUD also yields automatically while another notch app
+(Alcove, boring.notch, NotchNook) is running.
+
+Text the writer is about to accept never moves: ghost text, the suggestion
+chip, and the live dictation transcript stay at the caret, because that is
+where the words will land. New status surfaces route through
+`OverlayPresentation.status(...)` and inherit the placement; they must not
+position their own panels.
 
 ## Review
 
