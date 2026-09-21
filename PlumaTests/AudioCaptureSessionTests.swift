@@ -9,7 +9,22 @@ final class AudioCaptureSessionTests: XCTestCase {
     // release the session on the very next line. The finish was skipped, the
     // stream stayed open, and the analyzer waited for an end of input that never
     // arrived — dictation's HUD stuck on "Transcribing…" with no text inserted.
+    // Real capture hardware is required, not incidental: stop() queues its
+    // teardown behind startRunning on the capture queue, so the continuation is
+    // only finished once the device actually goes live. A headless runner has no
+    // microphone and no TCC grant, startRunning never comes up, and the test
+    // would fail for the environment rather than for the regression. Skip there
+    // and let this run on a developer Mac, which is where it caught the bug.
     func testStopEndsTheStreamEvenWhenTheSessionIsReleasedImmediately() async throws {
+        try XCTSkipIf(
+            MicrophoneSelection.captureDevice() == nil,
+            "No audio capture device in this environment"
+        )
+        try XCTSkipUnless(
+            AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+            "Microphone access is not authorized in this environment"
+        )
+
         let format = try XCTUnwrap(
             AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)
         )
