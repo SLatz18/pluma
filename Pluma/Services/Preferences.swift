@@ -725,6 +725,7 @@ enum Preferences {
         case clipboard = "Clipboard Rewrite"
         case reader = "Reader"
         case draftReply = "Draft a Reply"
+        case clipboardHistory = "Clipboard History"
     }
 
     static func conflictMessage(
@@ -737,7 +738,18 @@ enum Preferences {
             (.dictation, dictationShortcut(from: defaults)),
             (.clipboard, clipboardShortcut(from: defaults)),
             (.reader, readerShortcut(from: defaults)),
-            (.draftReply, draftShortcut(from: defaults))
+            (.draftReply, draftShortcut(from: defaults)),
+            // Not stored in defaults — clipboard history is hardcoded to ⇪4.
+            // It still has to appear here: Carbon refuses a duplicate chord,
+            // so recording ⇪4 for another feature would silently kill one of
+            // the two. Aligned to the live Caps chord so the check matches
+            // what actually gets registered.
+            (
+                .clipboardHistory,
+                GlobalShortcut.clipboardHistoryDefault.aligningCapsChord(
+                    includesShift: capsChordIncludesShift(from: defaults)
+                )
+            )
         ]
         for (occupant, existing) in occupants {
             if occupant == ignoring { continue }

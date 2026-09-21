@@ -38,6 +38,7 @@
 		279174CEC231BFF062B72674 /* CompletionDirective.swift in Sources */ = {isa = PBXBuildFile; fileRef = D266E79D73CB1C58311520A5 /* CompletionDirective.swift */; };
 		293C4DBA4A49A94F5FB72048 /* DictationProviderChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = A56B71090E08C1A1AEADDDB3 /* DictationProviderChoice.swift */; };
 		2A79EDA403F6B904BFC99804 /* PCM16Audio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 108B716376233F654F1B4190 /* PCM16Audio.swift */; };
+		2B3122879C21B5939A0E377E /* ClipboardHistoryControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA2B5AE5A799DBA87FBD5D11 /* ClipboardHistoryControllerTests.swift */; };
 		2BBC184A8D43CDB95AD9284A /* OpenAITTSClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6962D63C941D57C89064F7D3 /* OpenAITTSClient.swift */; };
 		2C1261701D0E841A8A79EA3C /* RewriteServiceProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5140C9E93B800CBAFC626E5F /* RewriteServiceProvider.swift */; };
 		31AEB14DF84BD766CA34AA65 /* SpellCorrection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10D590D13441AAA10CD0CDA /* SpellCorrection.swift */; };
@@ -148,6 +149,7 @@
 		D6B632BD30222C66CC288B13 /* PreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9A184B61C9300921E6B2BBF /* PreferencesTests.swift */; };
 		D767400B9333A251DD14E7A2 /* StyleProfileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBF75BC2789367705C5A1770 /* StyleProfileStore.swift */; };
 		D9BC7566D9AE0AE2CFB3563F /* CheatCodeRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DD064011A97476C89F27EF6 /* CheatCodeRecognizer.swift */; };
+		DA2DB201B4550472F1500D6F /* ClipboardHistoryController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C12EDE47431B1D559418287D /* ClipboardHistoryController.swift */; };
 		DDDD0EAD68BBEAC939B9C7F7 /* OpenAIErrorBody.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC8EDFBA2803756819C9045 /* OpenAIErrorBody.swift */; };
 		DF04F288CC95BEE9D27115AB /* DirectiveChainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F275C3EA62964F77B18C987D /* DirectiveChainTests.swift */; };
 		EA1F2C5AF801B653D4959F28 /* PromptABRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 502D2739532510352AC8B13C /* PromptABRunnerTests.swift */; };
@@ -299,10 +301,12 @@
 		B6E399731292669C4D83DC3F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B8D9B57E93190B904281F60E /* DebugLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLog.swift; sourceTree = "<group>"; };
 		B91979A329EB09A07FA4DAEA /* FocusedFieldTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusedFieldTracker.swift; sourceTree = "<group>"; };
+		BA2B5AE5A799DBA87FBD5D11 /* ClipboardHistoryControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryControllerTests.swift; sourceTree = "<group>"; };
 		BCFDE061D28F71B142C057ED /* DictationTranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationTranscriptTests.swift; sourceTree = "<group>"; };
 		BF1CE710ABEC1FF6E8F183C3 /* CapsLockState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapsLockState.swift; sourceTree = "<group>"; };
 		C0A8FCDC4A0D302B6FD51321 /* PlumaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PlumaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C10933E9DB5939D11C1F7F19 /* GlobalShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalShortcut.swift; sourceTree = "<group>"; };
+		C12EDE47431B1D559418287D /* ClipboardHistoryController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClipboardHistoryController.swift; sourceTree = "<group>"; };
 		C150771F6B5F58C639FFA78F /* ConversationContext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationContext.swift; sourceTree = "<group>"; };
 		C23C733B47D5E1200BCA0E4D /* SpellMemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpellMemoryStore.swift; sourceTree = "<group>"; };
 		C2CEC9FE99301C4DFDC18291 /* SyntheticEventMarker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntheticEventMarker.swift; sourceTree = "<group>"; };
@@ -442,6 +446,7 @@
 				0CD7DCC6A9ABF231324F66E6 /* ChainReorderTests.swift */,
 				C8EBE2A7C63BCB415CF9433A /* CheatCodeRecognizerTests.swift */,
 				7C1762099D540BF0A1E00A9C /* ClipboardFallbackTests.swift */,
+				BA2B5AE5A799DBA87FBD5D11 /* ClipboardHistoryControllerTests.swift */,
 				F809A0572BC8D715517B5C96 /* CompletionSuggestionTests.swift */,
 				3F363BEE6E7965F7F10B4F75 /* ConversationContextTests.swift */,
 				84FF3614732873A2282CA8D4 /* DebugLogLevelTests.swift */,
@@ -566,6 +571,7 @@
 				A81EBFCECC19F73244AB861A /* CapsLockHIDRemap.swift */,
 				BF1CE710ABEC1FF6E8F183C3 /* CapsLockState.swift */,
 				4CF01870C0661C36A0BC849A /* CapsLockStateMachine.swift */,
+				C12EDE47431B1D559418287D /* ClipboardHistoryController.swift */,
 				DA69C13E119E717E725C2CED /* ClipboardRewriteController.swift */,
 				C10933E9DB5939D11C1F7F19 /* GlobalShortcut.swift */,
 				83210C17AA6C5F8B68DFF605 /* HotkeyManager.swift */,
@@ -777,6 +783,7 @@
 				A6D12A5820A53D811ADDE3C4 /* ChainReorderTests.swift in Sources */,
 				5D2D985DC9B8E15CCD95F223 /* CheatCodeRecognizerTests.swift in Sources */,
 				A2BE7C168ED35C8B5AD25296 /* ClipboardFallbackTests.swift in Sources */,
+				2B3122879C21B5939A0E377E /* ClipboardHistoryControllerTests.swift in Sources */,
 				34B8D7CB6633F34C4840E2B5 /* CompletionSuggestionTests.swift in Sources */,
 				87B8708AC4B9DD01D886FBB3 /* ConversationContextTests.swift in Sources */,
 				80C92ABE5F74910BCF5AC47E /* DebugLogLevelTests.swift in Sources */,
@@ -840,6 +847,7 @@
 				1F827C37C6B6B4259808ABB7 /* CleanupComparisonView.swift in Sources */,
 				A0008FA9AC09F5AA854BFE0D /* CleanupDirective.swift in Sources */,
 				B88DC6EBC46F63F1A087B869 /* CleanupProviderChoice.swift in Sources */,
+				DA2DB201B4550472F1500D6F /* ClipboardHistoryController.swift in Sources */,
 				1541723E41A4CDCFE9A024B6 /* ClipboardRewriteController.swift in Sources */,
 				679D3C91845E4F1773F66CE6 /* ComparisonRunner.swift in Sources */,
 				279174CEC231BFF062B72674 /* CompletionDirective.swift in Sources */,
