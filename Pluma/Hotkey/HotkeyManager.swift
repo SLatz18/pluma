@@ -14,6 +14,10 @@ final class HotkeyManager {
         // Push-to-talk like dictation, but the utterance is an *intent* — the
         // reply is drafted from the visible conversation and inserted.
         case draftReply = 5
+        // Opens macOS Spotlight's clipboard history (⌘Space then ⌘4). macOS
+        // exposes no bindable clipboard-history action, so pluma consumes the
+        // chord and synthesizes the documented sequence.
+        case clipboardHistory = 6
     }
 
     var onPress: ((Slot) -> Void)?

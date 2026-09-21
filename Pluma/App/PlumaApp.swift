@@ -12,6 +12,17 @@ struct PlumaApp: App {
     @StateObject private var developer: DeveloperMode
     @StateObject private var openAICredentials: OpenAICredentials
 
+    /// A unit-test bundle runs inside this app as its TEST_HOST, so
+    /// `xcodebuild test` launches a SECOND pluma alongside the one the user has
+    /// running. Two things below are destructive in that situation: the
+    /// crash-recovery clear removes the live instance's HID Caps→F18 mapping
+    /// (the user's Caps Lock key stops working until the other instance's 3 s
+    /// poll re-applies it), and `startMonitoring()` installs a second competing
+    /// event tap. Neither belongs in a test host, so both are skipped there.
+    static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     init() {
         Preferences.migrateShortcutDefaultsIfNeeded()
         Preferences.migrateCustomTTSEndpointIfNeeded()
@@ -21,7 +32,7 @@ struct PlumaApp: App {
         // else: drop only our entry (never the user's other remaps) and clear a
         // Caps Lock the crash may have stranded on. The expander re-applies
         // moments later if the feature is still enabled.
-        if CapsLockHIDRemap.isOurMappingPresent() {
+        if !Self.isRunningTests, CapsLockHIDRemap.isOurMappingPresent() {
             try? CapsLockHIDRemap.clearOurMapping()
             CapsLockState.turnOff()
         }
@@ -43,7 +54,9 @@ struct PlumaApp: App {
         _developer = StateObject(wrappedValue: DeveloperMode(overlay: overlay))
         _openAICredentials = StateObject(wrappedValue: OpenAICredentials.forCurrentProcess())
 
-        CapsLockExpander.shared.startMonitoring()
+        if !Self.isRunningTests {
+            CapsLockExpander.shared.startMonitoring()
+        }
     }
 
     // There is deliberately no `Settings` scene: the main window's sidebar

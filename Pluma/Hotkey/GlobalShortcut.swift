@@ -48,6 +48,16 @@ struct GlobalShortcut: Equatable, Sendable {
         display: "⇪D"
     )
 
+    // Clipboard history rides the same Caps modifier, and 4 is not arbitrary:
+    // it is the key Spotlight itself uses for the history pane, so ⇪4 mirrors
+    // the ⌘4 it ends up sending. Not user-recordable — see
+    // ClipboardHistoryController for why this one is hardcoded.
+    static let clipboardHistoryDefault = GlobalShortcut(
+        keyCode: UInt32(kVK_ANSI_4),
+        carbonModifiers: UInt32(controlKey | optionKey | cmdKey),
+        display: "⇪4"
+    )
+
     static let capsChords: Set<UInt32> = [
         UInt32(controlKey | optionKey | cmdKey),
         UInt32(controlKey | optionKey | shiftKey | cmdKey)

@@ -10,6 +10,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.servicesProvider = provider
         NSUpdateDynamicServices()
 
+        // Started here, not as a `@StateObject`, for the reason in the repo's
+        // toolchain notes: `@StateObject(wrappedValue:)` autoclosures are lazy,
+        // so a controller with no view referencing it would never be built and
+        // the hotkey would never register. Mirrors
+        // `CapsLockExpander.shared.startMonitoring()`.
+        //
+        // Skipped in a test host for the same reason the expander is: the unit
+        // test bundle is hosted by this app, so `xcodebuild test` would
+        // otherwise register ⌃⌥⌘4 in a second process and fight the running
+        // instance for the chord. Every other controller is a lazy
+        // `@StateObject` that never gets built without a window, so this
+        // singleton is the only hotkey owner that would reach a test host.
+        if !PlumaApp.isRunningTests {
+            ClipboardHistoryController.shared.start()
+        }
+
         // Dock presence follows window visibility: LSUIElement starts us as an
         // accessory (menu bar only), a key window upgrades to .regular, and
         // closing the last one drops back. NSPanel is excluded so the overlay
